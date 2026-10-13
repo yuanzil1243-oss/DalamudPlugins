@@ -14,5 +14,21 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "LastUpdate": "1791862409"
+  },
+  {
+    "Author": "Rayla Petal / yuanzil1243-oss",
+    "Name": "PoseKit（简体中文）",
+    "InternalName": "PoseKit",
+    "AssemblyVersion": "2.2.0.9",
+    "DalamudApiLevel": 15,
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/PoseKit.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/PoseKit.zip",
+    "ApplicableVersion": "any",
+    "Description": "PoseKit 简体中文界面：浏览 Penumbra 动画、调整姿势偏移、保存预设、配对播放和骨骼对齐。",
+    "Punchline": "浏览、调整、保存和配对播放姿势。",
+    "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "LastUpdate": "1791950000"
   }
 ]

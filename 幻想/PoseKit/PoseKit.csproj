@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>2.2.0.9</Version>
+    <!-- Manifest fields (see https://github.com/goatcorp/DalamudPackager/blob/827d88dc/DalamudPackager/DalamudPackager.cs#L420) -->
+    <Author>Rayla Petal</Author>
+    <Name>PoseKit</Name>
+    <Punchline>Offset, save, and replay poses; auto-discover Penumbra animation mods.</Punchline>
+    <Description>Animation Assistance Plugin, offset your character's pose, save named presets and replay them, 
+        auto-discover Penumbra pose mods, and manually resync emote timing with a partner.</Description>
+    <RepoUrl>https://github.com/RaylaPetal/PoseKit</RepoUrl>
+    <Tags>pose;emote;offset;penumbra</Tags>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Built from source: the published Penumbra.Api package references an assembly name the
+         published Luna package doesn't provide. -->
+    <ProjectReference Include="..\Penumbra.Api\Penumbra.Api.csproj" />
+    <ProjectReference Include="..\Luna\Luna\Luna.csproj" />
+    <ProjectReference Include="..\Luna\Luna.Generators\Luna.Generators.csproj" OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

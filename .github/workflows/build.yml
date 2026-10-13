@@ -20,11 +20,14 @@ jobs:
           Invoke-WebRequest https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile dalamud.zip
           Expand-Archive -Force dalamud.zip "$env:APPDATA\XIVLauncher\addon\Hooks\dev"
       - name: Build
-        run: dotnet build .\幻想\直暴播报\CritChat.csproj --configuration Release
+        run: |
+          dotnet build .\幻想\直暴播报\CritChat.csproj --configuration Release
+          dotnet build .\幻想\PoseKit\PoseKit.csproj --configuration Release
       - name: Package plugin files
         shell: pwsh
         run: |
           Compress-Archive -Path .\幻想\直暴播报\bin\Release\CritChat\* -DestinationPath CritChat.zip -Force
+          Compress-Archive -Path .\幻想\PoseKit\bin\Release\PoseKit\* -DestinationPath PoseKit.zip -Force
       - name: Store plugin archive
         uses: actions/upload-artifact@v4
         with:

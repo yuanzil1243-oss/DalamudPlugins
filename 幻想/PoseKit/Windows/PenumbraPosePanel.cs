@@ -22,12 +22,12 @@ public static class PenumbraPosePanel
     public static void DrawToolbar(Plugin plugin)
     {
         ImGui.AlignTextToFramePadding();
-        PoseKitUi.CardTitle("All Animations", $"{plugin.DiscoveredPoses.Count} MODS");
+        PoseKitUi.CardTitle("全部动画", $"{plugin.DiscoveredPoses.Count} 个模组");
         ImGui.SameLine(0, 10);
         if (ImGui.Button("重新扫描##PoseKitToolbarRescan"))
             plugin.RefreshPenumbraPoses();
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Re-scan your selected Penumbra mods for poses and animations.");
+            ImGui.SetTooltip("重新扫描已选 Penumbra 模组中的姿势和动画。");
         ImGui.SameLine();
 
         var avail = ImGui.GetContentRegionAvail().X;
@@ -40,14 +40,14 @@ public static class PenumbraPosePanel
         if (animationSearch.Length > 0)
         {
             ImGui.AlignTextToFramePadding();
-            ImGui.TextColored(PoseKitUi.Muted, $"Filtering by \"{animationSearch}\"");
+            ImGui.TextColored(PoseKitUi.Muted, $"正在筛选“{animationSearch}”");
             ImGui.SameLine();
             if (ImGui.SmallButton("清除##PoseKitClearAnimationSearch"))
                 animationSearch = "";
         }
         else
         {
-            PoseKitUi.TextWrappedDisabled("Open a mod to choose an animation, pose, or option, then press Play.");
+            PoseKitUi.TextWrappedDisabled("展开模组，选择动画、姿势或选项，然后点击播放。");
         }
 
         PoseKitUi.CardTitleRule();
@@ -57,13 +57,13 @@ public static class PenumbraPosePanel
     {
         if (!plugin.PenumbraIpc.IsAvailable)
         {
-            PoseKitUi.TextWrappedDisabled("Penumbra not found — pose discovery unavailable.");
+            PoseKitUi.TextWrappedDisabled("未找到 Penumbra——无法发现姿势。");
             return;
         }
 
         if (plugin.DiscoveredPoses.Count == 0)
         {
-            PoseKitUi.TextWrappedDisabled("No mods selected — pick some in Settings.");
+            PoseKitUi.TextWrappedDisabled("尚未选择模组——请在“设置”中选择。");
             return;
         }
 
@@ -102,7 +102,7 @@ public static class PenumbraPosePanel
                 if (ImGui.SmallButton($"重置##PoseKitModReset{mod.ModDirectory.GetHashCode()}"))
                     ResetMod(plugin, mod, resetCid);
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Undo PoseKit's changes to this mod and go back to your Penumbra settings.");
+                    ImGui.SetTooltip("撤销 PoseKit 对此模组的更改并恢复 Penumbra 设置。");
             }
 
             if (!expanded)
@@ -112,7 +112,7 @@ public static class PenumbraPosePanel
             ImGui.PushID(mod.ModDirectory);
             ImGui.Indent();
             if (!mod.Enabled)
-                PoseKitUi.TextWrappedDisabled("Disabled in Penumbra — playing anything below enables it temporarily, or use the checkbox above.");
+                PoseKitUi.TextWrappedDisabled("此模组已在 Penumbra 中禁用——播放下方内容会临时启用它，也可以使用上方复选框。");
             foreach (var group in mod.Groups)
             {
                 if (GroupMatches(mod, group, animationSearch))
@@ -123,7 +123,7 @@ public static class PenumbraPosePanel
         }
 
         if (!anyVisible)
-            ImGui.TextDisabled("No animations match this search.");
+            ImGui.TextDisabled("没有符合搜索条件的动画。");
     }
 
     private static void DrawGroup(Plugin plugin, PoseModInfo mod, PoseModGroup group, Guid? collectionId, string filter,

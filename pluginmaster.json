@@ -19,7 +19,7 @@
     "Author": "Rayla Petal / yuanzil1243-oss",
     "Name": "PoseKit（简体中文）",
     "InternalName": "PoseKit",
-    "AssemblyVersion": "2.2.0.10",
+    "AssemblyVersion": "2.2.0.11",
     "DalamudApiLevel": 15,
     "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/PoseKit.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/PoseKit.zip",

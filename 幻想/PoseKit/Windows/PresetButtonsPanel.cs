@@ -37,7 +37,7 @@ public static class PresetButtonsPanel
     public static void DrawToolbar(Plugin plugin)
     {
         ImGui.AlignTextToFramePadding();
-        PoseKitUi.CardTitle("预设", $"{plugin.PresetManager.Presets.Count} saved");
+        PoseKitUi.CardTitle("预设", $"{plugin.PresetManager.Presets.Count} 个已保存");
         ImGui.SameLine();
 
         var avail = ImGui.GetContentRegionAvail().X;
@@ -147,7 +147,7 @@ public static class PresetButtonsPanel
             }
             else
             {
-                PoseKitUi.TextWrappedDisabled("Rotation offset unavailable — hook didn't resolve this game version.");
+                PoseKitUi.TextWrappedDisabled("旋转偏移不可用——当前游戏版本的接口未能解析。");
             }
 
             if (changed)
@@ -184,7 +184,7 @@ public static class PresetButtonsPanel
     private static void DrawSaveForm(Plugin plugin)
     {
         var currentPose = PoseIdentifier.FromCharacter(Plugin.ObjectTable.LocalPlayer);
-        PoseKitUi.TextWrappedDisabled(currentPose?.DisplayName ?? "Start a pose or animation before saving a preset.");
+            PoseKitUi.TextWrappedDisabled(currentPose?.DisplayName ?? "请先播放姿势或动画，再保存预设。");
 
         if (currentPose is { } pose)
         {
@@ -227,8 +227,7 @@ public static class PresetButtonsPanel
                         }
                         else
                         {
-                            Plugin.ChatGui.PrintError("[PoseKit] Couldn't find your partner nearby — saved without positioning " +
-                                                      "this preset relative to them.");
+                            Plugin.ChatGui.PrintError("[PoseKit] 附近找不到你的伙伴——已保存预设，但未记录相对位置。");
                         }
 
                         // Saves once the partner replies; LoadedPreset is set by the Saved event.
@@ -249,16 +248,13 @@ public static class PresetButtonsPanel
             if (plugin.PairingState.Active)
             {
                 ImGui.Checkbox("包含伙伴##PoseKitIncludePartner", ref includePartner);
-                PoseKitUi.TextWrappedDisabled("Captures your partner's current pose/offset/mod too, saved only in your own " +
-                                               "library, and remembers where you're standing relative to them. Playing it " +
-                                               "later relays their half to them for accept/deny: they stay put, and you're " +
-                                               "positioned around them wherever you both are.");
+                PoseKitUi.TextWrappedDisabled("同时记录伙伴当前的姿势、偏移和模组，仅保存到你的库中，并记住你相对于伙伴的位置。之后播放时会将伙伴部分发送给对方确认；伙伴保持原地，你会在其周围定位。");
             }
 
             if (savingCouple)
             {
-                var partnerName = plugin.PairingState.Peer?.Name ?? "your partner";
-                PoseKitUi.TextWrappedDisabled($"Positioned relative to {partnerName}.");
+                var partnerName = plugin.PairingState.Peer?.Name ?? "你的伙伴";
+                PoseKitUi.TextWrappedDisabled($"已相对于 {partnerName} 定位。");
             }
             else
                 DrawAnchorChoice(localPlayer, nearbyFurniture);
@@ -271,7 +267,7 @@ public static class PresetButtonsPanel
         var all = plugin.PresetManager.Presets;
         if (all.Count == 0)
         {
-            PoseKitUi.TextWrappedDisabled("No presets saved yet — save your current offset above.");
+            PoseKitUi.TextWrappedDisabled("尚未保存预设——请先保存上方的当前偏移。");
             return;
         }
 
@@ -282,7 +278,7 @@ public static class PresetButtonsPanel
             .ToList();
         if (groups.Count == 0)
         {
-            PoseKitUi.TextWrappedDisabled("No presets match your search or filters.");
+            PoseKitUi.TextWrappedDisabled("没有符合搜索或筛选条件的预设。");
             return;
         }
 
@@ -314,8 +310,7 @@ public static class PresetButtonsPanel
 
         if (anchorMode == AnchorMode.Spot)
         {
-            PoseKitUi.TextWrappedDisabled("Corrects the offset on replay so the character lands back in this exact " +
-                                           "world spot and facing, not just the same pose relative to wherever you are then.");
+            PoseKitUi.TextWrappedDisabled("重播时修正偏移，让角色回到准确的世界位置和朝向，而不仅是相对于当时位置保持同一姿势。");
         }
         else if (anchorMode == AnchorMode.Furniture)
         {
@@ -339,14 +334,13 @@ public static class PresetButtonsPanel
                     }
                     ImGui.EndCombo();
                 }
-                PoseKitUi.TextWrappedDisabled("Corrects the offset on replay against this furniture item's current " +
-                                               "position, so it still lands right even in a differently laid-out room.");
+                PoseKitUi.TextWrappedDisabled("重播时根据家具当前的位置修正偏移，即使房间布局不同也能准确定位。");
             }
             else
             {
-                PoseKitUi.TextWrappedDisabled("No furniture nearby to anchor to.");
+                PoseKitUi.TextWrappedDisabled("附近没有可用于锚定的家具。");
                 if (furnitureScanner.LastDiagnostic is { } diagnostic)
-                    PoseKitUi.TextWrappedDisabled($"Debug: {diagnostic}");
+                    PoseKitUi.TextWrappedDisabled($"诊断信息：{diagnostic}");
             }
         }
     }
@@ -377,12 +371,12 @@ public static class PresetButtonsPanel
         PoseKitUi.DrawPickBadge(pick);
 
         if (namedPose.PartnerHalf != null)
-            DrawEntryTag("Couple", PoseKitUi.Info);
+            DrawEntryTag("双人", PoseKitUi.Info);
         if (AnchorTag(namedPose) is { } anchorTag)
             DrawEntryTag(anchorTag, PoseKitUi.Muted);
 
         // Right-aligned, unless the row is already too full to leave room for it.
-        var deleteLabel = $"Delete##PoseKitDeletePreset{namedPose.GetHashCode()}";
+        var deleteLabel = $"删除##PoseKitDeletePreset{namedPose.GetHashCode()}";
         PoseKitUi.SameLineIfFits(PoseKitUi.ButtonWidth(deleteLabel));
         var deleteX = ImGui.GetWindowContentRegionMax().X - PoseKitUi.ButtonWidth(deleteLabel);
         if (ImGui.GetCursorPosX() < deleteX)
@@ -390,19 +384,19 @@ public static class PresetButtonsPanel
         if (PoseKitUi.DangerButton(deleteLabel))
             plugin.PresetManager.Delete(namedPose);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip($"Delete the \"{namedPose.Name}\" preset");
+            ImGui.SetTooltip($"删除“{namedPose.Name}”预设");
 
         if (namedPose.Penumbra is { ModName.Length: > 0 } link)
         {
             var animation = link.OptionName is "" or "Default" ? link.ModName : $"{link.ModName} — {link.OptionName}";
-            PoseKitUi.TextWrappedDisabled($"Animation: {animation}");
+            PoseKitUi.TextWrappedDisabled($"动画：{animation}");
         }
 
         var status = pick switch
         {
-            PoseKitUi.PickState.Both => "both picked — playing shortly!",
-            PoseKitUi.PickState.Own => "queued — waiting on partner",
-            PoseKitUi.PickState.Partner => "your partner picked this — pick it too to play together",
+            PoseKitUi.PickState.Both => "双方已选择——即将播放！",
+            PoseKitUi.PickState.Own => "已排队——等待伙伴",
+            PoseKitUi.PickState.Partner => "伙伴已选择此项——你也选择后即可一起播放",
             _ => null,
         };
         if (status != null)
@@ -410,9 +404,9 @@ public static class PresetButtonsPanel
     }
 
     private static string? AnchorTag(NamedPose preset) =>
-        preset.Anchor?.Spot is { } spot ? $"Spot: {spot.ZoneName}"
-        : preset.Anchor?.Furniture is { } furniture ? $"Furniture: {furniture.FurnitureName}"
-        : preset.Anchor?.Partner is { } partner ? $"Partner: {partner.Partner.Name}"
+        preset.Anchor?.Spot is { } spot ? $"地点：{spot.ZoneName}"
+        : preset.Anchor?.Furniture is { } furniture ? $"家具：{furniture.FurnitureName}"
+        : preset.Anchor?.Partner is { } partner ? $"伙伴：{partner.Partner.Name}"
         : null;
 
     /// Wraps to a new line when it wouldn't fit next to the delete button.

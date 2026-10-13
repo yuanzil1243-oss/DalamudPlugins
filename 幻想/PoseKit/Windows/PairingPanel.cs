@@ -72,7 +72,7 @@ public static class PairingPanel
     {
         ImGui.TextColored(PoseKitUi.Good, "●");
         ImGui.SameLine(0, 6);
-        ImGui.TextWrapped($"Paired with {peer}");
+        ImGui.TextWrapped($"已与 {peer} 配对");
 
         var relay = plugin.CoupleRelayInbox;
         if (relay.Sender is { } relaySender && relay.PresetName is { } relayPresetName)
@@ -81,12 +81,12 @@ public static class PairingPanel
             ImGui.PushStyleColor(ImGuiCol.Text, PoseKitUi.Info);
             ImGui.TextWrapped($"{relaySender.Name} 想与你一起播放“{relayPresetName}”。");
             ImGui.PopStyleColor();
-            if (HalfButton("Accept##PoseKitAcceptCoupleRelay", first: true))
+            if (HalfButton("接受##PoseKitAcceptCoupleRelay", first: true))
             {
                 if (relay.Accept() is { } captured)
                     plugin.ApplyCapturedPartnerState(captured);
             }
-            if (HalfButton("Deny##PoseKitDenyCoupleRelay", first: false))
+            if (HalfButton("拒绝##PoseKitDenyCoupleRelay", first: false))
                 relay.Deny();
         }
 
@@ -97,13 +97,13 @@ public static class PairingPanel
             ImGui.PushStyleColor(ImGuiCol.Text, PoseKitUi.Info);
             ImGui.TextWrapped($"等待伙伴接受“{outgoingName}”……");
             ImGui.PopStyleColor();
-            if (PoseKitUi.WideButton("Cancel##PoseKitCancelCoupleRelay"))
+            if (PoseKitUi.WideButton("取消##PoseKitCancelCoupleRelay"))
                 outbox.Cancel();
         }
 
         PoseKitUi.SectionHeader("选择");
         var queue = plugin.CoupleQueueService;
-        DrawPickRow(PoseKitUi.Accent, "You", queue.QueuedSelectionName);
+        DrawPickRow(PoseKitUi.Accent, "你", queue.QueuedSelectionName);
         DrawPickRow(PoseKitUi.Info, "伙伴", queue.PartnerSelectionName);
 
         if (queue.PartnerSelectionName is { } theirs && queue.QueuedSelectionName == null)
@@ -154,7 +154,7 @@ public static class PairingPanel
         if (pick != null)
             ImGui.TextWrapped(pick);
         else
-            ImGui.TextColored(PoseKitUi.Muted, "nothing yet");
+            ImGui.TextColored(PoseKitUi.Muted, "暂无选择");
     }
 
     /// One of a pair of buttons splitting the current row evenly.
@@ -177,6 +177,6 @@ public static class PairingPanel
         }
 
         if (!PenumbraPosePanel.TryDrawQuickTriggerButtons(plugin, partnerSelectionName))
-            PoseKitUi.TextWrappedDisabled($"No matching preset or animation found on your side for \"{partnerSelectionName}\".");
+            PoseKitUi.TextWrappedDisabled($"你的列表中没有找到与“{partnerSelectionName}”匹配的预设或动画。");
     }
 }

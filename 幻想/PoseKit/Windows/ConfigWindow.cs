@@ -55,37 +55,37 @@ public class ConfigWindow : Window, IDisposable
         {
             PoseKitUi.DrawDependencyStatus(plugin);
 
-            PoseKitUi.SectionHeader("Sync");
+            PoseKitUi.SectionHeader("同步");
             var heelsLoaded = plugin.SimpleHeelsBridge.IsLoaded;
             var bridgeToHeels = configuration.BridgeOffsetToSimpleHeels;
             using (ImRaii.Disabled(!heelsLoaded))
             {
-                if (ImGui.Checkbox("Bridge offset to SimpleHeels", ref bridgeToHeels))
+                if (ImGui.Checkbox("将偏移同步到 SimpleHeels", ref bridgeToHeels))
                 {
                     configuration.BridgeOffsetToSimpleHeels = bridgeToHeels;
                     configuration.Save();
                 }
             }
             PoseKitUi.TextWrappedDisabled(heelsLoaded
-                ? "SimpleHeels detected."
-                : "SimpleHeels not detected — install and enable it to sync your pose offset to nearby players.");
+                ? "已检测到 SimpleHeels。"
+                : "未检测到 SimpleHeels——请安装并启用它，以便将姿势偏移同步给附近玩家。");
 
-            PoseKitUi.SectionHeader("Penumbra Mods to Scan for Poses");
-            PoseKitUi.TextWrappedDisabled("Disabled mods are listed too — PoseKit enables one temporarily when you play a pose from it.");
+            PoseKitUi.SectionHeader("扫描姿势的 Penumbra 模组");
+            PoseKitUi.TextWrappedDisabled("禁用的模组也会列出——从中播放姿势时，PoseKit 会临时启用它。");
 
             if (allModsCache == null)
                 RefreshAllMods();
 
             var folderFilter = configuration.PenumbraFolderFilter;
-            PoseKitUi.DrawFolderFilterCombo("Sort folder##PoseKitFolderFilter", configuration, availableFoldersCache);
-            PoseKitUi.TextWrappedDisabled("Filters by Penumbra's own mod-organization folder (Mods tab), not the disk folder.");
+            PoseKitUi.DrawFolderFilterCombo("排序文件夹##PoseKitFolderFilter", configuration, availableFoldersCache);
+            PoseKitUi.TextWrappedDisabled("按 Penumbra 自己的模组分类文件夹筛选（模组页），不是磁盘文件夹。");
 
-            if (ImGui.Button("Refresh mods##PoseKitRefreshMods"))
+            if (ImGui.Button("刷新模组##PoseKitRefreshMods"))
                 RefreshAllMods();
 
             if (allModsCache == null)
             {
-                ImGui.TextDisabled("Penumbra not found.");
+                ImGui.TextDisabled("未找到 Penumbra。");
             }
             else
             {
@@ -96,7 +96,7 @@ public class ConfigWindow : Window, IDisposable
                 ImGui.SameLine();
                 var selectedCount = filteredMods.Count(mod => configuration.SelectedPenumbraMods.Contains(mod.Directory));
                 ImGui.TextColored(PoseKitUi.Accent,
-                    $"{selectedCount} selected / {filteredMods.Count} found");
+                    $"已选择 {selectedCount} / 找到 {filteredMods.Count}");
 
                 ImGui.SetNextItemWidth(-1);
                 ImGui.InputTextWithHint("##PoseKitModSearch", "搜索模组……", ref modSearch, 128);
@@ -108,17 +108,17 @@ public class ConfigWindow : Window, IDisposable
                     .ToList();
 
                 var changed = false;
-                if (ImGui.SmallButton("Select visible##PoseKitSelectVisibleMods"))
+                if (ImGui.SmallButton("选择可见项##PoseKitSelectVisibleMods"))
                     foreach (var mod in visibleMods)
                         changed |= configuration.SelectedPenumbraMods.Add(mod.Directory);
 
                 ImGui.SameLine();
-                if (ImGui.SmallButton("Clear visible##PoseKitClearVisibleMods"))
+                if (ImGui.SmallButton("清除可见项##PoseKitClearVisibleMods"))
                     foreach (var mod in visibleMods)
                         changed |= configuration.SelectedPenumbraMods.Remove(mod.Directory);
 
                 ImGui.SameLine();
-                ImGui.TextDisabled($"{visibleMods.Count} shown");
+                ImGui.TextDisabled($"显示 {visibleMods.Count} 项");
 
                 if (ImGui.BeginChild("##PoseKitModPicker", new Vector2(0, 210), true, ImGuiWindowFlags.None))
                 {
@@ -135,7 +135,7 @@ public class ConfigWindow : Window, IDisposable
                         if (!modEnabled)
                         {
                             ImGui.SameLine();
-                            ImGui.TextDisabled("(disabled in Penumbra)");
+                            ImGui.TextDisabled("（已在 Penumbra 中禁用）");
                         }
 
                         if (!string.Equals(modName, modDirectory, StringComparison.OrdinalIgnoreCase))
@@ -157,15 +157,15 @@ public class ConfigWindow : Window, IDisposable
                 }
             }
 
-            PoseKitUi.SectionHeader("Support");
+            PoseKitUi.SectionHeader("支持");
             ImGui.TextUnformatted("Discord: raylapetal");
             ImGui.SameLine();
-            if (ImGui.SmallButton("Copy##PoseKitCopyDiscord"))
+            if (ImGui.SmallButton("复制##PoseKitCopyDiscord"))
                 ImGui.SetClipboardText("raylapetal");
 
-            if (ImGui.Button("Report an issue on GitHub##PoseKitGitHubIssues"))
+            if (ImGui.Button("在 GitHub 报告问题##PoseKitGitHubIssues"))
                 Util.OpenLink("https://github.com/RaylaPetal/PoseKit/issues");
-            PoseKitUi.TextWrappedDisabled("Questions and bug reports are welcome.");
+            PoseKitUi.TextWrappedDisabled("欢迎提出问题和报告错误。");
         }
         ImGui.EndChild();
     }
@@ -182,11 +182,11 @@ public class ConfigWindow : Window, IDisposable
             .ToList();
         if (missing.Count == 0) return false;
 
-        if (!ImGui.CollapsingHeader($"Missing mods ({missing.Count})###PoseKitMissingMods")) return false;
-        PoseKitUi.TextWrappedDisabled("Selected, but no longer in Penumbra (deleted or renamed).");
+        if (!ImGui.CollapsingHeader($"缺少的模组 ({missing.Count})###PoseKitMissingMods")) return false;
+        PoseKitUi.TextWrappedDisabled("已选择，但已不在 Penumbra 中（已删除或改名）。");
 
         var changed = false;
-        if (ImGui.SmallButton("Remove all missing##PoseKitRemoveAllMissing"))
+        if (ImGui.SmallButton("移除所有缺失项##PoseKitRemoveAllMissing"))
         {
             foreach (var directory in missing)
                 changed |= configuration.SelectedPenumbraMods.Remove(directory);
@@ -195,7 +195,7 @@ public class ConfigWindow : Window, IDisposable
 
         foreach (var directory in missing)
         {
-            if (ImGui.SmallButton($"Remove##PoseKitRemoveMissing{directory.GetHashCode()}"))
+            if (ImGui.SmallButton($"移除##PoseKitRemoveMissing{directory.GetHashCode()}"))
                 changed |= configuration.SelectedPenumbraMods.Remove(directory);
             ImGui.SameLine();
             ImGui.TextColored(PoseKitUi.Bad, directory);

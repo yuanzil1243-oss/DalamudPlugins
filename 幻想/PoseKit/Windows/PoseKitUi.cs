@@ -105,7 +105,7 @@ internal static class PoseKitUi
     {
         StatusDot(detected ? Good : Bad, name.ToUpperInvariant());
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(detected ? $"{name} detected." : $"{name} not found.");
+            ImGui.SetTooltip(detected ? $"已检测到 {name}。" : "未找到。请先安装并启用该插件。");
     }
 
     public static void StatusDot(Vector4 color, string label)
@@ -177,7 +177,7 @@ internal static class PoseKitUi
                    .Push(ImGuiCol.ButtonActive, Bad)
                    .Push(ImGuiCol.Text, Vector4.One))
         {
-            if (ImGui.Button($"Conflict: keep this##{id}"))
+            if (ImGui.Button($"冲突：保留此项##{id}"))
                 resolve();
         }
         if (ImGui.IsItemHovered())
@@ -259,7 +259,7 @@ internal static class PoseKitUi
                 Dalamud.Utility.Util.OpenLink(KofiUrl);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Support PoseKit on Ko-fi\nko-fi.com/raylapetal");
+            ImGui.SetTooltip("在 Ko-fi 支持 PoseKit\nko-fi.com/raylapetal");
     }
 
     /// For destructive actions.
@@ -330,9 +330,9 @@ internal static class PoseKitUi
     {
         (Vector4 Color, string Text)? badge = state switch
         {
-            PickState.Own => (Accent, "● you"),
-            PickState.Partner => (Info, "● them"),
-            PickState.Both => (Good, "● ready!"),
+            PickState.Own => (Accent, "● 你"),
+            PickState.Partner => (Info, "● 伙伴"),
+            PickState.Both => (Good, "● 已准备"),
             _ => null,
         };
         if (badge is not { } b) return;

@@ -43,20 +43,18 @@ public class WelcomeWindow : Window, IDisposable
 
         PoseKitUi.SectionHeader("运行要求");
         PoseKitUi.DrawDependencyStatus(plugin);
-        PoseKitUi.TextWrappedDisabled("Penumbra is required for animation mod discovery. SimpleHeels is " +
-                                       "optional — only needed if you want your pose offset to sync to paired viewers.");
+        PoseKitUi.TextWrappedDisabled("发现动画模组需要 Penumbra。SimpleHeels 是可选的，仅在你希望将姿势偏移同步给已配对玩家时需要。");
 
         PoseKitUi.SectionHeader("快速开始");
-        ImGui.TextWrapped("1. Set a folder filter below, then pick which mods to scan in Settings.");
-        ImGui.TextWrapped("2. Open the Animations tab at the top and hit Play on any pose.");
-        ImGui.TextWrapped("3. Use Live Offset to drag your character into position, then save it as a named preset under Presets.");
+        ImGui.TextWrapped("1. 先在下方设置文件夹筛选，再在“设置”中选择要扫描的模组。");
+        ImGui.TextWrapped("2. 打开顶部的“动画”页，点击任意姿势的播放按钮。");
+        ImGui.TextWrapped("3. 使用“实时偏移”调整角色位置，再在“预设”中保存为命名预设。");
 
         PoseKitUi.SectionHeader("动画模组文件夹筛选");
         if (availableFoldersCache == null)
             RefreshFolders();
         PoseKitUi.DrawFolderFilterCombo("##PoseKitWelcomeFolderFilter", configuration, availableFoldersCache);
-        PoseKitUi.TextWrappedDisabled("Restricts the mod picker to this Penumbra sort-folder — you can " +
-                                       "change this anytime in Settings, along with which specific mods to scan.");
+        PoseKitUi.TextWrappedDisabled("将模组选择器限制在这个 Penumbra 分类文件夹中；你可以随时在“设置”里修改它以及要扫描的具体模组。");
 
         ImGui.Spacing();
         ImGui.Spacing();

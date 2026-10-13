@@ -7,6 +7,12 @@
     "DalamudApiLevel": 15,
     "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/CritChat.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/CritChat.zip",
-    "ApplicableVersion": "any"
+    "ApplicableVersion": "any",
+    "Description": "识别自己造成的直击、暴击与直击暴击，并在Dalamud聊天输出技能名称和伤害数值。",
+    "Punchline": "在游戏聊天中播报自己的直击、暴击和直暴伤害。",
+    "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "LastUpdate": "1791855752"
   }
 ]

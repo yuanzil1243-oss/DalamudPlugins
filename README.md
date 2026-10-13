@@ -1,28 +1,27 @@
 # 幻想
 
-FFXIV 国服 Dalamud 插件总库。所有自制插件的源码、安装清单和发布包统一维护在此仓库。
+FFXIV 国服 Dalamud 插件集合。本仓库当前项目：
 
-## 固定插件库地址
+- [直暴播报](幻想/直暴播报/README.md)：将自己造成的直击、暴击与直暴技能和伤害输出到游戏聊天。
 
-在 Dalamud 设置的 Experimental → Custom Plugin Repositories 中添加：
+## Dalamud 自定义插件库
 
-`https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmaster.json`
+仓库根目录的 `pluginmaster.json` 是卫月自定义插件库清单。发布后，在 Dalamud 设置的 Experimental → Custom Plugin Repositories 中添加：
 
-该地址固定指向本仓库根目录清单。后续插件以独立条目追加到 `pluginmaster.json`，并在仓库中保留各自源码及发布包。
+`https://raw.githubusercontent.com/yuanzil1243-oss/Huanxiang/main/pluginmaster.json`
 
-## 当前插件
-
-- [直暴播报](幻想/直暴播报/README.md)：在战斗中把自己造成的直击、暴击和直暴技能及伤害输出到 Dalamud 聊天。
+该清单格式与 Dalamud 第三方插件库一致，采用的短链长度和结构参照用户提供的截图。
 
 ## 参考实现
 
 - [Dalamud SamplePlugin](https://github.com/goatcorp/SamplePlugin)：SDK、服务注入和构建约定。
-- [Hit it, Joe!](https://github.com/Berna-L/ffxiv-tf2-crit-plugin)：FlyText 事件及暴击/直击类型的处理思路。
+- [Hit it, Joe!](https://github.com/Berna-L/ffxiv-tf2-crit-plugin)：使用 FlyText 事件处理暴击/直击类型；本项目复用事件类型并将结果写入聊天。
 
 ## 构建
 
-需要 .NET 10 SDK 和 Dalamud 开发环境：
+需要 .NET 10 SDK 和 Dalamud 开发环境。运行：
 
 ```powershell
-dotnet build .\\幻想\\直暴播报\\CritChat.csproj -c Release
+dotnet build .\幻想\直暴播报\CritChat.csproj -c Release
 ```
+

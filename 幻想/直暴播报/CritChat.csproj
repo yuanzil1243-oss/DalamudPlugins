@@ -1,0 +1,15 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.2.0</Version>
+    <Author>yuanzil1243-oss</Author>
+    <Name>直暴播报</Name>
+    <Punchline>在游戏聊天中播报自己的直击、暴击和直暴伤害。</Punchline>
+    <Description>识别自身造成的直击、暴击与直击暴击，并将技能名称和伤害数值输出到Dalamud聊天界面。</Description>
+    <RepoUrl>https://github.com/yuanzil1243-oss/DalamudPlugins</RepoUrl>
+    <Tags>combat;damage;critical;directhit;Chinese</Tags>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+</Project>

@@ -31,8 +31,10 @@ jobs:
       - name: Store plugin archive
         uses: actions/upload-artifact@v4
         with:
-          name: CritChat-${{ github.ref_name }}
-          path: CritChat.zip
+          name: plugins-${{ github.ref_name }}
+          path: |
+            CritChat.zip
+            PoseKit.zip
           if-no-files-found: error
           retention-days: 7
 

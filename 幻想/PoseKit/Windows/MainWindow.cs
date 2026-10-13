@@ -42,7 +42,7 @@ public class MainWindow : Window, IDisposable
         {
             Icon = FontAwesomeIcon.Cog,
             Priority = 0,
-            ShowTooltip = () => ImGui.SetTooltip("PoseKit Settings"),
+            ShowTooltip = () => ImGui.SetTooltip("PoseKit 设置"),
             Click = _ => plugin.ToggleConfigUi(),
         });
     }
@@ -83,15 +83,15 @@ public class MainWindow : Window, IDisposable
         ImGui.TextColored(PoseKitUi.Muted, $"v{Plugin.Version}");
 
         ImGui.SameLine(0, 24);
-        if (PoseKitUi.PillTab("Animations", page == Page.Animations, plugin.DiscoveredPoses.Count.ToString()))
+        if (PoseKitUi.PillTab("动画", page == Page.Animations, plugin.DiscoveredPoses.Count.ToString()))
             page = Page.Animations;
         ImGui.SameLine(0, 4);
-        if (PoseKitUi.PillTab("Presets", page == Page.Presets, plugin.PresetManager.Presets.Count.ToString()))
+        if (PoseKitUi.PillTab("预设", page == Page.Presets, plugin.PresetManager.Presets.Count.ToString()))
             page = Page.Presets;
 
-        const string resyncLabel = "Resync##PoseKitHeaderResync";
-        const string settingsLabel = "Settings##PoseKitHeaderSettings";
-        var freecamLabel = plugin.FreeCam.Enabled ? "Freecam on##PoseKitHeaderFreecam" : "Freecam##PoseKitHeaderFreecam";
+        const string resyncLabel = "重新同步##PoseKitHeader重新同步";
+        const string settingsLabel = "设置##PoseKitHeader设置";
+        var freecamLabel = plugin.FreeCam.Enabled ? "自由镜头：开##PoseKitHeader自由镜头" : "自由镜头##PoseKitHeader自由镜头";
         var spacing = ImGui.GetStyle().ItemSpacing.X;
         const float donateGap = 14f;
         var toolsWidth = PoseKitUi.ButtonWidth(resyncLabel) + PoseKitUi.ButtonWidth(freecamLabel) + PoseKitUi.ButtonWidth(settingsLabel) + spacing * 2
@@ -127,7 +127,7 @@ public class MainWindow : Window, IDisposable
 
         if (plugin.FreeCam.Enabled)
         {
-            const string hint = "Freecam: WASD move · E/Q up/down · right-drag look";
+            const string hint = "自由镜头: WASD move · E/Q up/down · right-drag look";
             var hintWidth = ImGui.CalcTextSize(hint).X;
             PoseKitUi.SameLineIfFits(hintWidth + 16);
             RightAlign(hintWidth);
@@ -152,91 +152,91 @@ public class MainWindow : Window, IDisposable
     {
         var state = plugin.PairingState;
         if (state.Active && state.Peer is { } peer)
-            PoseKitUi.StatusDot(PoseKitUi.Good, $"PAIRED WITH {peer.Name.ToUpperInvariant()}");
+            PoseKitUi.StatusDot(PoseKitUi.Good, $"已与 {peer.Name.ToUpperInvariant()}");
         else if (state.PendingInvite != null)
-            PoseKitUi.StatusDot(PoseKitUi.Info, "PAIRING INVITE WAITING");
+            PoseKitUi.StatusDot(PoseKitUi.Info, "配对邀请 WAITING");
         else if (state.OutgoingInvite != null)
-            PoseKitUi.StatusDot(PoseKitUi.Accent, "INVITE SENT");
+            PoseKitUi.StatusDot(PoseKitUi.Accent, "邀请已发送");
         else
-            PoseKitUi.StatusDot(PoseKitUi.Muted, "NOT PAIRED");
+            PoseKitUi.StatusDot(PoseKitUi.Muted, "未配对");
     }
 
     private void DrawRail()
     {
-        PoseKitUi.CardTitle("Pairing");
+        PoseKitUi.CardTitle("配对");
         PoseKitUi.CardTitleRule();
         PairingPanel.Draw(plugin);
 
         ImGui.Spacing();
-        PoseKitUi.SectionHeader("Live Offset");
+        PoseKitUi.SectionHeader("实时偏移");
         PresetButtonsPanel.DrawOffsets(plugin);
 
         ImGui.Spacing();
-        PoseKitUi.SectionHeader("Bone Align");
+        PoseKitUi.SectionHeader("骨骼对齐");
         DrawBoneAlign();
     }
 
     private void DrawBoneAlign()
     {
         var configuration = plugin.Configuration;
-        var labelWidth = ImGui.CalcTextSize("Partner").X + ImGui.GetStyle().ItemSpacing.X;
+        var labelWidth = ImGui.CalcTextSize("伙伴").X + ImGui.GetStyle().ItemSpacing.X;
 
         if (plugin.AutoAlign.CurrentEntry is { } known)
             DrawKnownAnimation(known);
 
         var self = configuration.BoneAlignSelf;
-        if (DrawBodyPartCombo("Self", "##PoseKitBoneAlignSelf", labelWidth, ref self))
+        if (DrawBodyPartCombo("自己", "##PoseKitBone对齐自己", labelWidth, ref self))
         {
             configuration.BoneAlignSelf = self;
             configuration.Save();
         }
 
         var partner = configuration.BoneAlignPartner;
-        if (DrawBodyPartCombo("Partner", "##PoseKitBoneAlignPartner", labelWidth, ref partner))
+        if (DrawBodyPartCombo("伙伴", "##PoseKitBone对齐伙伴", labelWidth, ref partner))
         {
             configuration.BoneAlignPartner = partner;
             configuration.Save();
         }
 
         ImGui.AlignTextToFramePadding();
-        ImGui.TextColored(PoseKitUi.Muted, "Gap");
+        ImGui.TextColored(PoseKitUi.Muted, "间距");
         ImGui.SameLine(labelWidth + ImGui.GetStyle().WindowPadding.X);
         ImGui.SetNextItemWidth(-1);
         var gap = configuration.BoneAlignGap;
-        if (ImGui.SliderFloat("##PoseKitBoneAlignGap", ref gap, 0f, 0.10f, "%.2fy"))
+        if (ImGui.SliderFloat("##PoseKitBone对齐间距", ref gap, 0f, 0.10f, "%.2fy"))
         {
             configuration.BoneAlignGap = gap;
             configuration.Save();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("How much room to leave between the two parts, so they meet instead of fusing.");
+            ImGui.SetTooltip("两部分之间保留的间距，避免彼此融合。");
 
         var autoAlign = configuration.AutoAlignFromMemory;
-        if (ImGui.Checkbox("Auto-align from memory##PoseKitAutoAlign", ref autoAlign))
+        if (ImGui.Checkbox("根据记忆自动对齐##PoseKitAuto对齐", ref autoAlign))
         {
             configuration.AutoAlignFromMemory = autoAlign;
             configuration.Save();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Each successful Align is remembered for the animation you're playing: your facing relative to\n" +
+            ImGui.SetTooltip("每次成功对齐都会记住当前动画中的相对朝向：你相对于\n" +
                              "your partner and where the parts meet. Next time you play it near your partner (or a targeted\n" +
                              "player), PoseKit turns and aligns you by itself.\n" +
-                             "Turning this off stops auto-aligning; Aligns are still remembered.");
+                             "关闭后将停止自动对齐，但对齐结果仍会记住。");
 
         var align = plugin.BoneAlign;
         DrawQuickTurns(align);
 
         using (Dalamud.Interface.Utility.Raii.ImRaii.Disabled(align.IsAligning))
         {
-            if (PoseKitUi.WideButton(align.IsAligning ? "Aligning...##PoseKitBoneAlign" : "Align##PoseKitBoneAlign"))
+            if (PoseKitUi.WideButton(align.IsAligning ? "对齐中……##PoseKitBone对齐" : "对齐##PoseKitBone对齐"))
                 align.Start(Bones.AlignRequest.FromConfiguration(configuration));
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Resyncs emotes, watches both parts for a moment, then moves you so they meet.\n" +
-                             "Keeps your facing: turn first with the buttons above or the live offset.");
+            ImGui.SetTooltip("重新同步s emotes, watches both parts for a moment, then moves you so they meet.\n" +
+                             "保持当前朝向：请先使用上方按钮或实时偏移调整方向。");
 
         var hasKey = plugin.CurrentPlayContext != null;
-        var rememberLabel = plugin.AutoAlign.CurrentEntry != null ? "Update memory##PoseKitBoneAlignRemember" : "Remember##PoseKitBoneAlignRemember";
+        var rememberLabel = plugin.AutoAlign.CurrentEntry != null ? "更新记忆##PoseKitBone对齐记住" : "记住##PoseKitBone对齐记住";
         using (Dalamud.Interface.Utility.Raii.ImRaii.Disabled(align.IsAligning || !hasKey))
         {
             if (PoseKitUi.WideButton(rememberLabel))
@@ -244,9 +244,9 @@ public class MainWindow : Window, IDisposable
         }
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             ImGui.SetTooltip(hasKey
-                ? "Saves how you're placed right now, without moving you: your facing relative to your partner and\n" +
+                ? "保存你当前的位置而不移动角色：你相对于伙伴的朝向以及\n" +
                   "where the parts meet. Use it after nudging the live offset by hand."
-                : "Play an animation from the Animations page (or one PoseKit can identify) to remember it.");
+                : "Play an animation from the 动画 page (or one PoseKit can identify) to remember it.");
 
         if (align.Status.Length > 0)
             PoseKitUi.TextWrappedDisabled(align.Status);
@@ -259,7 +259,7 @@ public class MainWindow : Window, IDisposable
     {
         var posing = PoseIdentifier.FromCharacter(Plugin.ObjectTable.LocalPlayer) != null;
         var rotationAvailable = plugin.OffsetEngine.RotationHookResolved;
-        var why = !rotationAvailable ? "Rotation offset unavailable — hook didn't resolve this game version."
+        var why = !rotationAvailable ? "旋转 offset unavailable — hook didn't resolve this game version."
             : !posing ? "Start a pose or emote first."
             : align.IsAligning ? "Wait for the current alignment to finish."
             : "";
@@ -276,7 +276,7 @@ public class MainWindow : Window, IDisposable
                 if (ImGui.Button($"{label}##PoseKitQuickTurn{i}", new Vector2(buttonWidth, 0)))
                     align.QuickTurn(degrees);
                 if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                    ImGui.SetTooltip(why.Length > 0 ? why : $"Turn {MathF.Abs(degrees):0} degrees around your {Bones.BodyParts.DisplayName(plugin.Configuration.BoneAlignSelf).ToLowerInvariant()}.");
+                    ImGui.SetTooltip(why.Length > 0 ? why : $"Turn {MathF.Abs(degrees):0} degrees around your {Bones.BodyParts.DisplayName(plugin.Configuration.Bone对齐自己).ToLowerInvariant()}.");
             }
         }
         if (!rotationAvailable)
@@ -302,17 +302,17 @@ public class MainWindow : Window, IDisposable
         ImGui.AlignTextToFramePadding();
         ImGui.TextColored(PoseKitUi.Good, "●");
         ImGui.SameLine(0, 5);
-        ImGui.TextColored(PoseKitUi.Good, "Known animation");
+        ImGui.TextColored(PoseKitUi.Good, "已知动画");
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip($"{known.ModName} — {known.Option} ({known.Trigger})\nRemembered from your last successful Align or Remember on this animation.");
+            ImGui.SetTooltip($"{known.ModName} — {known.Option} ({known.Trigger})\n记住ed from your last successful 对齐 or 记住 on this animation.");
 
-        const string forgetLabel = "Forget##PoseKitBoneAlignForget";
-        var forgetWidth = ImGui.CalcTextSize("Forget").X + ImGui.GetStyle().FramePadding.X * 2;
+        const string forgetLabel = "忘记##PoseKitBone对齐忘记";
+        var forgetWidth = ImGui.CalcTextSize("忘记").X + ImGui.GetStyle().FramePadding.X * 2;
         ImGui.SameLine(width - pad * 2 - forgetWidth); // relative to the group, which starts pad in
         if (ImGui.SmallButton(forgetLabel))
             plugin.AlignmentMemory.Forget(known.Key);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Stop auto-aligning this animation until you align or remember it again.");
+            ImGui.SetTooltip("在再次对齐或记住之前，停止对该动画自动对齐。");
 
         ImGui.TextUnformatted(Bones.BodyParts.DisplayName(known.Self));
         ImGui.SameLine(0, 6);
@@ -320,8 +320,8 @@ public class MainWindow : Window, IDisposable
         ImGui.SameLine(0, 6);
         ImGui.TextUnformatted(Bones.BodyParts.DisplayName(known.Partner));
 
-        var facing = known.RelativeYaw is { } yaw ? $"Facing {Bones.BoneAlignService.FacingText(yaw)}" : "Facing not saved";
-        var contact = known.ContactOffset is { } offset ? $"{offset.ToVector3().Length():0.00}y contact" : $"{known.Gap:0.00}y gap";
+        var facing = known.RelativeYaw is { } yaw ? $"Facing {Bones.Bone对齐Service.FacingText(yaw)}" : "未保存朝向";
+        var contact = known.ContactOffset is { } offset ? $"{offset.ToVector3().Length():0.00}y contact" : $"{known.间距:0.00}y gap";
         PoseKitUi.TextWrappedDisabled($"{facing} · {contact}");
         if (plugin.AutoAlign.Waiting.Length > 0)
             PoseKitUi.TextWrappedDisabled(plugin.AutoAlign.Waiting);
@@ -369,12 +369,12 @@ public class MainWindow : Window, IDisposable
         {
             case Page.Animations:
                 PenumbraPosePanel.DrawToolbar(plugin);
-                DrawScrollRegion("##PoseKitAnimationsScroll", () => PenumbraPosePanel.Draw(plugin));
+                DrawScrollRegion("##PoseKit动画Scroll", () => PenumbraPosePanel.Draw(plugin));
                 break;
 
             case Page.Presets:
                 PresetButtonsPanel.DrawToolbar(plugin);
-                DrawScrollRegion("##PoseKitPresetsScroll", () => PresetButtonsPanel.DrawPresets(plugin));
+                DrawScrollRegion("##PoseKit预设Scroll", () => PresetButtonsPanel.DrawPresets(plugin));
                 break;
         }
     }
@@ -388,8 +388,8 @@ public class MainWindow : Window, IDisposable
 
     private static readonly (Vector4 Color, string Label)[] LegendEntries =
     [
-        (PoseKitUi.Accent, "Your pick"), (PoseKitUi.Info, "Partner's pick"),
-        (PoseKitUi.Good, "Both ready"), (PoseKitUi.Bad, "Conflict"),
+        (PoseKitUi.Accent, "你的选择"), (PoseKitUi.Info, "伙伴's pick"),
+        (PoseKitUi.Good, "双方准备就绪"), (PoseKitUi.Bad, "冲突"),
     ];
 
     private const float LegendGap = 12f;
@@ -412,6 +412,6 @@ public class MainWindow : Window, IDisposable
         }
         ImGui.EndGroup();
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("What the highlight colors on animations and presets mean while paired.");
+            ImGui.SetTooltip("配对时动画和预设高亮颜色的含义。");
     }
 }

@@ -105,7 +105,7 @@ internal static class PoseKitUi
     {
         StatusDot(detected ? Good : Bad, name.ToUpperInvariant());
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(detected ? $"{name} detected." : $"{name} not found.");
+            ImGui.SetTooltip(detected ? $"{name} 已检测到。" : $"{name} 未找到。");
     }
 
     public static void StatusDot(Vector4 color, string label)
@@ -138,11 +138,11 @@ internal static class PoseKitUi
     public static void DrawFolderFilterCombo(string label, Configuration configuration, IEnumerable<string>? folders)
     {
         var folderFilter = configuration.PenumbraFolderFilter;
-        var folderLabel = folderFilter.Length == 0 ? "(All mods)" : folderFilter;
+        var folderLabel = folderFilter.Length == 0 ? "(所有模组)" : folderFilter;
         ImGui.SetNextItemWidth(-1);
         if (!ImGui.BeginCombo(label, folderLabel)) return;
 
-        if (ImGui.Selectable("(All mods)", folderFilter.Length == 0))
+        if (ImGui.Selectable("(所有模组)", folderFilter.Length == 0))
             SetFolderFilter(configuration, "");
 
         foreach (var folder in folders ?? [])
@@ -160,13 +160,13 @@ internal static class PoseKitUi
         configuration.Save();
     }
 
-    /// A button that runs <paramref name="resolve"/>, or plain "(conflict)" text when it's null.
-    public static void DrawConflictMarker(string id, string tooltip, Action? resolve)
+    /// A button that runs <paramref name="resolve"/>, or plain "（冲突）" text when it's null.
+    public static void Draw冲突Marker(string id, string tooltip, Action? resolve)
     {
         ImGui.SameLine();
         if (resolve == null)
         {
-            ImGui.TextColored(Bad, "(conflict)");
+            ImGui.TextColored(Bad, "（冲突）");
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(tooltip);
             return;
@@ -177,7 +177,7 @@ internal static class PoseKitUi
                    .Push(ImGuiCol.ButtonActive, Bad)
                    .Push(ImGuiCol.Text, Vector4.One))
         {
-            if (ImGui.Button($"Conflict: keep this##{id}"))
+            if (ImGui.Button($"冲突: keep this##{id}"))
                 resolve();
         }
         if (ImGui.IsItemHovered())
@@ -242,7 +242,7 @@ internal static class PoseKitUi
     }
 
     public const string KofiUrl = "https://ko-fi.com/raylapetal";
-    private const string KofiLabel = "Donate";
+    private const string KofiLabel = "捐赠";
     private static readonly Vector4 KofiRed = new(1f, 0.369f, 0.357f, 1f);        // Ko-fi's brand #FF5E5B
     private static readonly Vector4 KofiRedHovered = new(1f, 0.47f, 0.46f, 1f);
     private static readonly Vector4 KofiRedActive = new(0.85f, 0.29f, 0.28f, 1f);
@@ -259,7 +259,7 @@ internal static class PoseKitUi
                 Dalamud.Utility.Util.OpenLink(KofiUrl);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Support PoseKit on Ko-fi\nko-fi.com/raylapetal");
+            ImGui.SetTooltip("支持 PoseKit on Ko-fi\nko-fi.com/raylapetal");
     }
 
     /// For destructive actions.

@@ -22,19 +22,19 @@ public static class PenumbraPosePanel
     public static void DrawToolbar(Plugin plugin)
     {
         ImGui.AlignTextToFramePadding();
-        PoseKitUi.CardTitle("All Animations", $"{plugin.DiscoveredPoses.Count} MODS");
+        PoseKitUi.CardTitle("All 动画", $"{plugin.DiscoveredPoses.Count} 个模组");
         ImGui.SameLine(0, 10);
-        if (ImGui.Button("Rescan##PoseKitToolbarRescan"))
+        if (ImGui.Button("重新扫描##PoseKitToolbar重新扫描"))
             plugin.RefreshPenumbraPoses();
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Re-scan your selected Penumbra mods for poses and animations.");
+            ImGui.SetTooltip("重新扫描已选 Penumbra 模组中的姿势和动画。");
         ImGui.SameLine();
 
         var avail = ImGui.GetContentRegionAvail().X;
         var searchWidth = Math.Min(280f, avail);
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + avail - searchWidth);
         ImGui.SetNextItemWidth(searchWidth);
-        ImGui.InputTextWithHint("##PoseKitAnimationSearch", "Search name, command, or pose number...",
+        ImGui.InputTextWithHint("##PoseKitAnimationSearch", "搜索名称、命令或姿势编号……",
             ref animationSearch, 128);
 
         if (animationSearch.Length > 0)
@@ -42,12 +42,12 @@ public static class PenumbraPosePanel
             ImGui.AlignTextToFramePadding();
             ImGui.TextColored(PoseKitUi.Muted, $"Filtering by \"{animationSearch}\"");
             ImGui.SameLine();
-            if (ImGui.SmallButton("Clear##PoseKitClearAnimationSearch"))
+            if (ImGui.SmallButton("清除##PoseKit清除AnimationSearch"))
                 animationSearch = "";
         }
         else
         {
-            PoseKitUi.TextWrappedDisabled("Open a mod to choose an animation, pose, or option, then press Play.");
+            PoseKitUi.TextWrappedDisabled("展开模组，选择动画、姿势或选项，然后点击播放。");
         }
 
         PoseKitUi.CardTitleRule();
@@ -57,13 +57,13 @@ public static class PenumbraPosePanel
     {
         if (!plugin.PenumbraIpc.IsAvailable)
         {
-            PoseKitUi.TextWrappedDisabled("Penumbra not found — pose discovery unavailable.");
+            PoseKitUi.TextWrappedDisabled("未找到 Penumbra——无法发现姿势。");
             return;
         }
 
         if (plugin.DiscoveredPoses.Count == 0)
         {
-            PoseKitUi.TextWrappedDisabled("No mods selected — pick some in Settings.");
+            PoseKitUi.TextWrappedDisabled("No mods selected — pick some in 设置.");
             return;
         }
 
@@ -93,26 +93,26 @@ public static class PenumbraPosePanel
             // Playing only ever enables a mod, so this is the way to turn one back off.
             ImGui.SameLine(0, 20);
             var modEnabled = mod.Enabled;
-            if (ImGui.Checkbox($"Enabled##PoseKitModEnabled{mod.ModDirectory.GetHashCode()}", ref modEnabled))
+            if (ImGui.Checkbox($"启用##PoseKitMod启用{mod.ModDirectory.GetHashCode()}", ref modEnabled))
                 SetModEnabled(plugin, mod, collectionId, modEnabled);
 
             if (collectionId is { } resetCid && plugin.PenumbraIpc.HasTemporarySettings(mod.ModDirectory))
             {
                 ImGui.SameLine();
-                if (ImGui.SmallButton($"Reset##PoseKitModReset{mod.ModDirectory.GetHashCode()}"))
+                if (ImGui.SmallButton($"重置##PoseKitMod重置{mod.ModDirectory.GetHashCode()}"))
                     ResetMod(plugin, mod, resetCid);
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Undo PoseKit's changes to this mod and go back to your Penumbra settings.");
+                    ImGui.SetTooltip("撤销 PoseKit 对此模组的更改并恢复 Penumbra 设置。");
             }
 
             if (!expanded)
                 continue;
 
-            // Group names like "Options" repeat across mods; without this their combos share an id.
+            // Group names like "选项" repeat across mods; without this their combos share an id.
             ImGui.PushID(mod.ModDirectory);
             ImGui.Indent();
             if (!mod.Enabled)
-                PoseKitUi.TextWrappedDisabled("Disabled in Penumbra — playing anything below enables it temporarily, or use the checkbox above.");
+                PoseKitUi.TextWrappedDisabled("此模组已在 Penumbra 中禁用——播放下方内容会临时启用它，也可以使用上方复选框。");
             foreach (var group in mod.Groups)
             {
                 if (GroupMatches(mod, group, animationSearch))
@@ -123,7 +123,7 @@ public static class PenumbraPosePanel
         }
 
         if (!anyVisible)
-            ImGui.TextDisabled("No animations match this search.");
+            ImGui.TextDisabled("没有符合搜索条件的动画。");
     }
 
     private static void DrawGroup(Plugin plugin, PoseModInfo mod, PoseModGroup group, Guid? collectionId, string filter,
@@ -137,8 +137,8 @@ public static class PenumbraPosePanel
             ImGui.TextUnformatted(group.Name);
             foreach (var option in group.Options)
             {
-                if (DescribeConflict(plugin, activePoses, mod, option, collectionId) is { } conflict)
-                    PoseKitUi.DrawConflictMarker(ConflictId(mod, option), conflict.Tooltip, conflict.Resolve);
+                if (Describe冲突(plugin, activePoses, mod, option, collectionId) is { } conflict)
+                    PoseKitUi.Draw冲突Marker(冲突Id(mod, option), conflict.Tooltip, conflict.Resolve);
                 DrawOptionPickMarker(plugin, mod, option);
                 DrawTriggerButtons(plugin, mod, group, option, collectionId, "PoseKitDefaultPlay");
             }
@@ -175,8 +175,8 @@ public static class PenumbraPosePanel
                         ApplyGroupChange(plugin, mod, group, newSelection, cid);
                     }
 
-                    if (isChecked && DescribeConflict(plugin, activePoses, mod, option, collectionId) is { } conflict)
-                        PoseKitUi.DrawConflictMarker(ConflictId(mod, option), conflict.Tooltip, conflict.Resolve);
+                    if (isChecked && Describe冲突(plugin, activePoses, mod, option, collectionId) is { } conflict)
+                        PoseKitUi.Draw冲突Marker(冲突Id(mod, option), conflict.Tooltip, conflict.Resolve);
                     DrawOptionPickMarker(plugin, mod, option);
 
                     DrawTriggerButtons(plugin, mod, group, option, collectionId, $"PoseKitMultiPlay{option.Name.GetHashCode()}");
@@ -225,8 +225,8 @@ public static class PenumbraPosePanel
                 ImGui.EndCombo();
             }
 
-            if (selectedOption != null && DescribeConflict(plugin, activePoses, mod, selectedOption, collectionId) is { } comboConflict)
-                PoseKitUi.DrawConflictMarker(ConflictId(mod, selectedOption), comboConflict.Tooltip, comboConflict.Resolve);
+            if (selectedOption != null && Describe冲突(plugin, activePoses, mod, selectedOption, collectionId) is { } combo冲突)
+                PoseKitUi.Draw冲突Marker(冲突Id(mod, selectedOption), combo冲突.Tooltip, combo冲突.Resolve);
             if (selectedOption != null)
                 DrawOptionPickMarker(plugin, mod, selectedOption);
 
@@ -285,7 +285,7 @@ public static class PenumbraPosePanel
     /// The fix keeps this option: other mods are disabled, and other options in this same mod are
     /// deselected (a single-select group switches to an option without triggers, if it has one).
     /// Resolve is null when nothing can be fixed.
-    private static (string Tooltip, Action? Resolve)? DescribeConflict(Plugin plugin,
+    private static (string Tooltip, Action? Resolve)? Describe冲突(Plugin plugin,
         Dictionary<PoseIdentifier, List<(PoseModInfo Mod, PoseModOption Option)>> activePoses,
         PoseModInfo mod, PoseModOption option, Guid? collectionId)
     {
@@ -315,7 +315,7 @@ public static class PenumbraPosePanel
             {
                 foreach (var claim in external)
                 {
-                    description ??= $"Also currently active: \"{claim.Label}\" ({claim.ModName}) — not in your Animations list, but both claim {pid.DisplayName}. Only one will actually play.";
+                    description ??= $"Also currently active: \"{claim.Label}\" ({claim.ModName}) — not in your 动画 list, but both claim {pid.DisplayName}. Only one will actually play.";
                     if (!otherExternalMods.Exists(e => e.ModDirectory == claim.ModDirectory))
                         otherExternalMods.Add((claim.ModDirectory, claim.ModName));
                 }
@@ -393,8 +393,8 @@ public static class PenumbraPosePanel
         || name.Equals("Disabled", StringComparison.OrdinalIgnoreCase);
 
     /// Group names repeat across mods, so the id includes the mod.
-    private static string ConflictId(PoseModInfo mod, PoseModOption option) =>
-        $"PoseKitConflict{mod.ModDirectory.GetHashCode()}{option.Name.GetHashCode()}";
+    private static string 冲突Id(PoseModInfo mod, PoseModOption option) =>
+        $"PoseKit冲突{mod.ModDirectory.GetHashCode()}{option.Name.GetHashCode()}";
 
     /// Temporarily disables an unscanned mod and drops its claims so the marker clears right away.
     private static void DisableExternalMod(Plugin plugin, Guid collectionId, string modDirectory)

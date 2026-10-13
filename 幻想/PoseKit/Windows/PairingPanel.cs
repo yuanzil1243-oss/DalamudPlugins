@@ -24,28 +24,28 @@ public static class PairingPanel
 
         if (state.PendingInvite is { } pending)
         {
-            ImGui.TextColored(PoseKitUi.Info, "PAIRING INVITE");
-            ImGui.TextWrapped($"{pending.Sender} wants to pair with you.");
+            ImGui.TextColored(PoseKitUi.Info, "配对邀请");
+            ImGui.TextWrapped($"{pending.Sender} 想与你配对。");
             ImGui.Spacing();
-            if (HalfButton("Accept##PoseKitAcceptPairing", first: true))
+            if (HalfButton("接受##PoseKit接受配对", first: true))
                 plugin.PairingListener.AcceptPending();
-            if (HalfButton("Dismiss##PoseKitDismissPairing", first: false))
+            if (HalfButton("忽略##PoseKit忽略配对", first: false))
                 state.DismissPendingInvite();
             return;
         }
 
         if (state.OutgoingInvite is { } outgoing)
         {
-            ImGui.TextColored(PoseKitUi.Muted, "INVITE SENT");
-            ImGui.TextWrapped($"Waiting for {outgoing.Target} to accept...");
+            ImGui.TextColored(PoseKitUi.Muted, "邀请已发送");
+            ImGui.TextWrapped($"等待 {outgoing.Target} 接受邀请……");
             ImGui.Spacing();
-            if (PoseKitUi.WideButton("Cancel invite##PoseKitCancelInvite"))
+            if (PoseKitUi.WideButton("取消邀请##PoseKitCancelInvite"))
                 state.CancelOutgoingInvite();
             return;
         }
 
-        ImGui.TextColored(PoseKitUi.Muted, "NO ACTIVE PAIRING");
-        ImGui.TextWrapped("Pair with a partner to queue poses and play couple presets together.");
+        ImGui.TextColored(PoseKitUi.Muted, "没有活动配对");
+        ImGui.TextWrapped("与伙伴配对后，可排队姿势并一起播放双人预设。");
         ImGui.Spacing();
 
         ImGui.SetNextItemWidth(-1);
@@ -54,7 +54,7 @@ public static class PairingPanel
         var valid = PartnerIdentity.TryParse(inviteAddress, out var target, out var error);
         using (ImRaii.Disabled(!valid))
         {
-            if (PoseKitUi.WideButton("Send pairing invite##PoseKitSendInvite"))
+            if (PoseKitUi.WideButton("发送配对邀请##PoseKitSendInvite"))
             {
                 plugin.PairingListener.InitiatePairing(target);
                 inviteAddress = "";
@@ -65,8 +65,8 @@ public static class PairingPanel
             ImGui.TextColored(PoseKitUi.Bad, error);
 
         ImGui.Spacing();
-        PoseKitUi.TextWrappedDisabled("Once paired, clicking a preset or animation queues it and highlights it for " +
-                                       "both of you; when you've both picked, both play together.");
+        PoseKitUi.TextWrappedDisabled("配对后，点击预设或动画会将其加入队列，并为双方高亮；" +
+                                       "双方都选择后会一起播放。");
     }
 
     private static void DrawPaired(Plugin plugin, PairingState state, PartnerIdentity peer)
@@ -78,34 +78,34 @@ public static class PairingPanel
         var relay = plugin.CoupleRelayInbox;
         if (relay.Sender is { } relaySender && relay.PresetName is { } relayPresetName)
         {
-            PoseKitUi.SectionHeader("Incoming");
+            PoseKitUi.SectionHeader("收到的邀请");
             ImGui.PushStyleColor(ImGuiCol.Text, PoseKitUi.Info);
-            ImGui.TextWrapped($"{relaySender.Name} wants to play \"{relayPresetName}\" with you.");
+            ImGui.TextWrapped($"{relaySender.Name} 想与你一起播放“{relayPresetName}”。");
             ImGui.PopStyleColor();
-            if (HalfButton("Accept##PoseKitAcceptCoupleRelay", first: true))
+            if (HalfButton("接受##PoseKit接受双人Relay", first: true))
             {
                 if (relay.Accept() is { } captured)
                     plugin.ApplyCapturedPartnerState(captured);
             }
-            if (HalfButton("Deny##PoseKitDenyCoupleRelay", first: false))
+            if (HalfButton("Deny##PoseKitDeny双人Relay", first: false))
                 relay.Deny();
         }
 
         var outbox = plugin.CoupleRelayOutbox;
         if (outbox.PendingPresetName is { } outgoingName)
         {
-            PoseKitUi.SectionHeader("Outgoing");
+            PoseKitUi.SectionHeader("发出的邀请");
             ImGui.PushStyleColor(ImGuiCol.Text, PoseKitUi.Info);
-            ImGui.TextWrapped($"Waiting for your partner to accept \"{outgoingName}\"...");
+            ImGui.TextWrapped($"等待伙伴接受“{outgoingName}”……");
             ImGui.PopStyleColor();
-            if (PoseKitUi.WideButton("Cancel##PoseKitCancelCoupleRelay"))
+            if (PoseKitUi.WideButton("Cancel##PoseKitCancel双人Relay"))
                 outbox.Cancel();
         }
 
-        PoseKitUi.SectionHeader("Picks");
+        PoseKitUi.SectionHeader("选择");
         var queue = plugin.CoupleQueueService;
         DrawPickRow(PoseKitUi.Accent, "You", queue.QueuedSelectionName);
-        DrawPickRow(PoseKitUi.Info, "Partner", queue.PartnerSelectionName);
+        DrawPickRow(PoseKitUi.Info, "伙伴", queue.PartnerSelectionName);
 
         if (queue.PartnerSelectionName is { } theirs && queue.QueuedSelectionName == null)
         {
@@ -113,9 +113,9 @@ public static class PairingPanel
             DrawQuickPick(plugin, theirs);
         }
 
-        PoseKitUi.SectionHeader("Options");
+        PoseKitUi.SectionHeader("选项");
         var overrideEnabled = state.LocalOverrideEnabled;
-        if (ImGui.Checkbox("Override queue##PoseKitOverrideQueue", ref overrideEnabled))
+        if (ImGui.Checkbox("覆盖队列##PoseKitOverrideQueue", ref overrideEnabled))
         {
             state.SetLocalOverrideEnabled(overrideEnabled);
             plugin.PairingListener.SendOverrideToggle(overrideEnabled);
@@ -124,25 +124,25 @@ public static class PairingPanel
         if (state.MutualOverrideActive)
         {
             ImGui.PushStyleColor(ImGuiCol.Text, PoseKitUi.Good);
-            ImGui.TextWrapped("Override active — picking a second item plays your first pick and forces theirs.");
+            ImGui.TextWrapped("已启用覆盖队列——选择第二项时会播放你的第一项并强制伙伴选择它。");
             ImGui.PopStyleColor();
         }
         else if (state.LocalOverrideEnabled)
-            PoseKitUi.TextWrappedDisabled("Waiting on your partner to enable override too — until then, a second click just replaces your own pick.");
+            PoseKitUi.TextWrappedDisabled("等待伙伴也启用覆盖队列；在此之前，第二次点击只会替换你自己的选择。");
 
         // One-sided; nothing is sent to the partner.
         var soloPlayEnabled = state.SoloPlayEnabled;
-        if (ImGui.Checkbox("Play solo##PoseKitSoloPlay", ref soloPlayEnabled))
+        if (ImGui.Checkbox("单人播放##PoseKitSoloPlay", ref soloPlayEnabled))
             state.SetSoloPlayEnabled(soloPlayEnabled);
 
         if (state.SoloPlayEnabled)
-            PoseKitUi.TextWrappedDisabled("Clicks play immediately for you only — nothing is queued, forced, or sent to your partner.");
+            PoseKitUi.TextWrappedDisabled("点击后仅立即为你播放，不会排队、强制或发送给伙伴。");
 
         ImGui.Spacing();
-        PoseKitUi.TextWrappedDisabled("Click any preset or animation to queue it — once you've both picked something, both play together.");
+        PoseKitUi.TextWrappedDisabled("点击任意预设或动画加入队列——双方都选择后会一起播放。");
 
         ImGui.Spacing();
-        if (PoseKitUi.WideButton("Unpair##PoseKitUnpair"))
+        if (PoseKitUi.WideButton("解除配对##PoseKit解除配对"))
             plugin.PairingListener.Unpair();
     }
 
@@ -155,7 +155,7 @@ public static class PairingPanel
         if (pick != null)
             ImGui.TextWrapped(pick);
         else
-            ImGui.TextColored(PoseKitUi.Muted, "nothing yet");
+            ImGui.TextColored(PoseKitUi.Muted, "暂无选择");
     }
 
     /// One of a pair of buttons splitting the current row evenly.

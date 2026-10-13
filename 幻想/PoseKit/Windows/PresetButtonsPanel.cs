@@ -37,31 +37,31 @@ public static class PresetButtonsPanel
     public static void DrawToolbar(Plugin plugin)
     {
         ImGui.AlignTextToFramePadding();
-        PoseKitUi.CardTitle("Presets", $"{plugin.PresetManager.Presets.Count} saved");
+        PoseKitUi.CardTitle("预设", $"{plugin.PresetManager.预设.Count} saved");
         ImGui.SameLine();
 
         var avail = ImGui.GetContentRegionAvail().X;
         var searchWidth = Math.Min(280f, avail);
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + avail - searchWidth);
         ImGui.SetNextItemWidth(searchWidth);
-        ImGui.InputTextWithHint("##PoseKitPresetSearch", "Search name, pose, anchor, or animation...", ref presetSearch, 128);
+        ImGui.InputTextWithHint("##PoseKitPresetSearch", "搜索名称、姿势、锚点或动画……", ref presetSearch, 128);
 
         ImGui.AlignTextToFramePadding();
-        ImGui.TextColored(PoseKitUi.Muted, "Type");
+        ImGui.TextColored(PoseKitUi.Muted, "类型");
         ImGui.SameLine();
         ImGui.SetNextItemWidth(110);
-        EnumCombo("##PoseKitPresetTypeFilter", ref typeFilter, TypeFilterOptions);
+        EnumCombo("##PoseKitPreset类型Filter", ref typeFilter, TypeFilterOptions);
 
         ImGui.SameLine(0, 16);
-        ImGui.TextColored(PoseKitUi.Muted, "Anchor");
+        ImGui.TextColored(PoseKitUi.Muted, "锚点");
         ImGui.SameLine();
         ImGui.SetNextItemWidth(120);
-        EnumCombo("##PoseKitPresetAnchorFilter", ref anchorFilter, AnchorFilterOptions);
+        EnumCombo("##PoseKitPreset锚点Filter", ref anchorFilter, AnchorFilterOptions);
 
         if (IsFiltering)
         {
             ImGui.SameLine(0, 16);
-            if (ImGui.SmallButton("Clear##PoseKitClearPresetFilters"))
+            if (ImGui.SmallButton("清除##PoseKit清除PresetFilters"))
             {
                 presetSearch = "";
                 typeFilter = TypeFilter.All;
@@ -120,7 +120,7 @@ public static class PresetButtonsPanel
     {
         var localPlayer = Plugin.ObjectTable.LocalPlayer;
         var currentPose = PoseIdentifier.FromCharacter(localPlayer);
-        PoseKitUi.TextWrappedDisabled(currentPose?.DisplayName ?? "Not currently in a pose/emote loop.");
+        PoseKitUi.TextWrappedDisabled(currentPose?.DisplayName ?? "当前没有正在播放的姿势或表情动作。");
 
         using (ImRaii.Disabled(currentPose is null))
         {
@@ -128,16 +128,16 @@ public static class PresetButtonsPanel
             var changed = false;
 
             // Fit the drag fields next to the widest label.
-            var dragWidth = MathF.Max(60f, ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize("Forward / Back").X
+            var dragWidth = MathF.Max(60f, ImGui.GetContentRegionAvail().X - ImGui.CalcTextSize("前进 / 后退").X
                                             - ImGui.GetStyle().ItemSpacing.X);
-            changed |= PoseKitUi.AxisDragFloat("OffsetX", "Left / Right", ref offset.Position.X, width: dragWidth);
-            changed |= PoseKitUi.AxisDragFloat("OffsetY", "Height", ref offset.Position.Y, width: dragWidth);
-            changed |= PoseKitUi.AxisDragFloat("OffsetZ", "Forward / Back", ref offset.Position.Z, width: dragWidth);
+            changed |= PoseKitUi.AxisDragFloat("OffsetX", "左 / 右", ref offset.Position.X, width: dragWidth);
+            changed |= PoseKitUi.AxisDragFloat("OffsetY", "高度", ref offset.Position.Y, width: dragWidth);
+            changed |= PoseKitUi.AxisDragFloat("OffsetZ", "前进 / 后退", ref offset.Position.Z, width: dragWidth);
 
             if (plugin.OffsetEngine.RotationHookResolved)
             {
                 var degrees = offset.Rotation * (180f / MathF.PI);
-                if (PoseKitUi.AxisDragFloat("Rotation", "Rotation", ref degrees, 1f, dragWidth))
+                if (PoseKitUi.AxisDragFloat("旋转", "旋转", ref degrees, 1f, dragWidth))
                 {
                     degrees %= 360f;
                     if (degrees < 0) degrees += 360f;
@@ -147,7 +147,7 @@ public static class PresetButtonsPanel
             }
             else
             {
-                PoseKitUi.TextWrappedDisabled("Rotation offset unavailable — hook didn't resolve this game version.");
+                PoseKitUi.TextWrappedDisabled("旋转 offset unavailable — hook didn't resolve this game version.");
             }
 
             if (changed)
@@ -155,7 +155,7 @@ public static class PresetButtonsPanel
         }
 
         // Always enabled, as the way out of a stuck offset.
-        if (ImGui.Button("Reset##PoseKitOffsetReset"))
+        if (ImGui.Button("重置##PoseKitOffset重置"))
         {
             plugin.PoseTrigger.ClearOffset(localPlayer);
             plugin.LoadedPreset = null;
@@ -174,7 +174,7 @@ public static class PresetButtonsPanel
 
     public static void DrawPresets(Plugin plugin)
     {
-        if (ImGui.CollapsingHeader("Save current offset##PoseKitSaveSection", ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("保存当前偏移##PoseKitSaveSection", ImGuiTreeNodeFlags.DefaultOpen))
             DrawSaveForm(plugin);
 
         ImGui.Spacing();
@@ -184,7 +184,7 @@ public static class PresetButtonsPanel
     private static void DrawSaveForm(Plugin plugin)
     {
         var currentPose = PoseIdentifier.FromCharacter(Plugin.ObjectTable.LocalPlayer);
-        PoseKitUi.TextWrappedDisabled(currentPose?.DisplayName ?? "Start a pose or animation before saving a preset.");
+        PoseKitUi.TextWrappedDisabled(currentPose?.DisplayName ?? "请先播放姿势或动画，再保存预设。");
 
         if (currentPose is { } pose)
         {
@@ -195,7 +195,7 @@ public static class PresetButtonsPanel
             var nearbyFurniture = effectiveAnchorMode == AnchorMode.Furniture ? furnitureScanner.ScanNearby(localPlayer) : null;
 
             ImGui.SetNextItemWidth(150);
-            ImGui.InputTextWithHint("##PoseKitPresetName", "Preset name", ref newPresetName, 64);
+            ImGui.InputTextWithHint("##PoseKitPresetName", "预设名称", ref newPresetName, 64);
             ImGui.SameLine();
 
             var furnitureValid = effectiveAnchorMode != AnchorMode.Furniture ||
@@ -205,7 +205,7 @@ public static class PresetButtonsPanel
 
             using (ImRaii.Disabled(!canSave))
             {
-                if (ImGui.Button("Save as preset##PoseKitSavePreset"))
+                if (ImGui.Button("另存为预设##PoseKitSavePreset"))
                 {
                     PresetAnchor? anchor = effectiveAnchorMode switch
                     {
@@ -248,7 +248,7 @@ public static class PresetButtonsPanel
 
             if (plugin.PairingState.Active)
             {
-                ImGui.Checkbox("Include partner##PoseKitIncludePartner", ref includePartner);
+                ImGui.Checkbox("包含伙伴##PoseKitInclude伙伴", ref includePartner);
                 PoseKitUi.TextWrappedDisabled("Captures your partner's current pose/offset/mod too, saved only in your own " +
                                                "library, and remembers where you're standing relative to them. Playing it " +
                                                "later relays their half to them for accept/deny: they stay put, and you're " +
@@ -271,7 +271,7 @@ public static class PresetButtonsPanel
         var all = plugin.PresetManager.Presets;
         if (all.Count == 0)
         {
-            PoseKitUi.TextWrappedDisabled("No presets saved yet — save your current offset above.");
+            PoseKitUi.TextWrappedDisabled("尚未保存预设——请先保存上方的当前偏移。");
             return;
         }
 
@@ -282,7 +282,7 @@ public static class PresetButtonsPanel
             .ToList();
         if (groups.Count == 0)
         {
-            PoseKitUi.TextWrappedDisabled("No presets match your search or filters.");
+            PoseKitUi.TextWrappedDisabled("没有符合搜索或筛选条件的预设。");
             return;
         }
 
@@ -305,16 +305,16 @@ public static class PresetButtonsPanel
     private static void DrawAnchorChoice(IPlayerCharacter? localPlayer, List<NearbyFurniture>? nearbyFurniture)
     {
         var mode = (int)anchorMode;
-        ImGui.RadioButton("No anchor##PoseKitAnchorNone", ref mode, (int)AnchorMode.None);
+        ImGui.RadioButton("不设锚点##PoseKit锚点None", ref mode, (int)AnchorMode.None);
         ImGui.SameLine();
-        ImGui.RadioButton("Anchor to current spot##PoseKitAnchorSpot", ref mode, (int)AnchorMode.Spot);
+        ImGui.RadioButton("锚定到当前位置##PoseKit锚点Spot", ref mode, (int)AnchorMode.Spot);
         ImGui.SameLine();
-        ImGui.RadioButton("Anchor to furniture##PoseKitAnchorFurniture", ref mode, (int)AnchorMode.Furniture);
+        ImGui.RadioButton("锚定到家具##PoseKit锚点Furniture", ref mode, (int)AnchorMode.Furniture);
         anchorMode = (AnchorMode)mode;
 
         if (anchorMode == AnchorMode.Spot)
         {
-            PoseKitUi.TextWrappedDisabled("Corrects the offset on replay so the character lands back in this exact " +
+            PoseKitUi.TextWrappedDisabled("重播时修正偏移，让角色回到准确的" +
                                            "world spot and facing, not just the same pose relative to wherever you are then.");
         }
         else if (anchorMode == AnchorMode.Furniture)
@@ -339,7 +339,7 @@ public static class PresetButtonsPanel
                     }
                     ImGui.EndCombo();
                 }
-                PoseKitUi.TextWrappedDisabled("Corrects the offset on replay against this furniture item's current " +
+                PoseKitUi.TextWrappedDisabled("重播时根据家具当前的" +
                                                "position, so it still lands right even in a differently laid-out room.");
             }
             else
@@ -377,12 +377,12 @@ public static class PresetButtonsPanel
         PoseKitUi.DrawPickBadge(pick);
 
         if (namedPose.PartnerHalf != null)
-            DrawEntryTag("Couple", PoseKitUi.Info);
+            DrawEntryTag("双人", PoseKitUi.Info);
         if (AnchorTag(namedPose) is { } anchorTag)
             DrawEntryTag(anchorTag, PoseKitUi.Muted);
 
         // Right-aligned, unless the row is already too full to leave room for it.
-        var deleteLabel = $"Delete##PoseKitDeletePreset{namedPose.GetHashCode()}";
+        var deleteLabel = $"删除##PoseKit删除Preset{namedPose.GetHashCode()}";
         PoseKitUi.SameLineIfFits(PoseKitUi.ButtonWidth(deleteLabel));
         var deleteX = ImGui.GetWindowContentRegionMax().X - PoseKitUi.ButtonWidth(deleteLabel);
         if (ImGui.GetCursorPosX() < deleteX)
@@ -390,19 +390,19 @@ public static class PresetButtonsPanel
         if (PoseKitUi.DangerButton(deleteLabel))
             plugin.PresetManager.Delete(namedPose);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip($"Delete the \"{namedPose.Name}\" preset");
+            ImGui.SetTooltip($"删除 the \"{namedPose.Name}\" preset");
 
         if (namedPose.Penumbra is { ModName.Length: > 0 } link)
         {
             var animation = link.OptionName is "" or "Default" ? link.ModName : $"{link.ModName} — {link.OptionName}";
-            PoseKitUi.TextWrappedDisabled($"Animation: {animation}");
+            PoseKitUi.TextWrappedDisabled($"动画： {animation}");
         }
 
         var status = pick switch
         {
-            PoseKitUi.PickState.Both => "both picked — playing shortly!",
-            PoseKitUi.PickState.Own => "queued — waiting on partner",
-            PoseKitUi.PickState.Partner => "your partner picked this — pick it too to play together",
+            PoseKitUi.PickState.Both => "双方已选择——即将播放！",
+            PoseKitUi.PickState.Own => "已排队——等待伙伴",
+            PoseKitUi.PickState.Partner => "伙伴已选择此项——你也选择后即可一起播放",
             _ => null,
         };
         if (status != null)
@@ -410,9 +410,9 @@ public static class PresetButtonsPanel
     }
 
     private static string? AnchorTag(NamedPose preset) =>
-        preset.Anchor?.Spot is { } spot ? $"Spot: {spot.ZoneName}"
-        : preset.Anchor?.Furniture is { } furniture ? $"Furniture: {furniture.FurnitureName}"
-        : preset.Anchor?.Partner is { } partner ? $"Partner: {partner.Partner.Name}"
+        preset.Anchor?.Spot is { } spot ? $"地点： {spot.ZoneName}"
+        : preset.Anchor?.Furniture is { } furniture ? $"家具： {furniture.FurnitureName}"
+        : preset.Anchor?.Partner is { } partner ? $"伙伴: {partner.伙伴.Name}"
         : null;
 
     /// Wraps to a new line when it wouldn't fit next to the delete button.

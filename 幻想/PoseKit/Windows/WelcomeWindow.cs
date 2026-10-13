@@ -39,8 +39,7 @@ public class WelcomeWindow : Window, IDisposable
         PoseKitUi.PaintWindowBackground();
         using var theme = PoseKitUi.PushTheme();
 
-        ImGui.TextWrapped("PoseKit 可以调整、保存和重播姿势，并自动发现 Penumbra 动画" +
-                           "模组，还能通过 SimpleHeels 将你的姿势同步给已配对的伙伴。");
+        ImGui.TextWrapped("PoseKit 可以调整、保存和重播姿势，自动发现 Penumbra 动画模组，还能通过 SimpleHeels 将姿势同步给已配对的伙伴。");
 
         PoseKitUi.SectionHeader("运行要求");
         PoseKitUi.DrawDependencyStatus(plugin);
@@ -48,16 +47,16 @@ public class WelcomeWindow : Window, IDisposable
                                        "optional — only needed if you want your pose offset to sync to paired viewers.");
 
         PoseKitUi.SectionHeader("快速开始");
-        ImGui.TextWrapped("1. Set a folder filter below, then pick which mods to scan in 设置.");
-        ImGui.TextWrapped("2. Open the 动画 tab at the top and hit Play on any pose.");
-        ImGui.TextWrapped("3. Use 实时偏移 to drag your character into position, then save it as a named preset under 预设.");
+        ImGui.TextWrapped("1. Set a folder filter below, then pick which mods to scan in Settings.");
+        ImGui.TextWrapped("2. Open the Animations tab at the top and hit Play on any pose.");
+        ImGui.TextWrapped("3. Use Live Offset to drag your character into position, then save it as a named preset under Presets.");
 
         PoseKitUi.SectionHeader("动画模组文件夹筛选");
         if (availableFoldersCache == null)
             RefreshFolders();
         PoseKitUi.DrawFolderFilterCombo("##PoseKitWelcomeFolderFilter", configuration, availableFoldersCache);
         PoseKitUi.TextWrappedDisabled("Restricts the mod picker to this Penumbra sort-folder — you can " +
-                                       "change this anytime in 设置, along with which specific mods to scan.");
+                                       "change this anytime in Settings, along with which specific mods to scan.");
 
         ImGui.Spacing();
         ImGui.Spacing();

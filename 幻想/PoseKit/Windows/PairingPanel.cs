@@ -27,9 +27,9 @@ public static class PairingPanel
             ImGui.TextColored(PoseKitUi.Info, "配对邀请");
             ImGui.TextWrapped($"{pending.Sender} 想与你配对。");
             ImGui.Spacing();
-            if (HalfButton("接受##PoseKit接受配对", first: true))
+            if (HalfButton("接受##PoseKitAcceptPairing", first: true))
                 plugin.PairingListener.AcceptPending();
-            if (HalfButton("忽略##PoseKit忽略配对", first: false))
+            if (HalfButton("忽略##PoseKitDismissPairing", first: false))
                 state.DismissPendingInvite();
             return;
         }
@@ -49,7 +49,7 @@ public static class PairingPanel
         ImGui.Spacing();
 
         ImGui.SetNextItemWidth(-1);
-        ImGui.InputTextWithHint("##PoseKitInviteAddress", "Name Surname@World", ref inviteAddress, 64);
+        ImGui.InputTextWithHint("##PoseKitInviteAddress", "名字 姓氏@World", ref inviteAddress, 64);
 
         var valid = PartnerIdentity.TryParse(inviteAddress, out var target, out var error);
         using (ImRaii.Disabled(!valid))
@@ -65,8 +65,7 @@ public static class PairingPanel
             ImGui.TextColored(PoseKitUi.Bad, error);
 
         ImGui.Spacing();
-        PoseKitUi.TextWrappedDisabled("配对后，点击预设或动画会将其加入队列，并为双方高亮；" +
-                                       "双方都选择后会一起播放。");
+        PoseKitUi.TextWrappedDisabled("配对后，点击预设或动画会将其加入队列并为双方高亮；双方都选择后会一起播放。");
     }
 
     private static void DrawPaired(Plugin plugin, PairingState state, PartnerIdentity peer)
@@ -82,12 +81,12 @@ public static class PairingPanel
             ImGui.PushStyleColor(ImGuiCol.Text, PoseKitUi.Info);
             ImGui.TextWrapped($"{relaySender.Name} 想与你一起播放“{relayPresetName}”。");
             ImGui.PopStyleColor();
-            if (HalfButton("接受##PoseKit接受双人Relay", first: true))
+            if (HalfButton("Accept##PoseKitAcceptCoupleRelay", first: true))
             {
                 if (relay.Accept() is { } captured)
                     plugin.ApplyCapturedPartnerState(captured);
             }
-            if (HalfButton("Deny##PoseKitDeny双人Relay", first: false))
+            if (HalfButton("Deny##PoseKitDenyCoupleRelay", first: false))
                 relay.Deny();
         }
 
@@ -98,7 +97,7 @@ public static class PairingPanel
             ImGui.PushStyleColor(ImGuiCol.Text, PoseKitUi.Info);
             ImGui.TextWrapped($"等待伙伴接受“{outgoingName}”……");
             ImGui.PopStyleColor();
-            if (PoseKitUi.WideButton("Cancel##PoseKitCancel双人Relay"))
+            if (PoseKitUi.WideButton("Cancel##PoseKitCancelCoupleRelay"))
                 outbox.Cancel();
         }
 
@@ -142,7 +141,7 @@ public static class PairingPanel
         PoseKitUi.TextWrappedDisabled("点击任意预设或动画加入队列——双方都选择后会一起播放。");
 
         ImGui.Spacing();
-        if (PoseKitUi.WideButton("解除配对##PoseKit解除配对"))
+        if (PoseKitUi.WideButton("解除配对##PoseKitUnpair"))
             plugin.PairingListener.Unpair();
     }
 
@@ -155,7 +154,7 @@ public static class PairingPanel
         if (pick != null)
             ImGui.TextWrapped(pick);
         else
-            ImGui.TextColored(PoseKitUi.Muted, "暂无选择");
+            ImGui.TextColored(PoseKitUi.Muted, "nothing yet");
     }
 
     /// One of a pair of buttons splitting the current row evenly.

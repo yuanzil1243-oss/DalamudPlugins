@@ -1,6 +1,6 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.3.0.0</Version>
+    <Version>0.3.1.0</Version>
     <Author>yuanzil1243-oss</Author>
     <Name>直暴播报</Name>
     <Punchline>在游戏聊天中播报自己的直击、暴击和直暴伤害。</Punchline>

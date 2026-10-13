@@ -365,7 +365,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
     }
 
     private static bool IsValidIcon(int iconId) =>
-        iconId > 0 && Enum.IsDefined(typeof(BitmapFontIcon), iconId);
+        iconId > 0 && Enum.IsDefined(typeof(BitmapFontIcon), unchecked((uint)iconId));
 
     private void OpenSettings() => settingsOpen = true;
 
@@ -495,8 +495,8 @@ public sealed unsafe class Plugin : IDalamudPlugin
         var changed = ImGui.InputText($"{label}##text-{label}", ref text, MaxInputLength);
         ImGui.SameLine();
 
-        var iconName = Enum.IsDefined(typeof(BitmapFontIcon), iconId) && iconId != 0
-            ? ((BitmapFontIcon)iconId).ToString()
+        var iconName = iconId > 0 && Enum.IsDefined(typeof(BitmapFontIcon), unchecked((uint)iconId))
+            ? ((BitmapFontIcon)unchecked((uint)iconId)).ToString()
             : "无图标";
         if (ImGui.BeginCombo($"图标##icon-{label}", iconName))
         {

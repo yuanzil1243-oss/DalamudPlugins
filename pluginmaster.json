@@ -3,7 +3,7 @@
     "Author": "yuanzil1243-oss",
     "Name": "直暴播报",
     "InternalName": "CritChat",
-    "AssemblyVersion": "0.3.0.0",
+    "AssemblyVersion": "0.3.1.0",
     "DalamudApiLevel": 15,
     "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/CritChat.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/CritChat.zip",
@@ -13,6 +13,6 @@
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdate": "1791859986"
+    "LastUpdate": "1791860666"
   }
 ]

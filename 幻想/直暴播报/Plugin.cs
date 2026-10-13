@@ -255,13 +255,22 @@ public sealed unsafe class Plugin : IDalamudPlugin
         }
 
         var changed = false;
-        changed |= ImGui.InputText("统一间隔符", ref config.Delimiter, MaxInputLength);
-        changed |= ImGui.InputText("战斗/死亡分隔文本", ref config.CombatSeparator, MaxInputLength);
+        var delimiter = config.Delimiter;
+        var combatSeparator = config.CombatSeparator;
+        var directHitColor = config.DirectHitColor;
+        var directHitSuffix = config.DirectHitSuffix;
+        var criticalColor = config.CriticalColor;
+        var criticalSuffix = config.CriticalSuffix;
+        var directCriticalColor = config.DirectCriticalColor;
+        var directCriticalSuffix = config.DirectCriticalSuffix;
+
+        changed |= ImGui.InputText("统一间隔符", ref delimiter, MaxInputLength);
+        changed |= ImGui.InputText("战斗/死亡分隔文本", ref combatSeparator, MaxInputLength);
         ImGui.TextDisabled("颜色编号采用游戏 UIColor 色号；设为 0 时使用默认聊天颜色。");
 
-        DrawHitSettings("直击", ref config.DirectHitColor, ref config.DirectHitSuffix, ref changed);
-        DrawHitSettings("暴击", ref config.CriticalColor, ref config.CriticalSuffix, ref changed);
-        DrawHitSettings("直暴", ref config.DirectCriticalColor, ref config.DirectCriticalSuffix, ref changed);
+        DrawHitSettings("直击", ref directHitColor, ref directHitSuffix, ref changed);
+        DrawHitSettings("暴击", ref criticalColor, ref criticalSuffix, ref changed);
+        DrawHitSettings("直暴", ref directCriticalColor, ref directCriticalSuffix, ref changed);
 
         if (ImGui.Button("预览三种格式"))
         {
@@ -274,7 +283,17 @@ public sealed unsafe class Plugin : IDalamudPlugin
         ImGui.TextDisabled("示例：技能名称 间隔符 直击 间隔符 12,345 末尾符号");
 
         if (changed)
+        {
+            config.Delimiter = delimiter;
+            config.CombatSeparator = combatSeparator;
+            config.DirectHitColor = directHitColor;
+            config.DirectHitSuffix = directHitSuffix;
+            config.CriticalColor = criticalColor;
+            config.CriticalSuffix = criticalSuffix;
+            config.DirectCriticalColor = directCriticalColor;
+            config.DirectCriticalSuffix = directCriticalSuffix;
             PluginInterface.SavePluginConfig(config);
+        }
 
         ImGui.End();
     }

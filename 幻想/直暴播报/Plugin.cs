@@ -6,14 +6,11 @@ using Dalamud.Game.Command;
 using Dalamud.Game.Gui.FlyText;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
-using Dalamud.Interface.Textures;
-using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Hooking;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using Lumina.Text.Payloads;
 using GameSeStringBuilder = Lumina.Text.SeStringBuilder;
 
 namespace CritChat;
@@ -30,8 +27,6 @@ public sealed unsafe class Plugin : IDalamudPlugin
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
-    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
 
     private const string ToggleCommand = "/zhijibao";
     private const int MaxInputLength = 64;
@@ -39,17 +34,9 @@ public sealed unsafe class Plugin : IDalamudPlugin
     private bool enabled = true;
     private bool settingsOpen;
     private bool iconBrowserOpen;
-    private int selectedIconCategory;
     private int iconSize = 36;
-    private readonly int[] iconScanRanges = new int[IconCategories.Length];
-    private readonly int[] nextIconsToScan = IconCategories.Select(category => category.Ranges[0].Start).ToArray();
     private string iconSearch = string.Empty;
-    private string? iconPickerTarget;
-    private (string Target, int IconId)? pendingIconSelection;
-    private readonly List<int>[] iconCategoryResults = Enumerable.Range(0, IconCategories.Length).Select(_ => new List<int>()).ToArray();
-    private readonly HashSet<int>[] iconCategorySets = Enumerable.Range(0, IconCategories.Length).Select(_ => new HashSet<int>()).ToArray();
-    private readonly bool[] iconCategoryScanned = new bool[IconCategories.Length];
-    private readonly Dictionary<int, ISharedImmediateTexture> iconTextures = new();
+    private OutputPart? iconPickerTarget;
     private bool wasInCombat;
     private bool deathSeparatorPrintedThisCombat;
     private bool countdownAnnouncementSent;
@@ -82,14 +69,15 @@ public sealed unsafe class Plugin : IDalamudPlugin
     public Plugin()
     {
         config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        config.Version = 2;
+        EnsureTemplates();
+        config.Version = 3;
         wasInCombat = Condition[ConditionFlag.InCombat];
 
         FlyTextGui.FlyTextCreated += OnFlyTextCreated;
         Condition.ConditionChange += OnConditionChange;
         Framework.Update += OnFrameworkUpdate;
         PluginInterface.UiBuilder.Draw += DrawSettings;
-        PluginInterface.UiBuilder.Draw += DrawIconBrowser;
+        PluginInterface.UiBuilder.Draw += DrawIconPicker;
         PluginInterface.UiBuilder.OpenConfigUi += OpenSettings;
 
         try
@@ -123,6 +111,58 @@ public sealed unsafe class Plugin : IDalamudPlugin
         });
         PluginInterface.SavePluginConfig(config);
     }
+
+    private void EnsureTemplates()
+    {
+        config.DirectHitTemplate ??= BuildDamageTemplate(config.DirectHitSuffix, config.DirectHitSuffixIcon);
+        if (config.DirectHitTemplate.Count == 0)
+            config.DirectHitTemplate = BuildDamageTemplate(config.DirectHitSuffix, config.DirectHitSuffixIcon);
+        if (config.CriticalTemplate is null || config.CriticalTemplate.Count == 0)
+            config.CriticalTemplate = BuildDamageTemplate(config.CriticalSuffix, config.CriticalSuffixIcon);
+        if (config.DirectCriticalTemplate is null || config.DirectCriticalTemplate.Count == 0)
+            config.DirectCriticalTemplate = BuildDamageTemplate(config.DirectCriticalSuffix, config.DirectCriticalSuffixIcon);
+        if (config.CombatSeparatorTemplate is null || config.CombatSeparatorTemplate.Count == 0)
+        {
+            config.CombatSeparatorTemplate = new();
+            if (!string.IsNullOrEmpty(config.CombatSeparator))
+                config.CombatSeparatorTemplate.Add(new OutputPart { Kind = "Text", Value = config.CombatSeparator });
+            AddLegacyIcon(config.CombatSeparatorTemplate, config.CombatSeparatorIcon);
+        }
+        if (config.CountdownTemplate is null || config.CountdownTemplate.Count == 0)
+        {
+            config.CountdownTemplate = new();
+            if (!string.IsNullOrEmpty(config.CountdownAnnouncementText))
+                config.CountdownTemplate.Add(new OutputPart { Kind = "Text", Value = config.CountdownAnnouncementText });
+            AddLegacyIcon(config.CountdownTemplate, config.CountdownAnnouncementIcon);
+        }
+    }
+
+    private List<OutputPart> BuildDamageTemplate(string suffix, int suffixIcon)
+    {
+        var parts = new List<OutputPart>
+        {
+            new() { Kind = "Placeholder", Value = "SkillName" },
+            new() { Kind = "Text", Value = config.Delimiter },
+        };
+        AddLegacyIcon(parts, config.DelimiterIcon);
+        parts.Add(new OutputPart { Kind = "Placeholder", Value = "HitType" });
+        parts.Add(new OutputPart { Kind = "Text", Value = config.Delimiter });
+        AddLegacyIcon(parts, config.DelimiterIcon);
+        parts.Add(new OutputPart { Kind = "Placeholder", Value = "Damage" });
+        if (!string.IsNullOrEmpty(suffix))
+            parts.Add(new OutputPart { Kind = "Text", Value = suffix });
+        AddLegacyIcon(parts, suffixIcon);
+        return parts;
+    }
+
+    private static void AddLegacyIcon(List<OutputPart> parts, int iconId)
+    {
+        if (IsValidChatIcon(iconId))
+            parts.Add(new OutputPart { Kind = "Icon", IconId = iconId });
+    }
+
+    private static bool IsValidChatIcon(int iconId) =>
+        Enum.IsDefined(typeof(SeIconChar), (SeIconChar)iconId);
 
     private static bool IsBroadcastKind(FlyTextKind kind) => kind is
         FlyTextKind.DamageDh or FlyTextKind.AutoAttackOrDotDh or
@@ -188,7 +228,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
             if (enabled && config.CountdownAnnouncementEnabled && !countdownAnnouncementSent && secondsRemaining <= 1f)
             {
-                PrintTextWithIcon(config.CountdownAnnouncementText, config.CountdownAnnouncementIcon);
+                PrintTemplate(config.CountdownTemplate);
                 countdownAnnouncementSent = true;
             }
         }
@@ -235,18 +275,18 @@ public sealed unsafe class Plugin : IDalamudPlugin
         if (!matchedLocalHit)
             return;
 
-        var (label, suffix, suffixIcon, paletteColor, customColor, useCustomColor) = kind switch
+        var (label, template, paletteColor, customColor, useCustomColor) = kind switch
         {
             FlyTextKind.DamageDh or FlyTextKind.AutoAttackOrDotDh =>
-                ("直击", config.DirectHitSuffix, config.DirectHitSuffixIcon, config.DirectHitColor, config.DirectHitCustomColor, config.DirectHitUseCustomColor),
+                ("直击", config.DirectHitTemplate, config.DirectHitColor, config.DirectHitCustomColor, config.DirectHitUseCustomColor),
             FlyTextKind.DamageCrit or FlyTextKind.AutoAttackOrDotCrit =>
-                ("暴击", config.CriticalSuffix, config.CriticalSuffixIcon, config.CriticalColor, config.CriticalCustomColor, config.CriticalUseCustomColor),
+                ("暴击", config.CriticalTemplate, config.CriticalColor, config.CriticalCustomColor, config.CriticalUseCustomColor),
             FlyTextKind.DamageCritDh or FlyTextKind.AutoAttackOrDotCritDh =>
-                ("直暴", config.DirectCriticalSuffix, config.DirectCriticalSuffixIcon, config.DirectCriticalColor, config.DirectCriticalCustomColor, config.DirectCriticalUseCustomColor),
-            _ => (null, null, 0, (ushort)0, 0u, false),
+                ("直暴", config.DirectCriticalTemplate, config.DirectCriticalColor, config.DirectCriticalCustomColor, config.DirectCriticalUseCustomColor),
+            _ => (null, null, (ushort)0, 0u, false),
         };
 
-        if (label is null)
+        if (label is null || template is null)
             return;
 
         var skillName = text1.ToString().Trim();
@@ -254,12 +294,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
             return;
 
         var builder = BeginMessage(paletteColor, customColor, useCustomColor);
-        builder.Append(skillName);
-        AppendTextAndIcon(builder, config.Delimiter, config.DelimiterIcon);
-        builder.Append(label);
-        AppendTextAndIcon(builder, config.Delimiter, config.DelimiterIcon);
-        builder.Append($"{val1:N0}");
-        AppendTextAndIcon(builder, suffix ?? string.Empty, suffixIcon);
+        AppendTemplate(builder, template, skillName, label, val1);
         PrintBuiltMessage(builder, paletteColor != 0 || useCustomColor);
     }
 
@@ -291,8 +326,8 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     private void PrintCombatSeparator()
     {
-        if (enabled && (!string.IsNullOrEmpty(config.CombatSeparator) || IsValidIcon(config.CombatSeparatorIcon)))
-            PrintTextWithIcon(config.CombatSeparator, config.CombatSeparatorIcon);
+        if (enabled && config.CombatSeparatorTemplate.Count > 0)
+            PrintTemplate(config.CombatSeparatorTemplate);
     }
 
     private void OnCommand(string command, string args)
@@ -306,10 +341,10 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
         if (argument.Equals("test", StringComparison.OrdinalIgnoreCase) || argument == "预览")
         {
-            PrintPreview("直击", config.DirectHitSuffix, config.DirectHitSuffixIcon, config.DirectHitColor, config.DirectHitCustomColor, config.DirectHitUseCustomColor);
-            PrintPreview("暴击", config.CriticalSuffix, config.CriticalSuffixIcon, config.CriticalColor, config.CriticalCustomColor, config.CriticalUseCustomColor);
-            PrintPreview("直暴", config.DirectCriticalSuffix, config.DirectCriticalSuffixIcon, config.DirectCriticalColor, config.DirectCriticalCustomColor, config.DirectCriticalUseCustomColor);
-            PrintTextWithIcon(config.CountdownAnnouncementText, config.CountdownAnnouncementIcon);
+            PrintPreview("直击", config.DirectHitTemplate, config.DirectHitColor, config.DirectHitCustomColor, config.DirectHitUseCustomColor);
+            PrintPreview("暴击", config.CriticalTemplate, config.CriticalColor, config.CriticalCustomColor, config.CriticalUseCustomColor);
+            PrintPreview("直暴", config.DirectCriticalTemplate, config.DirectCriticalColor, config.DirectCriticalCustomColor, config.DirectCriticalUseCustomColor);
+            PrintTemplate(config.CountdownTemplate);
             return;
         }
 
@@ -317,15 +352,10 @@ public sealed unsafe class Plugin : IDalamudPlugin
         ChatGui.Print($"直暴播报已{(enabled ? "开启" : "关闭")}。输入 /zhijibao config 可设置输出格式。");
     }
 
-    private void PrintPreview(string label, string suffix, int suffixIcon, ushort paletteColor, uint customColor, bool useCustomColor)
+    private void PrintPreview(string label, List<OutputPart> template, ushort paletteColor, uint customColor, bool useCustomColor)
     {
         var builder = BeginMessage(paletteColor, customColor, useCustomColor);
-        builder.Append("技能名称");
-        AppendTextAndIcon(builder, config.Delimiter, config.DelimiterIcon);
-        builder.Append(label);
-        AppendTextAndIcon(builder, config.Delimiter, config.DelimiterIcon);
-        builder.Append("12,345");
-        AppendTextAndIcon(builder, suffix, suffixIcon);
+        AppendTemplate(builder, template, "技能名称", label, 12345);
         PrintBuiltMessage(builder, paletteColor != 0 || useCustomColor);
     }
 
@@ -354,22 +384,45 @@ public sealed unsafe class Plugin : IDalamudPlugin
         return red | (green << 8) | (blue << 16) | (alpha << 24);
     }
 
-    private static void AppendTextAndIcon(GameSeStringBuilder builder, string text, int iconId)
+    private static void AppendTemplate(GameSeStringBuilder builder, IEnumerable<OutputPart> parts, string skillName, string hitType, int damage)
     {
-        if (!string.IsNullOrEmpty(text))
-            builder.Append(text);
-
-        if (IsValidIcon(iconId))
-            builder.BeginMacro(MacroCode.Icon).AppendUIntExpression((uint)iconId).EndMacro();
+        var nestedColor = false;
+        foreach (var part in parts)
+        {
+            switch (part.Kind)
+            {
+                case "Text":
+                    builder.Append(part.Value ?? string.Empty);
+                    break;
+                case "Icon":
+                    if (IsValidChatIcon(part.IconId))
+                        builder.Append(((SeIconChar)part.IconId).ToIconString());
+                    break;
+                case "Placeholder":
+                    builder.Append(part.Value switch
+                    {
+                        "SkillName" => skillName,
+                        "HitType" => hitType,
+                        "Damage" => $"{damage:N0}",
+                        _ => string.Empty,
+                    });
+                    break;
+                case "Color":
+                    if (nestedColor)
+                        builder.PopColor();
+                    builder.PushColorRgba(part.Color);
+                    nestedColor = true;
+                    break;
+            }
+        }
+        if (nestedColor)
+            builder.PopColor();
     }
 
-    private void PrintTextWithIcon(string text, int iconId)
+    private void PrintTemplate(IEnumerable<OutputPart> parts)
     {
-        if (string.IsNullOrEmpty(text) && !IsValidIcon(iconId))
-            return;
-
         var builder = new GameSeStringBuilder();
-        AppendTextAndIcon(builder, text, iconId);
+        AppendTemplate(builder, parts, string.Empty, string.Empty, 0);
         PrintBuiltMessage(builder, false);
     }
 
@@ -381,8 +434,6 @@ public sealed unsafe class Plugin : IDalamudPlugin
         ChatGui.Print(SeString.Parse(builder.GetViewAsSpan()));
     }
 
-    private static bool IsValidIcon(int iconId) => iconId > 0 && iconId <= 1_000_000;
-
     private void OpenSettings() => settingsOpen = true;
 
     private void DrawSettings()
@@ -390,212 +441,276 @@ public sealed unsafe class Plugin : IDalamudPlugin
         if (!settingsOpen)
             return;
 
-        if (!ImGui.Begin("直暴播报 - 输出设置", ref settingsOpen, ImGuiWindowFlags.AlwaysAutoResize))
+        ImGui.SetNextWindowSize(new Vector2(660, 720), ImGuiCond.FirstUseEver);
+        if (!ImGui.Begin("直暴播报 - 文案编辑", ref settingsOpen))
         {
             ImGui.End();
             return;
         }
 
         var changed = false;
-        var delimiter = config.Delimiter;
-        var delimiterIcon = config.DelimiterIcon;
-        var combatSeparator = config.CombatSeparator;
-        var combatSeparatorIcon = config.CombatSeparatorIcon;
         var directHitColor = config.DirectHitColor;
         var directHitCustomColor = config.DirectHitCustomColor;
         var directHitUseCustomColor = config.DirectHitUseCustomColor;
-        var directHitSuffix = config.DirectHitSuffix;
-        var directHitSuffixIcon = config.DirectHitSuffixIcon;
         var criticalColor = config.CriticalColor;
         var criticalCustomColor = config.CriticalCustomColor;
         var criticalUseCustomColor = config.CriticalUseCustomColor;
-        var criticalSuffix = config.CriticalSuffix;
-        var criticalSuffixIcon = config.CriticalSuffixIcon;
         var directCriticalColor = config.DirectCriticalColor;
         var directCriticalCustomColor = config.DirectCriticalCustomColor;
         var directCriticalUseCustomColor = config.DirectCriticalUseCustomColor;
-        var directCriticalSuffix = config.DirectCriticalSuffix;
-        var directCriticalSuffixIcon = config.DirectCriticalSuffixIcon;
         var countdownEnabled = config.CountdownAnnouncementEnabled;
-        var countdownText = config.CountdownAnnouncementText;
-        var countdownIcon = config.CountdownAnnouncementIcon;
-
-        if (pendingIconSelection is { } selection)
-        {
-            switch (selection.Target)
-            {
-                case "DelimiterIcon": delimiterIcon = selection.IconId; break;
-                case "CombatSeparatorIcon": combatSeparatorIcon = selection.IconId; break;
-                case "DirectHitSuffixIcon": directHitSuffixIcon = selection.IconId; break;
-                case "CriticalSuffixIcon": criticalSuffixIcon = selection.IconId; break;
-                case "DirectCriticalSuffixIcon": directCriticalSuffixIcon = selection.IconId; break;
-                case "CountdownAnnouncementIcon": countdownIcon = selection.IconId; break;
-            }
-            pendingIconSelection = null;
-            changed = true;
-        }
-
-        changed |= DrawTextIconEditor("间隔符", "DelimiterIcon", ref delimiter, ref delimiterIcon);
-        changed |= DrawTextIconEditor("战斗/死亡分隔文本", "CombatSeparatorIcon", ref combatSeparator, ref combatSeparatorIcon);
-        ImGui.TextDisabled("间隔符与末尾符号可同时使用文本和游戏内图标；图标可留空。");
-
-        DrawHitSettings("直击", "DirectHitSuffixIcon", ref directHitColor, ref directHitCustomColor, ref directHitUseCustomColor,
-            ref directHitSuffix, ref directHitSuffixIcon, ref changed);
-        DrawHitSettings("暴击", "CriticalSuffixIcon", ref criticalColor, ref criticalCustomColor, ref criticalUseCustomColor,
-            ref criticalSuffix, ref criticalSuffixIcon, ref changed);
-        DrawHitSettings("直暴", "DirectCriticalSuffixIcon", ref directCriticalColor, ref directCriticalCustomColor, ref directCriticalUseCustomColor,
-            ref directCriticalSuffix, ref directCriticalSuffixIcon, ref changed);
+        DrawTemplateEditor("直击播报文案", config.DirectHitTemplate, ref changed, true);
+        DrawOutputColor("直击文字颜色", ref directHitColor, ref directHitCustomColor, ref directHitUseCustomColor, ref changed);
+        DrawTemplateEditor("暴击播报文案", config.CriticalTemplate, ref changed);
+        DrawOutputColor("暴击文字颜色", ref criticalColor, ref criticalCustomColor, ref criticalUseCustomColor, ref changed);
+        DrawTemplateEditor("直暴播报文案", config.DirectCriticalTemplate, ref changed);
+        DrawOutputColor("直暴文字颜色", ref directCriticalColor, ref directCriticalCustomColor, ref directCriticalUseCustomColor, ref changed);
 
         ImGui.Separator();
-        ImGui.Text("战斗开始倒计时");
-        changed |= ImGui.Checkbox("到最后1秒时播报", ref countdownEnabled);
-        changed |= DrawTextIconEditor("倒计时播报文本", "CountdownAnnouncementIcon", ref countdownText, ref countdownIcon);
+        ImGui.TextUnformatted("战斗与倒计时文案");
+        DrawTemplateEditor("战斗/死亡分隔文本", config.CombatSeparatorTemplate, ref changed);
+        changed |= ImGui.Checkbox("到倒计时最后1秒时播报", ref countdownEnabled);
+        DrawTemplateEditor("倒计时播报文本", config.CountdownTemplate, ref changed);
         if (countdownTimerHook is null)
-            ImGui.TextDisabled("当前游戏版本未能识别倒计时信号；请查看 Dalamud 日志获取适配状态。");
+            ImGui.TextDisabled("当前游戏版本未能识别倒计时信号，请查看 Dalamud 日志。");
 
-        if (ImGui.Button("预览三种格式"))
+        if (ImGui.Button("预览三种伤害文案"))
         {
-            PrintPreview("直击", config.DirectHitSuffix, config.DirectHitSuffixIcon, config.DirectHitColor, config.DirectHitCustomColor, config.DirectHitUseCustomColor);
-            PrintPreview("暴击", config.CriticalSuffix, config.CriticalSuffixIcon, config.CriticalColor, config.CriticalCustomColor, config.CriticalUseCustomColor);
-            PrintPreview("直暴", config.DirectCriticalSuffix, config.DirectCriticalSuffixIcon, config.DirectCriticalColor, config.DirectCriticalCustomColor, config.DirectCriticalUseCustomColor);
+            PrintPreview("直击", config.DirectHitTemplate, config.DirectHitColor, config.DirectHitCustomColor, config.DirectHitUseCustomColor);
+            PrintPreview("暴击", config.CriticalTemplate, config.CriticalColor, config.CriticalCustomColor, config.CriticalUseCustomColor);
+            PrintPreview("直暴", config.DirectCriticalTemplate, config.DirectCriticalColor, config.DirectCriticalCustomColor, config.DirectCriticalUseCustomColor);
         }
-
         ImGui.SameLine();
-        ImGui.TextDisabled("例：技能名 + 间隔符 + 直暴 + 间隔符 + 12,345 + 末尾符号");
+        ImGui.TextDisabled("占位符可插入技能名称、触发类型和伤害数值；聊天图标与文本可自由排序。");
 
         if (changed)
         {
-            config.Delimiter = delimiter;
-            config.DelimiterIcon = delimiterIcon;
-            config.CombatSeparator = combatSeparator;
-            config.CombatSeparatorIcon = combatSeparatorIcon;
             config.DirectHitColor = directHitColor;
             config.DirectHitCustomColor = directHitCustomColor;
             config.DirectHitUseCustomColor = directHitUseCustomColor;
-            config.DirectHitSuffix = directHitSuffix;
-            config.DirectHitSuffixIcon = directHitSuffixIcon;
             config.CriticalColor = criticalColor;
             config.CriticalCustomColor = criticalCustomColor;
             config.CriticalUseCustomColor = criticalUseCustomColor;
-            config.CriticalSuffix = criticalSuffix;
-            config.CriticalSuffixIcon = criticalSuffixIcon;
             config.DirectCriticalColor = directCriticalColor;
             config.DirectCriticalCustomColor = directCriticalCustomColor;
             config.DirectCriticalUseCustomColor = directCriticalUseCustomColor;
-            config.DirectCriticalSuffix = directCriticalSuffix;
-            config.DirectCriticalSuffixIcon = directCriticalSuffixIcon;
             config.CountdownAnnouncementEnabled = countdownEnabled;
-            config.CountdownAnnouncementText = countdownText;
-            config.CountdownAnnouncementIcon = countdownIcon;
             PluginInterface.SavePluginConfig(config);
         }
 
         ImGui.End();
     }
 
-    private void DrawHitSettings(
-        string label,
-        string iconKey,
-        ref ushort paletteColor,
-        ref uint customColor,
-        ref bool useCustomColor,
-        ref string suffix,
-        ref int suffixIcon,
-        ref bool changed)
+    private void DrawOutputColor(string label, ref ushort paletteColor, ref uint customColor, ref bool useCustomColor, ref bool changed)
     {
-        ImGui.Separator();
-        ImGui.Text(label);
-        if (ImGui.Checkbox($"使用自定义颜色##useCustom-{label}", ref useCustomColor))
+        ImGui.TextUnformatted(label);
+        if (ImGui.Checkbox($"使用自定义颜色##{label}", ref useCustomColor))
             changed = true;
 
         var color = UnpackRgba(customColor);
-        if (ImGui.ColorEdit4($"文字颜色##color-{label}", ref color))
+        if (ImGui.ColorEdit4($"文字颜色##picker-{label}", ref color))
         {
             customColor = PackRgba(color);
             useCustomColor = true;
             changed = true;
         }
-
         if (!useCustomColor)
-            ImGui.TextDisabled(paletteColor == 0 ? "当前使用游戏默认聊天颜色" : $"当前使用旧版游戏色号 {paletteColor}；启用上方色盘可选自定义色");
-
-        changed |= DrawTextIconEditor($"{label}伤害末尾符号", iconKey, ref suffix, ref suffixIcon);
+            ImGui.TextDisabled(paletteColor == 0 ? "使用游戏默认聊天颜色" : $"当前使用旧版游戏色号 {paletteColor}；勾选后可用色盘选色");
     }
 
-    private bool DrawTextIconEditor(string label, string iconKey, ref string text, ref int iconId)
+    private void DrawTemplateEditor(string label, List<OutputPart> parts, ref bool changed, bool defaultOpen = false)
     {
-        var changed = ImGui.InputText($"{label}##text-{label}", ref text, MaxInputLength);
-        ImGui.SameLine();
-        if (ImGui.Button($"选择图标##icon-{label}"))
+        var flags = defaultOpen ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None;
+        if (!ImGui.CollapsingHeader($"{label}##template-{label}", flags))
+            return;
+
+        var removeAt = -1;
+        var moveFrom = -1;
+        var moveTo = -1;
+        if (ImGui.BeginTable($"##parts-{label}", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
         {
-            iconPickerTarget = iconKey;
-            iconBrowserOpen = true;
-        }
-        ImGui.SameLine();
-        ImGui.Text(iconId > 0 ? $"图标 ID: {iconId}" : "无图标");
-        if (iconId > 0 && TryGetIconTexture(iconId, out var texture))
-        {
-            ImGui.SameLine();
-            ImGui.Image(texture.Handle, new Vector2(22, 22));
+            ImGui.TableSetupColumn("负荷", ImGuiTableColumnFlags.WidthFixed, 72);
+            ImGui.TableSetupColumn("值");
+            ImGui.TableSetupColumn("动作", ImGuiTableColumnFlags.WidthFixed, 104);
+            ImGui.TableHeadersRow();
+
+            for (var i = 0; i < parts.Count; i++)
+            {
+                var part = parts[i];
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(part.Kind switch
+                {
+                    "Text" => "文本",
+                    "Icon" => "图标",
+                    "Placeholder" => "占位符",
+                    "Color" => "颜色",
+                    _ => part.Kind,
+                });
+
+                ImGui.TableNextColumn();
+                switch (part.Kind)
+                {
+                    case "Text":
+                    {
+                        var value = part.Value;
+                        if (ImGui.InputText($"##text-{label}-{i}", ref value, 128))
+                        {
+                            part.Value = value;
+                            changed = true;
+                        }
+                        break;
+                    }
+                    case "Icon":
+                    {
+                        var glyph = IsValidChatIcon(part.IconId) ? ((SeIconChar)part.IconId).ToIconString() : "⊘";
+                        if (ImGui.Button($"{glyph}  更改##chat-icon-{label}-{i}"))
+                        {
+                            iconPickerTarget = part;
+                            iconBrowserOpen = true;
+                        }
+                        ImGui.SameLine();
+                        ImGui.TextDisabled(IsValidChatIcon(part.IconId) ? $"{((SeIconChar)part.IconId)}" : "未选择");
+                        break;
+                    }
+                    case "Placeholder":
+                    {
+                        var current = part.Value switch
+                        {
+                            "SkillName" => "技能名称",
+                            "HitType" => "触发类型",
+                            "Damage" => "伤害数值",
+                            _ => "选择占位符",
+                        };
+                        if (ImGui.BeginCombo($"##placeholder-{label}-{i}", current))
+                        {
+                            foreach (var (value, text) in new[] { ("SkillName", "技能名称"), ("HitType", "触发类型"), ("Damage", "伤害数值") })
+                            {
+                                if (ImGui.Selectable($"{text}##placeholder-{label}-{i}-{value}", part.Value == value))
+                                {
+                                    part.Value = value;
+                                    changed = true;
+                                }
+                            }
+                            ImGui.EndCombo();
+                        }
+                        break;
+                    }
+                    case "Color":
+                    {
+                        var color = UnpackRgba(part.Color);
+                        if (ImGui.ColorEdit4($"颜色##part-color-{label}-{i}", ref color))
+                        {
+                            part.Color = PackRgba(color);
+                            changed = true;
+                        }
+                        break;
+                    }
+                }
+
+                ImGui.TableNextColumn();
+                if (ImGui.SmallButton($"↑##up-{label}-{i}") && i > 0)
+                {
+                    moveFrom = i;
+                    moveTo = i - 1;
+                }
+                ImGui.SameLine();
+                if (ImGui.SmallButton($"↓##down-{label}-{i}") && i < parts.Count - 1)
+                {
+                    moveFrom = i;
+                    moveTo = i + 1;
+                }
+                ImGui.SameLine();
+                if (ImGui.SmallButton($"删##delete-{label}-{i}"))
+                    removeAt = i;
+            }
+            ImGui.EndTable();
         }
 
-        return changed;
+        if (removeAt >= 0)
+        {
+            parts.RemoveAt(removeAt);
+            changed = true;
+        }
+        else if (moveFrom >= 0)
+        {
+            var part = parts[moveFrom];
+            parts.RemoveAt(moveFrom);
+            parts.Insert(moveTo, part);
+            changed = true;
+        }
+
+        if (ImGui.Button($"添加负荷##add-{label}"))
+            ImGui.OpenPopup($"add-part-popup-{label}");
+        if (ImGui.BeginPopup($"add-part-popup-{label}"))
+        {
+            if (ImGui.Selectable($"文本##add-text-{label}"))
+            {
+                parts.Add(new OutputPart { Kind = "Text" });
+                changed = true;
+            }
+            if (ImGui.Selectable($"图标##add-icon-{label}"))
+            {
+                var part = new OutputPart { Kind = "Icon" };
+                parts.Add(part);
+                iconPickerTarget = part;
+                iconBrowserOpen = true;
+                changed = true;
+            }
+            if (ImGui.Selectable($"占位符##add-placeholder-{label}"))
+            {
+                parts.Add(new OutputPart { Kind = "Placeholder", Value = "SkillName" });
+                changed = true;
+            }
+            if (ImGui.Selectable($"自定义颜色##add-color-{label}"))
+            {
+                parts.Add(new OutputPart { Kind = "Color", Color = 0xFFFFFFFF });
+                changed = true;
+            }
+            ImGui.EndPopup();
+        }
     }
 
-    private void DrawIconBrowser()
+    private void DrawIconPicker()
     {
         if (!iconBrowserOpen)
             return;
 
-        ImGui.SetNextWindowSize(new Vector2(760, 560), ImGuiCond.FirstUseEver);
-        if (!ImGui.Begin("图标浏览器", ref iconBrowserOpen))
+        ImGui.SetNextWindowSize(new Vector2(620, 520), ImGuiCond.FirstUseEver);
+        if (!ImGui.Begin("聊天图标选择器", ref iconBrowserOpen))
         {
             ImGui.End();
             return;
         }
 
-        ImGui.SetNextItemWidth(210);
-        ImGui.InputText("搜索图标 ID", ref iconSearch, 32);
+        ImGui.SetNextItemWidth(220);
+        ImGui.InputText("搜索图标名称##chat-icon-search", ref iconSearch, 64);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(180);
-        ImGui.SliderInt("图标大小", ref iconSize, 20, 64);
+        ImGui.SetNextItemWidth(110);
+        ImGui.SliderInt("图标大小##chat-icon-size", ref iconSize, 18, 56);
         ImGui.SameLine();
-        if (ImGui.Button("清除图标"))
+        if (ImGui.Button("清除##clear-chat-icon"))
         {
             if (iconPickerTarget is not null)
-                pendingIconSelection = (iconPickerTarget, 0);
+            {
+                iconPickerTarget.IconId = 0;
+                PluginInterface.SavePluginConfig(config);
+            }
             iconBrowserOpen = false;
         }
 
-        if (ImGui.BeginTabBar("##CritChatIconCategories", ImGuiTabBarFlags.FittingPolicyScroll))
+        ImGui.TextDisabled("这里只列出可以作为聊天字符写入消息的 Dalamud 图标。点击图标即可使用。");
+        if (ImGui.BeginChild("##chat-icon-grid", Vector2.Zero, true, ImGuiWindowFlags.None))
         {
-            for (var i = 0; i < IconCategories.Length; i++)
-            {
-                if (ImGui.BeginTabItem($"{IconCategories[i].Name}##iconCategory{i}"))
-                {
-                    selectedIconCategory = i;
-                    ImGui.EndTabItem();
-                }
-            }
-            ImGui.EndTabBar();
-        }
-
-        if (iconSearch.Length == 0)
-            ScanIconCategory(selectedIconCategory, 64);
-        var icons = GetVisibleIcons(selectedIconCategory);
-        ImGui.TextDisabled(iconSearch.Length == 0
-            ? $"已找到 {iconCategoryResults[selectedIconCategory].Count} 个图标；列表会逐步扫描。点击图标即可选择。"
-            : "搜索框输入完整图标 ID 后，即可查找游戏图标。");
-
-        if (ImGui.BeginChild("##CritChatIconGrid", Vector2.Zero, true, ImGuiWindowFlags.None))
-        {
-            if (icons.Count == 0 && int.TryParse(iconSearch, out var searchId) && IsGameIconAvailable(searchId))
-                icons.Add(searchId);
-
+            var icons = Enum.GetValues<SeIconChar>()
+                .Distinct()
+                .Where(icon => string.IsNullOrWhiteSpace(iconSearch) ||
+                               icon.ToString().Contains(iconSearch, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(icon => Convert.ToUInt32(icon))
+                .ToArray();
             var spacing = ImGui.GetStyle().ItemSpacing;
-            var cell = iconSize + spacing.X;
-            var columns = Math.Max(1, (int)((ImGui.GetContentRegionAvail().X + spacing.X) / cell));
-            var rows = icons.Count == 0 ? 0 : (icons.Count + columns - 1) / columns;
+            var columns = Math.Max(1, (int)((ImGui.GetContentRegionAvail().X + spacing.X) / (iconSize + spacing.X)));
+            var rows = icons.Length == 0 ? 0 : (icons.Length + columns - 1) / columns;
             var clipper = ImGui.ImGuiListClipper();
             clipper.Begin(rows, iconSize + spacing.Y + ImGui.GetTextLineHeightWithSpacing());
             while (clipper.Step())
@@ -603,24 +718,22 @@ public sealed unsafe class Plugin : IDalamudPlugin
                 for (var row = Math.Max(0, clipper.DisplayStart); row < Math.Min(rows, clipper.DisplayEnd); row++)
                 {
                     var start = row * columns;
-                    var end = Math.Min(start + columns, icons.Count);
-                    for (var n = start; n < end; n++)
+                    var end = Math.Min(start + columns, icons.Length);
+                    for (var i = start; i < end; i++)
                     {
-                        var id = icons[n];
-                        if (TryGetIconTexture(id, out var iconTexture))
-                            ImGui.Image(iconTexture.Handle, new Vector2(iconSize));
-                        else
-                            ImGui.Button($"{id}##missing{id}", new Vector2(iconSize));
-
-                        if (ImGui.IsItemClicked())
+                        var icon = icons[i];
+                        if (ImGui.Button($"{icon.ToIconString()}##se-icon-{(int)icon}", new Vector2(iconSize + 8, iconSize + 8)))
                         {
                             if (iconPickerTarget is not null)
-                                pendingIconSelection = (iconPickerTarget, id);
+                            {
+                                iconPickerTarget.IconId = (int)icon;
+                                PluginInterface.SavePluginConfig(config);
+                            }
                             iconBrowserOpen = false;
                         }
                         if (ImGui.IsItemHovered())
-                            ImGui.SetTooltip($"图标 ID: {id}");
-                        if (n < end - 1)
+                            ImGui.SetTooltip($"{icon}\nU+{Convert.ToUInt32(icon):X4}");
+                        if (i < end - 1)
                             ImGui.SameLine();
                     }
                 }
@@ -632,85 +745,6 @@ public sealed unsafe class Plugin : IDalamudPlugin
         ImGui.End();
     }
 
-    private List<int> GetVisibleIcons(int category)
-    {
-        var icons = iconCategoryResults[category];
-        if (string.IsNullOrWhiteSpace(iconSearch))
-            return icons;
-        if (int.TryParse(iconSearch, out var id))
-            return icons.Where(icon => icon == id).ToList();
-        return icons.Where(icon => icon.ToString().Contains(iconSearch, StringComparison.OrdinalIgnoreCase)).ToList();
-    }
-
-    private void ScanIconCategory(int categoryIndex, int budget)
-    {
-        var category = IconCategories[categoryIndex];
-        if (iconCategoryScanned[categoryIndex])
-            return;
-        var rangeIndex = iconScanRanges[categoryIndex];
-        var nextIcon = nextIconsToScan[categoryIndex];
-        var icons = iconCategoryResults[categoryIndex];
-        var seen = iconCategorySets[categoryIndex];
-        while (budget-- > 0 && rangeIndex < category.Ranges.Length)
-        {
-            var range = category.Ranges[rangeIndex];
-            if (nextIcon >= range.End)
-            {
-                rangeIndex++;
-                if (rangeIndex < category.Ranges.Length)
-                    nextIcon = category.Ranges[rangeIndex].Start;
-                continue;
-            }
-
-            var id = nextIcon++;
-            if (IsGameIconAvailable(id) && seen.Add(id))
-                icons.Add(id);
-        }
-        iconScanRanges[categoryIndex] = rangeIndex;
-        nextIconsToScan[categoryIndex] = nextIcon;
-        if (rangeIndex >= category.Ranges.Length)
-            iconCategoryScanned[categoryIndex] = true;
-    }
-
-    private bool IsGameIconAvailable(int iconId)
-    {
-        if (iconId <= 0)
-            return false;
-        var folder = iconId / 1000;
-        var basePath = $"ui/icon/{folder:D3}000/{iconId:D6}";
-        return DataManager.FileExists($"{basePath}.tex") || DataManager.FileExists($"{basePath}_hr1.tex");
-    }
-
-    private bool TryGetIconTexture(int iconId, out IDalamudTextureWrap texture)
-    {
-        texture = null!;
-        if (!iconTextures.TryGetValue(iconId, out var shared) &&
-            !TextureProvider.TryGetFromGameIcon(new GameIconLookup((uint)iconId), out shared))
-            return false;
-        if (shared is null)
-            return false;
-        iconTextures[iconId] = shared;
-        var wrap = shared.GetWrapOrDefault();
-        if (wrap is null)
-            return false;
-        texture = wrap;
-        return true;
-    }
-
-    private sealed record IconCategory(string Name, (int Start, int End)[] Ranges);
-
-    private static readonly IconCategory[] IconCategories =
-    [
-        new("精选", [(1, 100), (62_000, 62_600), (66_000, 66_400)]),
-        new("技能", [(100, 4_000), (5_100, 10_000), (19_600, 20_000)]),
-        new("坐骑与宠物", [(4_000, 5_100), (59_000, 60_000), (68_000, 69_000)]),
-        new("物品", [(20_000, 30_000), (50_000, 54_000), (58_000, 59_000)]),
-        new("装备", [(30_000, 50_000), (54_000, 58_000), (200_000, 210_000)]),
-        new("状态效果", [(210_000, 230_000)]),
-        new("美术素材", [(130_000, 142_000), (250_000, 251_704)]),
-        new("杂项", [(60_000, 62_000), (62_600, 68_000), (70_000, 85_000), (180_000, 181_500), (230_000, 250_000)])
-    ];
-
     public void Dispose()
     {
         CommandManager.RemoveHandler(ToggleCommand);
@@ -718,7 +752,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
         Condition.ConditionChange -= OnConditionChange;
         Framework.Update -= OnFrameworkUpdate;
         PluginInterface.UiBuilder.Draw -= DrawSettings;
-        PluginInterface.UiBuilder.Draw -= DrawIconBrowser;
+        PluginInterface.UiBuilder.Draw -= DrawIconPicker;
         PluginInterface.UiBuilder.OpenConfigUi -= OpenSettings;
         actionHook?.Dispose();
         countdownTimerHook?.Dispose();

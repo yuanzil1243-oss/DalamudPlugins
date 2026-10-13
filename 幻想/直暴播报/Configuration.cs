@@ -1,4 +1,5 @@
 using Dalamud.Configuration;
+using System.Collections.Generic;
 
 namespace CritChat;
 
@@ -34,4 +35,18 @@ public sealed class Configuration : IPluginConfiguration
     public bool CountdownAnnouncementEnabled { get; set; } = true;
     public string CountdownAnnouncementText { get; set; } = "倒计时最后1秒";
     public int CountdownAnnouncementIcon { get; set; }
+
+    public List<OutputPart> DirectHitTemplate { get; set; } = new();
+    public List<OutputPart> CriticalTemplate { get; set; } = new();
+    public List<OutputPart> DirectCriticalTemplate { get; set; } = new();
+    public List<OutputPart> CombatSeparatorTemplate { get; set; } = new();
+    public List<OutputPart> CountdownTemplate { get; set; } = new();
+}
+
+public sealed class OutputPart
+{
+    public string Kind { get; set; } = "Text";
+    public string Value { get; set; } = string.Empty;
+    public int IconId { get; set; }
+    public uint Color { get; set; } = 0xFFFFFFFF;
 }

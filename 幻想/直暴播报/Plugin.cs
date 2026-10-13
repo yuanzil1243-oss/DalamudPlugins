@@ -226,7 +226,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
                 ("暴击", config.CriticalSuffix, config.CriticalSuffixIcon, config.CriticalColor, config.CriticalCustomColor, config.CriticalUseCustomColor),
             FlyTextKind.DamageCritDh or FlyTextKind.AutoAttackOrDotCritDh =>
                 ("直暴", config.DirectCriticalSuffix, config.DirectCriticalSuffixIcon, config.DirectCriticalColor, config.DirectCriticalCustomColor, config.DirectCriticalUseCustomColor),
-            _ => (null, null, 0, (ushort)0, Vector4.One, false),
+            _ => (null, null, 0, (ushort)0, 0u, false),
         };
 
         if (label is null)
@@ -300,7 +300,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
         ChatGui.Print($"直暴播报已{(enabled ? "开启" : "关闭")}。输入 /zhijibao config 可设置输出格式。");
     }
 
-    private void PrintPreview(string label, string suffix, int suffixIcon, ushort paletteColor, Vector4 customColor, bool useCustomColor)
+    private void PrintPreview(string label, string suffix, int suffixIcon, ushort paletteColor, uint customColor, bool useCustomColor)
     {
         var builder = BeginMessage(paletteColor, customColor, useCustomColor);
         builder.Append("技能名称");
@@ -312,7 +312,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
         PrintBuiltMessage(builder, paletteColor != 0 || useCustomColor);
     }
 
-    private static GameSeStringBuilder BeginMessage(ushort paletteColor, Vector4 customColor, bool useCustomColor)
+    private static GameSeStringBuilder BeginMessage(ushort paletteColor, uint customColor, bool useCustomColor)
     {
         var builder = new GameSeStringBuilder();
         if (useCustomColor)
@@ -320,6 +320,21 @@ public sealed unsafe class Plugin : IDalamudPlugin
         else if (paletteColor != 0)
             builder.PushColorType(paletteColor);
         return builder;
+    }
+
+    private static Vector4 UnpackRgba(uint color) => new(
+        (color & 0xFF) / 255f,
+        ((color >> 8) & 0xFF) / 255f,
+        ((color >> 16) & 0xFF) / 255f,
+        ((color >> 24) & 0xFF) / 255f);
+
+    private static uint PackRgba(Vector4 color)
+    {
+        var red = (uint)Math.Clamp((int)MathF.Round(color.X * 255), 0, 255);
+        var green = (uint)Math.Clamp((int)MathF.Round(color.Y * 255), 0, 255);
+        var blue = (uint)Math.Clamp((int)MathF.Round(color.Z * 255), 0, 255);
+        var alpha = (uint)Math.Clamp((int)MathF.Round(color.W * 255), 0, 255);
+        return red | (green << 8) | (blue << 16) | (alpha << 24);
     }
 
     private static void AppendTextAndIcon(GameSeStringBuilder builder, string text, int iconId)
@@ -450,7 +465,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
     private static void DrawHitSettings(
         string label,
         ref ushort paletteColor,
-        ref Vector4 customColor,
+        ref uint customColor,
         ref bool useCustomColor,
         ref string suffix,
         ref int suffixIcon,
@@ -461,8 +476,10 @@ public sealed unsafe class Plugin : IDalamudPlugin
         if (ImGui.Checkbox($"使用自定义颜色##useCustom-{label}", ref useCustomColor))
             changed = true;
 
-        if (ImGui.ColorEdit4($"文字颜色##color-{label}", ref customColor))
+        var color = UnpackRgba(customColor);
+        if (ImGui.ColorEdit4($"文字颜色##color-{label}", ref color))
         {
+            customColor = PackRgba(color);
             useCustomColor = true;
             changed = true;
         }

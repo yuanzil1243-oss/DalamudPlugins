@@ -1,4 +1,3 @@
-using System.Numerics;
 using Dalamud.Configuration;
 
 namespace CritChat;
@@ -24,9 +23,10 @@ public sealed class Configuration : IPluginConfiguration
     public ushort DirectHitColor { get; set; } = 45;
     public ushort CriticalColor { get; set; }
     public ushort DirectCriticalColor { get; set; }
-    public Vector4 DirectHitCustomColor { get; set; } = Vector4.One;
-    public Vector4 CriticalCustomColor { get; set; } = Vector4.One;
-    public Vector4 DirectCriticalCustomColor { get; set; } = Vector4.One;
+    // Packed as 0xAABBGGRR so this persists as a plain JSON number.
+    public uint DirectHitCustomColor { get; set; } = 0xFFFFFFFF;
+    public uint CriticalCustomColor { get; set; } = 0xFFFFFFFF;
+    public uint DirectCriticalCustomColor { get; set; } = 0xFFFFFFFF;
     public bool DirectHitUseCustomColor { get; set; }
     public bool CriticalUseCustomColor { get; set; }
     public bool DirectCriticalUseCustomColor { get; set; }

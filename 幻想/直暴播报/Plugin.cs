@@ -24,7 +24,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
 
     private const string ToggleCommand = "/zhijibao";
-    private const uint MaxInputLength = 64;
+    private const int MaxInputLength = 64;
     private bool enabled = true;
     private bool settingsOpen;
     private bool wasInCombat;
@@ -300,7 +300,8 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     private static void DrawHitSettings(string label, ref ushort color, ref string suffix, ref bool changed)
     {
-        ImGui.SeparatorText(label);
+        ImGui.Separator();
+        ImGui.Text(label);
         var colorInput = (int)color;
         if (ImGui.InputInt($"{label}文字颜色编号", ref colorInput))
         {

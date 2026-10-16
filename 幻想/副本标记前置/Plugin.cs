@@ -40,10 +40,11 @@ public sealed class Plugin : IDalamudPlugin
 
     public string Name => "副本标记前置";
 
-    private void OnTerritoryChanged(ushort territoryId)
+    private void OnTerritoryChanged(uint territoryId)
     {
-        state.Reset(territoryId);
-        dutyState.Refresh(territoryId);
+        var territory = checked((ushort)territoryId);
+        state.Reset(territory);
+        dutyState.Refresh(territory);
         Log.Information("进入区域 {TerritoryId}，副本状态已重置。", territoryId);
     }
 

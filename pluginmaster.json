@@ -3,7 +3,7 @@
     "Author": "yuanzil1243-oss",
     "Name": "卫月插件库总览",
     "InternalName": "卫月插件库总览",
-    "AssemblyVersion": "1.0.0.0",
+    "AssemblyVersion": "1.0.1.0",
     "DalamudApiLevel": 15,
     "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/RepoOverview.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/RepoOverview.zip",
@@ -13,7 +13,7 @@
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdate": "1792138020"
+    "LastUpdate": "1792140000"
   },
   {
     "Author": "yuanzil1243-oss",

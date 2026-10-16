@@ -59,7 +59,7 @@ public sealed class RaidCollector : IDisposable
             castActionId = x.CastActionId,
             currentCastTime = x.CurrentCastTime,
             totalCastTime = x.TotalCastTime,
-            statuses = x.StatusList.Select(s => new { id = s.StatusId, remaining = s.RemainingTime, stacks = s.StackCount, sourceId = s.SourceId }).ToArray(),
+            statuses = x.StatusList.Select(s => new { id = s.StatusId, remaining = s.RemainingTime, param = s.Param, sourceId = s.SourceId }).ToArray(),
         }).ToArray();
         var party = partyList.Select(x => new { entityId = x.EntityId, name = x.Name.ToString(), jobId = x.ClassJob.RowId }).ToArray();
         Write("sample", new { territoryId = clientState.TerritoryType, actors, party });

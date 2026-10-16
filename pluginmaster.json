@@ -51,7 +51,7 @@
     "Author": "yuanzil1243-oss",
     "Name": "副本标记前置",
     "InternalName": "RaidMarkerPrerequisite",
-    "AssemblyVersion": "0.1.0.0",
+    "AssemblyVersion": "0.1.0.1",
     "DalamudApiLevel": 15,
     "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/RaidMarkerPrerequisite.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/RaidMarkerPrerequisite.zip",
@@ -61,6 +61,6 @@
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdate": "1792038000"
+    "LastUpdate": "1792143000"
   }
 ]

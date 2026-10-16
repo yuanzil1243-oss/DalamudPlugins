@@ -42,7 +42,7 @@ public sealed class PartyStateService
             if (objectTable.SearchById(entityId) is IBattleChara battleChara)
             {
                 foreach (var status in battleChara.StatusList)
-                    player.Statuses.Add(new StatusState(status.StatusId, status.RemainingTime, status.StackCount, status.SourceId));
+                    player.Statuses.Add(new StatusState(checked((ushort)status.StatusId), status.RemainingTime, checked((byte)Math.Min(status.Param, byte.MaxValue)), status.SourceId));
             }
         }
 

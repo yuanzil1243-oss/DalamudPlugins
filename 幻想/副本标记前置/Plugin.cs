@@ -81,7 +81,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (args.Trim().Equals("reset", StringComparison.OrdinalIgnoreCase))
         {
-            state.Reset(ClientState.TerritoryType);
+            state.Reset(checked((ushort)ClientState.TerritoryType));
             ChatGui.Print("副本标记前置：状态已重置。");
             return;
         }

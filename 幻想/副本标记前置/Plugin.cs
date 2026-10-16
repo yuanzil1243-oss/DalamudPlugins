@@ -53,7 +53,7 @@ public sealed class Plugin : IDalamudPlugin
         if (!ClientState.IsLoggedIn)
             return;
 
-        var territoryId = ClientState.TerritoryType;
+        var territoryId = checked((ushort)ClientState.TerritoryType);
         if (state.TerritoryId != territoryId)
         {
             state.Reset(territoryId);

@@ -30,5 +30,21 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "LastUpdate": "1791950000"
+  },
+  {
+    "Author": "yuanzil1243-oss",
+    "Name": "副本标记前置",
+    "InternalName": "RaidMarkerPrerequisite",
+    "AssemblyVersion": "0.1.0.0",
+    "DalamudApiLevel": 15,
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/RaidMarkerPrerequisite.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/RaidMarkerPrerequisite.zip",
+    "ApplicableVersion": "any",
+    "Description": "被动采集副本、队伍、读条和 Buff 状态，为后续副本机制识别与原生标记提供基础。",
+    "Punchline": "采集副本战斗数据，支持后续机制标记。",
+    "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "LastUpdate": "1792038000"
   }
 ]

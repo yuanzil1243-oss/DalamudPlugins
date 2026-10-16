@@ -1,0 +1,15 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+    <Author>yuanzil1243-oss</Author>
+    <Name>副本标记前置</Name>
+    <Punchline>副本机制数据读取与玩家标记前置框架。</Punchline>
+    <Description>读取当前副本、队伍、对象和状态数据，为副本机制标记功能提供基础。</Description>
+    <RepoUrl>https://github.com/yuanzil1243-oss/DalamudPlugins</RepoUrl>
+    <Tags>raid;duty;mechanic;marker</Tags>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputPath>..\..\..\dist\RaidMarkerPrerequisite\</OutputPath>
+  </PropertyGroup>
+</Project>

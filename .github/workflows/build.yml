@@ -32,8 +32,11 @@ jobs:
         run: |
           Compress-Archive -Path .\幻想\直暴播报\bin\Release\CritChat\* -DestinationPath CritChat.zip -Force
           New-Item -ItemType Directory -Force .\dist | Out-Null
-          if (-not (Test-Path .\dist\RaidMarkerPrerequisite)) { throw "RaidMarkerPrerequisite build output was not found" }
-          Compress-Archive -Path .\dist\RaidMarkerPrerequisite\* -DestinationPath .\dist\RaidMarkerPrerequisite.zip -Force
+          $dll = Get-ChildItem -Path . -Recurse -Filter RaidMarkerPrerequisite.dll | Select-Object -First 1
+          if ($null -eq $dll) { throw "RaidMarkerPrerequisite.dll build output was not found" }
+          $packageDir = $dll.Directory.FullName
+          Write-Host "Packaging $packageDir"
+          Compress-Archive -Path "$packageDir\*" -DestinationPath .\dist\RaidMarkerPrerequisite.zip -Force
           Copy-Item .\幻想\PoseKit\bin\Release\PoseKit\latest.zip PoseKit.zip -Force
       - name: Store plugin archive
         uses: actions/upload-artifact@v4

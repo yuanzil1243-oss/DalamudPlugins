@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/幻想/">
     <Project Path="幻想/直暴播报/CritChat.csproj" />
+    <Project Path="幻想/副本标记前置/副本标记前置.csproj" />
   </Folder>
 </Solution>

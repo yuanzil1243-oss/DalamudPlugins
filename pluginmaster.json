@@ -1,6 +1,22 @@
 [
   {
     "Author": "yuanzil1243-oss",
+    "Name": "卫月插件库总览",
+    "InternalName": "RepoOverview",
+    "AssemblyVersion": "1.0.0.0",
+    "DalamudApiLevel": 15,
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/RepoOverview.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/RepoOverview.zip",
+    "ApplicableVersion": "any",
+    "Description": "读取卫月本地缓存的第三方插件库和已安装插件，按仓库顺序展示安装情况及重复版本。",
+    "Punchline": "按第三方插件库查看已安装插件，并标记重复收录。",
+    "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "LastUpdate": "1792138020"
+  },
+  {
+    "Author": "yuanzil1243-oss",
     "Name": "直暴播报",
     "InternalName": "CritChat",
     "AssemblyVersion": "0.3.3.0",

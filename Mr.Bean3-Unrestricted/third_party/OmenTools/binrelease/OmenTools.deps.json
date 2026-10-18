@@ -1,0 +1,57 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "OmenTools/1.0.0": {
+        "dependencies": {
+          "GuerrillaNtp": "3.1.0",
+          "TinyPinyin": "1.1.0"
+        },
+        "runtime": {
+          "OmenTools.dll": {}
+        }
+      },
+      "GuerrillaNtp/3.1.0": {
+        "runtime": {
+          "lib/net5.0/GuerrillaNtp.dll": {
+            "assemblyVersion": "3.1.0.0",
+            "fileVersion": "3.1.0.0"
+          }
+        }
+      },
+      "TinyPinyin/1.1.0": {
+        "runtime": {
+          "lib/net6.0/TinyPinyin.dll": {
+            "assemblyVersion": "1.1.0.0",
+            "fileVersion": "1.1.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "OmenTools/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GuerrillaNtp/3.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-KebM3/iZtZWgeFuGTQJyWu+VQKAeq1xXY9bkSSDv27hALxDtSdJAfPnT8dWpl7ti2B3ajnMj70/VLXY4D3bupg==",
+      "path": "guerrillantp/3.1.0",
+      "hashPath": "guerrillantp.3.1.0.nupkg.sha512"
+    },
+    "TinyPinyin/1.1.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-pwe99NXsWkSeJdOwzcweorlyoB2frOlTU37QwzmnnxfRT5vRENXm4UOl5g4Nxq5V9lYOBWK1mZIozFfIlDVjYA==",
+      "path": "tinypinyin/1.1.0",
+      "hashPath": "tinypinyin.1.1.0.nupkg.sha512"
+    }
+  }
+}

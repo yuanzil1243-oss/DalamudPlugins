@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>preview</LangVersion>
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Host/LocalStatistics.cs" Link="LocalStatistics.cs" />
+    <Compile Include="../shared/FallGuysPilot/Pilot/Water/WaterRoutes.cs" Link="WaterRoutes.cs" />
+    <Compile Include="../shared/FallGuysPilot/Pilot/Water/WaterTerrain.cs" Link="WaterTerrain.cs" />
+    <Compile Include="../Telemetry/RunSummary.cs" Link="RunSummary.cs" />
+    <Compile Include="../Telemetry/UsageOutbox.cs" Link="UsageOutbox.cs" />
+    <Compile Include="../shared/FallGuysPilot/Pilot/PilotObservation.cs" Link="PilotObservation.cs" />
+    <ProjectReference Include="../shared/FallGuysPilot/Runtime/FallGuys.Runtime.csproj" />
+  </ItemGroup>
+</Project>

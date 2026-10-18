@@ -1,0 +1,13 @@
+{
+  "Author": "yuanzil1243-oss (modified from transparent-duck/Mr.Bean3)",
+  "Name": "Mr.Bean3 Community",
+  "Punchline": "Fall Guys 自动导航社区构建，无大区或账号门禁。",
+  "InternalName": "MrBean3Community",
+  "IconUrl": "https://raw.githubusercontent.com/transparent-duck/Mr.Bean3/main/icon.png",
+  "AssemblyVersion": "7.55.10",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false
+}

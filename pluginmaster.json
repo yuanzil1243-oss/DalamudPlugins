@@ -62,5 +62,21 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "LastUpdate": "1792145000"
+  },
+  {
+    "Author": "yuanzil1243-oss (modified from transparent-duck/Mr.Bean3)",
+    "Name": "Mr.Bean3 Community",
+    "InternalName": "MrBean3Community",
+    "AssemblyVersion": "7.55.10",
+    "DalamudApiLevel": 15,
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/MrBean3Community.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/MrBean3Community.zip",
+    "ApplicableVersion": "any",
+    "Description": "Fall Guys 自动导航社区构建，不限制大区或账号。",
+    "Punchline": "无大区或账号门禁的社区构建。",
+    "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "LastUpdate": "1792310000"
   }
 ]

@@ -27,7 +27,12 @@ internal sealed partial class HitTimedRoutes
     internal sealed record Leg(Edge Edge, double Departure);
     internal sealed record Plan(Leg[] Legs, double Arrival, int Expanded, bool Found);
     private sealed record Label(int Node, Interval Times, double IncomingEnd, Label? Parent, Edge? Edge,
-        float? Heading = null, double? TurnDelay = null);
+        float? Heading = null, double? TurnDelay = null)
+    {
+        // Fewer graph segments break exact arrival-time ties without changing
+        // the timed-hazard objective.
+        public int Hops { get; init; }
+    }
 
     public readonly List<Node> Nodes = [];
     public readonly List<Edge>[] Outgoing;
@@ -413,7 +418,7 @@ internal sealed partial class HitTimedRoutes
         Plan SearchWaiting()
         {
             var best = new Dictionary<(int Node, int Interval), Label>();
-            var queue = new PriorityQueue<(Label Label, int Interval), double>();
+            var queue = new PriorityQueue<(Label Label, int Interval), (double Arrival, int Hops)>();
             var initial = SafeNode(source);
             int expanded = 0;
             for (int i = 0; i < initial.Length; ++i)
@@ -446,7 +451,7 @@ internal sealed partial class HitTimedRoutes
                             if (departure > last) break;
                         }
                         if (departure <= last)
-                            OfferWait(new(edge.To, new(departure + edge.Duration, target[i].End), departure + edge.Duration, current, edge), i);
+                OfferWait(new(edge.To, new(departure + edge.Duration, target[i].End), departure + edge.Duration, current, edge), i);
                     }
                 }
             }
@@ -456,13 +461,14 @@ internal sealed partial class HitTimedRoutes
             {
                 var key = (label.Node, interval);
                 if (best.TryGetValue(key, out var previous) && previous.Times.Start <= label.Times.Start) return;
+                label = label with { Hops = label.Hops + 1 };
                 best[key] = label;
-                queue.Enqueue((label, interval), label.Times.Start + (label.Node == source ? shortest : remaining[label.Node]));
+                queue.Enqueue((label, interval), (label.Times.Start + (label.Node == source ? shortest : remaining[label.Node]), label.Hops));
             }
         }
 
         var covered = new Dictionary<(int Node, float? Heading), List<Interval>>();
-        var queue = new PriorityQueue<Label, double>();
+        var queue = new PriorityQueue<Label, (double Arrival, int Hops)>();
         foreach (var interval in SafeNode(source))
             if (interval.Start <= now && now <= interval.End)
                 Offer(new(source, new(now, canWait && arrowHeading == null ? interval.End : now), now, null, null, arrowHeading));
@@ -511,7 +517,8 @@ internal sealed partial class HitTimedRoutes
             foreach (var span in fresh)
             {
                 var part = label with { Times = span };
-                queue.Enqueue(part, span.Start + (label.Node == source ? sourceRemaining : Heuristic(label.Node, label.Heading)));
+                part = part with { Hops = label.Hops + 1 };
+                queue.Enqueue(part, (span.Start + (label.Node == source ? sourceRemaining : Heuristic(label.Node, label.Heading)), part.Hops));
             }
             if (fresh.Length > 0)
             {

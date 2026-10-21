@@ -9,5 +9,6 @@
     <EmbeddedResource Include="Data\*.json" LogicalName="MrBean.FallGuys.Data.%(Filename)%(Extension)" />
     <InternalsVisibleTo Include="FallGuysCompiler" />
     <InternalsVisibleTo Include="Mr.Bean3" />
+    <InternalsVisibleTo Include="MrBean3Community" />
   </ItemGroup>
 </Project>

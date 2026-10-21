@@ -2,9 +2,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <Import Project="Dalamud.Plugin.Bootstrap.targets" />
   <PropertyGroup>
-    <AssemblyName>Mr.Bean3</AssemblyName>
+    <AssemblyName>MrBean3Community</AssemblyName>
     <RootNamespace>Mr.Bean3</RootNamespace>
-    <Version>7.55.10</Version>
+    <Version>7.55.11</Version>
     <Description>Community build of the Fall Guys pilot, without region or account access restrictions.</Description>
     <IsPackable>false</IsPackable>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -44,7 +44,7 @@
     <Reference Include="Newtonsoft.Json"><HintPath>$(DalamudLibPath)\Newtonsoft.Json.dll</HintPath><Private>False</Private></Reference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Mr.Bean3.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Mr.Bean3.json" CopyToOutputDirectory="Never" />
   </ItemGroup>
   <Target Name="StageCommunityManifest" AfterTargets="Build">
     <Copy SourceFiles="$(MSBuildProjectDirectory)\MrBean3Community.json" DestinationFiles="$(TargetDir)MrBean3Community.json" />

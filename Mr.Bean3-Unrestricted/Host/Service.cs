@@ -1,4 +1,5 @@
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Configuration;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -21,12 +22,15 @@ namespace MrBean.Host
     }
 
     // Running state is intentionally never restored after a plugin reload.
-    public sealed class Configuration
+    public sealed class Configuration : IPluginConfiguration
     {
+        public int Version { get; set; } = 1;
         public bool BlundervilleEnabled;
         public bool BlundervilleAutoLoop;
         public bool FallGuysShowActiveRoute { get; set; }
-        public void Save() { }
+        public string[] BlundervilleBlacklist { get; set; } = [];
+        internal Action? SaveAction { get; set; }
+        public void Save() => SaveAction?.Invoke();
     }
 }
 

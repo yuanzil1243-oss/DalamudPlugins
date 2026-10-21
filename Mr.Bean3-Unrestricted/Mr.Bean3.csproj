@@ -4,7 +4,7 @@
   <PropertyGroup>
     <AssemblyName>MrBean3Community</AssemblyName>
     <RootNamespace>Mr.Bean3</RootNamespace>
-    <Version>7.55.11</Version>
+    <Version>7.55.12</Version>
     <Description>Community build of the Fall Guys pilot, without region or account access restrictions.</Description>
     <IsPackable>false</IsPackable>
     <TargetFramework>net10.0-windows</TargetFramework>

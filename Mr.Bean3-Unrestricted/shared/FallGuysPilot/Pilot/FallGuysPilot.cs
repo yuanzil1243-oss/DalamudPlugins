@@ -43,6 +43,7 @@ public sealed partial class FallGuysPilot : IDisposable
     private string issue = "Idle.";
     private double nextProbe, nextFrame, beganAt;
     private int localHits;
+    public string? LastRoundWinnerName { get; private set; }
     private Task statusWrite = Task.CompletedTask;
     private Task planningTimesWrite = Task.CompletedTask;
     private readonly RoutePlanningTimes planningTimes = new();
@@ -157,6 +158,7 @@ public sealed partial class FallGuysPilot : IDisposable
 
     private void BeginScene(CourseId scene, uint entity, ulong obj)
     {
+        LastRoundWinnerName = null;
         // A loading boundary can be a same-course checkpoint respawn. Only
         // advancing to another course without qualification implies spectating.
         bool checkpoint = interruptedCourse == scene && released;
@@ -223,10 +225,24 @@ public sealed partial class FallGuysPilot : IDisposable
                     eligibilityLost = true;
                     Write("eliminated", new { at = eliminated.Seconds, course, evidence = "status-3708" });
                     break;
+                case MechanicControlObservation { Category: 109, Arg1: 0x8004002B, Arg2: 0xB, Arg3: 2, IsRecorded: false } winnerResult
+                    when winnerResult.Arg5 == 1 && winnerResult.Arg4 != entityId:
+                    LastRoundWinnerName = Service.GameObjects
+                        .OfType<Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter>()
+                        .FirstOrDefault(player => player.EntityId == winnerResult.Arg4)?.Name.TextValue;
+                    break;
                 case MechanicControlObservation { Category: 109, Arg1: 0x8004002B, Arg2: 0xB, Arg3: 2, IsRecorded: false } r
                     when r.Arg4 == entityId && r.Arg5 > 0 && !qualified:
                     qualified = true; rank = r.Arg5; eligibilityLost = false;
+                    if (r.Arg5 == 1) LastRoundWinnerName = Service.LocalPlayer?.Name.TextValue;
                     Write("qualified", new { at = r.Seconds, rank, course, localHits });
+                    break;
+                case MechanicControlObservation { Category: 109, Arg1: 0x8004002B, Arg2: 4, IsRecorded: false } crownResult
+                    when course == CourseId.Crown && crownResult.Arg3 != entityId && crownResult.Arg3 != 0xE0000000:
+                    LastRoundWinnerName = Service.GameObjects
+                        .OfType<Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter>()
+                        .FirstOrDefault(player => player.EntityId == crownResult.Arg3)?.Name.TextValue;
+                    terminal = true;
                     break;
                 case MechanicControlObservation { Category: 109, Arg1: 0x8004002B, Arg2: 4, IsRecorded: false } w
                     when course == CourseId.Crown && w.Arg3 == entityId && !qualified:

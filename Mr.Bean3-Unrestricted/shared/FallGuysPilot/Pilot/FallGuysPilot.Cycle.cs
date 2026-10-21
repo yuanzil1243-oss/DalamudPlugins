@@ -17,7 +17,9 @@ public sealed partial class FallGuysPilot
     private bool cycleActive, cycleWon, cycleEntryRequested, cycleFullEntry, terminal;
     private int completedCycles, wonCycles;
     private double nextTerminalProbe, nextCycleAction;
+    private double blacklistReenterAt;
     private uint cycleZone;
+    private bool blacklistTriggered;
 
     private unsafe void ObserveTerminal(double now)
     {
@@ -83,6 +85,7 @@ public sealed partial class FallGuysPilot
             if (zone == TerritoryDuty)
             {
                 cycleActive = true; cycleWon = false; terminal = false;
+                blacklistTriggered = false;
                 cycleFullEntry = cycleZone == 1197 && cycleEntryRequested;
                 cycleEntryRequested = false;
                 CycleWrite("entered", new { at = now, fullEntry = cycleFullEntry });
@@ -98,7 +101,15 @@ public sealed partial class FallGuysPilot
             cycleZone = zone; nextCycleAction = now + 1;
         }
         if (now < nextCycleAction) return;
-        string? action = zone == 1197 ? "enter" : zone == TerritoryDuty && (terminal || eligibilityLost) ? "leave" : null;
+        if (zone == TerritoryDuty && !blacklistTriggered && HasBlacklistedPlayer())
+        {
+            blacklistTriggered = true;
+            blacklistReenterAt = now + 60;
+            terminal = true;
+            CycleWrite("blacklist-match", new { at = now, waitSeconds = 60 });
+        }
+        string? action = zone == 1197 && now >= blacklistReenterAt ? "enter" :
+            zone == TerritoryDuty && (terminal || eligibilityLost) ? "leave" : null;
         if (action == null) return;
         nextCycleAction = now + 5;
         try
@@ -109,6 +120,16 @@ public sealed partial class FallGuysPilot
         }
         catch (Exception error)
         { CycleWrite("travel-error", new { at = now, action, error = error.Message }); }
+    }
+
+    private bool HasBlacklistedPlayer()
+    {
+        var names = configuration.BlundervilleBlacklist;
+        if (names.Length == 0) return false;
+        var blocked = new HashSet<string>(names.Where(name => !string.IsNullOrWhiteSpace(name)), StringComparer.OrdinalIgnoreCase);
+        return Service.GameObjects
+            .OfType<Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter>()
+            .Any(player => player.EntityId != Service.LocalPlayer?.EntityId && blocked.Contains(player.Name.TextValue));
     }
 
     private void CycleWrite(string kind, object value) => cycleRecorder?.Write(kind, value);

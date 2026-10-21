@@ -67,7 +67,7 @@
     "Author": "yuanzil1243-oss (modified from transparent-duck/Mr.Bean3)",
     "Name": "Mr.Bean3 Community",
     "InternalName": "MrBean3Community",
-    "AssemblyVersion": "7.55.11",
+    "AssemblyVersion": "7.55.12",
     "DalamudApiLevel": 15,
     "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/MrBean3Community.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/MrBean3Community.zip",
@@ -77,6 +77,6 @@
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
     "IsHide": false,
     "IsTestingExclusive": false,
-    "LastUpdate": "1792542992"
+    "LastUpdate": "1792543523"
   }
 ]

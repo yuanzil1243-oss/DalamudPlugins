@@ -18,7 +18,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IFramework framework;
     private readonly IChatGui chat;
     private readonly IMrBean3AccessGate accessGate;
-    private readonly Configuration configuration = new();
+    private readonly Configuration configuration;
     private readonly UsageCollector? telemetry;
     private readonly LocalStatistics statistics;
     private FallGuysPilot? pilot;
@@ -35,6 +35,8 @@ public sealed class Plugin : IDalamudPlugin
         commands = commandManager;
         this.framework = framework;
         chat = chatGui;
+        configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        configuration.SaveAction = () => pluginInterface.SavePluginConfig(configuration);
         statistics = new LocalStatistics(pluginInterface.GetPluginConfigDirectory(),
             error => pluginLog.Error(error, "[Mr.Bean3] Statistics persistence failed."));
         bool omenInitialized = false;
@@ -137,6 +139,25 @@ public sealed class Plugin : IDalamudPlugin
             ImGui.TextUnformatted($"手動接管或中途停止: {statistics.Interrupted}");
             ImGui.TextUnformatted($"勝率: {statistics.WinRate * 100:0.0}%");
             ImGui.TextUnformatted("無大區或账号限制的社区构建。");
+            string blacklist = string.Join("\n", configuration.BlundervilleBlacklist);
+            ImGui.SetNextItemWidth(320);
+            if (ImGui.InputTextMultiline("黑名单角色名（每行一个）", ref blacklist, 4096, new(320, 72)))
+            {
+                configuration.BlundervilleBlacklist = blacklist.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                    .Select(name => name.Trim()).Where(name => name.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                configuration.Save();
+            }
+            ImGui.TextUnformatted("房间出现名单中的玩家时会退出，并在回到大厅后等待 60 秒再报名。");
+            if (pilot?.LastRoundWinnerName is { Length: > 0 } winner &&
+                !configuration.BlundervilleBlacklist.Contains(winner, StringComparer.OrdinalIgnoreCase))
+            {
+                if (ImGui.Button($"拉黑本场冠军：{winner}"))
+                {
+                    configuration.BlundervilleBlacklist = configuration.BlundervilleBlacklist.Append(winner).ToArray();
+                    configuration.Save();
+                }
+            }
             ImGui.TextUnformatted("要不要試試一鍵登頂妖宮");
             ImGui.SameLine();
             if (ImGui.SmallButton("打開"))

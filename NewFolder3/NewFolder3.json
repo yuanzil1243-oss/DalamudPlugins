@@ -1,7 +1,7 @@
 {
   "Author": "John Smith / Yuzi",
-  "Name": "NewFolder3（本地修正版）",
-  "Punchline": "可以挖寶.",
+  "Name": "NewFolder3",
+  "Punchline": "深层迷宫改版，支持自动攻略与自由选层探索。",
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
@@ -10,5 +10,6 @@
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
-  "CanUnloadAsync": false
+  "CanUnloadAsync": false,
+  "Description": "基于原版修改，完善了深层迷宫的探索、战斗、道具使用和楼层推进逻辑，已有完整流程通关下底的实测记录。内置自由选层探索模式，可按需选择楼层进行探索。"
 }

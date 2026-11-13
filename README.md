@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/refs/heads/main
 
 | 插件 | 当前版本 | 简介 | 作者 | 状态 | 使用与下载 |
 | --- | --- | --- | --- | --- | --- |
-| NewFolder3（本地修正版） | 0.7.55.34 | 深层迷宫自动流程与独立尾王练习 | John Smith / Yuzi | 已发布，有已知问题 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3.zip) |
+| NewFolder3 | 0.7.55.34 | 深层迷宫改版，支持自动攻略与自由选层探索 | John Smith / Yuzi | 已发布，有已知问题 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3.zip) |
 
 后续插件会在上表逐项加入，分别保留自己的版本、依赖和说明。
 

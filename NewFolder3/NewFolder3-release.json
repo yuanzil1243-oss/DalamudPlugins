@@ -1,8 +1,8 @@
 [
   {
     "Author": "John Smith / Yuzi",
-    "Name": "NewFolder3（本地修正版）",
-    "Punchline": "可以挖寶.",
+    "Name": "NewFolder3",
+    "Punchline": "深层迷宫改版，支持自动攻略与自由选层探索。",
     "InternalName": "NewFolder3",
     "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
@@ -12,10 +12,10 @@
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
-    "Description": "深层迷宫本地修正版，包含完整流程和独立尾王练习。0.7.55.34 已完成一次独立尾王通关；AE 启停诊断空引用仍待修复，验证边界见仓库使用说明。",
+    "Description": "基于原版修改，完善了深层迷宫的探索、战斗、道具使用和楼层推进逻辑，已有完整流程通关下底的实测记录。内置自由选层探索模式，可按需选择楼层进行探索。",
     "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3.zip",
-    "LastUpdate": 1794572463,
+    "LastUpdate": 1794573954,
     "IsHide": false,
     "IsTestingExclusive": false
   }

@@ -5,29 +5,29 @@
   "sourceUpstream": "transparent-duck/NewFolder3",
   "sourceBaselineCommit": "84010a1ae7b08e69f68778cb7a29f43224a327d4",
   "omenSourceCommit": "6b8f1244bee6a8eca741b8c27e1cfc229ceef66c",
-  "binaryProvenance": "All seven DLLs are byte-identical to the locally tested 0.7.55.34 candidate; publication changes manifest author/repository/icon URLs and packaging documents only.",
+  "binaryProvenance": "All seven DLLs remain byte-identical to the tested 0.7.55.34 candidate; publication changes only display metadata, repository/icon URLs, release checks and documentation.",
   "package": {
     "file": "NewFolder3.zip",
-    "bytes": 1309054,
-    "sha256": "a5178da0c7a086c8146ebecf305219478268debefd991bb204bb602e1b3908dc",
+    "bytes": 1309252,
+    "sha256": "d0c9d5a289979d20545d89ecac6a10d6c35ddd78451cf06977f09569a0f39c19",
     "files": {
       "DeepDungeon.Fsd.Core.dll": "b4e96686ddd8a895e2b7d9d0dc8be5779112a774b270001e51a42f00edc76e10",
       "DeepDungeon.Fsd.Dalamud.dll": "db1b575c0a2aa8a1e4fe88db746675333783f7d8bbcc9844cd4682ccb34fd410",
       "DeepDungeon.Fsd.Runtime.dll": "97d282e86d724ba64ae262d39700231d862f68a42a188a9a9a3a55dd9230e5e2",
       "GuerrillaNtp.dll": "2c083c720ecbc2224fc728132b971b38ebc30d787a443a490b855e9b04d0094f",
-      "icon.png": "f8506e225353f77292ce7e27e64a5dc039555d50f59b66faff24a65e03f10095",
       "LICENSE.txt": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
+      "NewFolder3.dll": "4c85f2b6799f1b1ca925da0afe15e931158ffc4d5e187d395fec9d38b8c158d7",
+      "NewFolder3.json": "0ed786634623bc8f222e1ac3c053332e4b762cbc2950ae285aba8a90f75f5e2c",
+      "OmenTools.dll": "837b2df1a90c0050b43376a0158b6d09902cdcebafac25b3b09f9693b4f3bf2a",
+      "SHA256SUMS.txt": "82c56489ffb3b1ab200084ed842bd9e402ba29bf20f5c0da398cf1b9b693cccf",
+      "TinyPinyin.dll": "3e7f3d65e7a5076ca823dce496bc182a658ee72aacb23012e8c186a8e5aa2ede",
+      "icon.png": "f8506e225353f77292ce7e27e64a5dc039555d50f59b66faff24a65e03f10095",
       "licenses/Apache-2.0.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
-      "licenses/guerrillantp.nuspec": "a853488d8e7b39f55a990a790f42ccb526bfab7a1a008db885bf7a4dddbea45c",
       "licenses/OmenTools-MIT.txt": "e705c2a87ebbb905d2b950fb168806617efac8b27d8c377a7a0c4b8e70de2386",
       "licenses/TinyPinyin-MIT.txt": "c7cbe0710e7c86cb4651f01a20cb38eb2efad5cc490a174fe7e21509dd92915b",
+      "licenses/guerrillantp.nuspec": "a853488d8e7b39f55a990a790f42ccb526bfab7a1a008db885bf7a4dddbea45c",
       "licenses/tinypinyin.nuspec": "6a9b23cb166d1f04e55775fff1b7be63e0589d470371a5132f52d1e56959a5e7",
-      "NewFolder3.dll": "4c85f2b6799f1b1ca925da0afe15e931158ffc4d5e187d395fec9d38b8c158d7",
-      "NewFolder3.json": "c6acc51bde4cc3261b31e0bdbbd6253f9a51d0831580c591ebfbdb045303b416",
-      "OmenTools.dll": "837b2df1a90c0050b43376a0158b6d09902cdcebafac25b3b09f9693b4f3bf2a",
-      "TinyPinyin.dll": "3e7f3d65e7a5076ca823dce496bc182a658ee72aacb23012e8c186a8e5aa2ede",
-      "使用说明.txt": "8ecb46e065af59187a0bb9feb3ed6d379112f58818e13de89285e8946775a6c1",
-      "SHA256SUMS.txt": "7f72d1ed8495d2a698be7366e9bf6206fb559c8040c69a22bd1ea119d939992b"
+      "使用说明.txt": "8ecb46e065af59187a0bb9feb3ed6d379112f58818e13de89285e8946775a6c1"
     }
   },
   "validation": {
@@ -61,9 +61,9 @@
     "NewFolder3/global.json": "7282998a82bd7fb0844b6b0edf82bcececf3a6848ddc4065d2291a37b09a5287",
     "NewFolder3/icon.png": "f8506e225353f77292ce7e27e64a5dc039555d50f59b66faff24a65e03f10095",
     "NewFolder3/LICENSE": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
-    "NewFolder3/NewFolder3-release.json": "61783c4334cf010fb39a4e2290aea2eded98de625e92b13422b89adfa5316f29",
+    "NewFolder3/NewFolder3-release.json": "2587483e919b639c2e1db8562ebf59ccfe828f28844324af9d529fc0cec53f2a",
     "NewFolder3/NewFolder3.csproj": "51d5453322c065820a14d4f8bd934bcad7e6a3d4694c6e34c69a6aa8c8de4b73",
-    "NewFolder3/NewFolder3.json": "c6acc51bde4cc3261b31e0bdbbd6253f9a51d0831580c591ebfbdb045303b416",
+    "NewFolder3/NewFolder3.json": "0ed786634623bc8f222e1ac3c053332e4b762cbc2950ae285aba8a90f75f5e2c",
     "NewFolder3/NewFolder3AccessGate.cs": "cc1c54858731f28f714cc6c3efe94501e795a357777dbbe98bac0dd54bce8c12",
     "NewFolder3/NewFolder3BuildProfile.cs": "f1361f577a446d03b426988ae9ecd34e5473c388db7111ba27d5da985a3d03ba",
     "NewFolder3/packages.lock.json": "23a644cf7c4e22fb64e361df6f56f99c6b7299555dcf611344630372c994a9b9",
@@ -749,5 +749,12 @@
   "publicationOnlySourceChanges": [
     "Author/repository/icon manifest fields and source test feed",
     "Source README and OmenTools .gitattributes for exact-byte cross-platform hashes; no C# behavior changes"
-  ]
+  ],
+  "approvedDisplayMetadata": {
+    "Name": "NewFolder3",
+    "Author": "John Smith / Yuzi",
+    "Punchline": "深层迷宫改版，支持自动攻略与自由选层探索。",
+    "Description": "基于原版修改，完善了深层迷宫的探索、战斗、道具使用和楼层推进逻辑，已有完整流程通关下底的实测记录。内置自由选层探索模式，可按需选择楼层进行探索。"
+  },
+  "metadataUpdatedAt": "2026-11-13T20:45:55+08:00"
 }

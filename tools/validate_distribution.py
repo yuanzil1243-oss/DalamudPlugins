@@ -30,7 +30,7 @@ with zipfile.ZipFile(package) as z:
     manifest=json.loads(z.read('NewFolder3.json'))
     source=json.loads((ROOT/'NewFolder3/NewFolder3.json').read_text(encoding='utf-8-sig'))
     require(manifest==source,'ZIP/source manifest mismatch')
-    for key in ('Author','Name','InternalName','AssemblyVersion','DalamudApiLevel','ApplicableVersion','RepoUrl','IconUrl'):
+    for key in ('Author','Name','Punchline','Description','InternalName','AssemblyVersion','DalamudApiLevel','ApplicableVersion','RepoUrl','IconUrl'):
         require(manifest[key]==entry[key],'Feed/ZIP field mismatch: '+key)
     dlls={name for name in z.namelist() if name.endswith('.dll')}
     require(dlls=={'NewFolder3.dll','DeepDungeon.Fsd.Core.dll','DeepDungeon.Fsd.Runtime.dll','DeepDungeon.Fsd.Dalamud.dll','OmenTools.dll','GuerrillaNtp.dll','TinyPinyin.dll'},'Wrong dependency DLL set')

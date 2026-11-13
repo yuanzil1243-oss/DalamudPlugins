@@ -9,10 +9,10 @@
 在卫月的第三方插件仓库设置中添加：
 
 ```text
-https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmaster.json
+https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/refs/heads/main/pluginmaster.json
 ```
 
-刷新后查找 **NewFolder3（本地修正版）**。也可下载 [dist/NewFolder3.zip](dist/NewFolder3.zip)，完整解压后通过本地/开发插件位置加载 `NewFolder3.dll`；七个 DLL 和清单保持同目录。
+这是 `main/pluginmaster.json` 同一文件的完整分支引用地址。刷新后查找 **NewFolder3（本地修正版）**。也可下载 [dist/NewFolder3.zip](dist/NewFolder3.zip)，完整解压后通过本地/开发插件位置加载 `NewFolder3.dll`；七个 DLL 和清单保持同目录。
 
 已使用本地版本的用户应先在副本外停止任务并停用旧条目，再选择库链安装或新的本地路径，避免同名插件重复加载。迁移配置前自行备份。
 

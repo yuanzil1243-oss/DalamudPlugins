@@ -1,0 +1,14 @@
+{
+  "Author": "John Smith / Yuzi",
+  "Name": "NewFolder3（本地修正版）",
+  "Punchline": "可以挖寶.",
+  "InternalName": "NewFolder3",
+  "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
+  "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
+  "AssemblyVersion": "0.7.55.34",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "Author": "John Smith / Yuzi",
+    "Name": "NewFolder3（本地修正版）",
+    "Punchline": "可以挖寶.",
+    "InternalName": "NewFolder3",
+    "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
+    "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
+    "AssemblyVersion": "0.7.55.34",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
+    "Description": "深层迷宫本地修正版，包含完整流程和独立尾王练习。0.7.55.34 已完成一次独立尾王通关；AE 启停诊断空引用仍待修复，验证边界见仓库使用说明。",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3.zip",
+    "LastUpdate": 1794572463,
+    "IsHide": false,
+    "IsTestingExclusive": false
+  }
+]

@@ -1,0 +1,51 @@
+using Dalamud.Interface.Windowing;
+using Dalamud.Bindings.ImGui;
+using DeepDungeon.Fsd.Dalamud;
+
+namespace NewFolder3;
+
+internal sealed class FsdWindow : Window
+{
+    private static readonly string LocalBuildLabel =
+        $"NewFolder3 本地修正版 {typeof(Plugin).Assembly.GetName().Version}";
+    private readonly FsdApplication _application;
+    private readonly YAxisAdjustController _yAxis;
+
+    public FsdWindow(FsdApplication application, YAxisAdjustController yAxis)
+        : base("你是壞孩子###NewFolder3")
+    {
+        _application = application ?? throw new ArgumentNullException(nameof(application));
+        _yAxis = yAxis ?? throw new ArgumentNullException(nameof(yAxis));
+    }
+
+    public override void Draw()
+    {
+        ImGui.TextDisabled(LocalBuildLabel);
+        if (!ImGui.BeginTabBar("##FsdHostTabs"))
+            return;
+
+        if (ImGui.BeginTabItem("說明"))
+        {
+            _application.DrawCompanionSettings();
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+            ImGui.TextWrapped("它也許可以幫助你挖到一些寶藏");
+            ImGui.TextWrapped("推薦設定: 啟用寶藏+金銀, 如果陶片不足啟用銅.\n啟用 NewFolder3 自動選中 + 你所用輸出外掛的主動攻擊\n死靈術士模式需要較高輸出的職業, 如黑魔.");
+            ImGui.EndTabItem();
+        }
+
+        if (ImGui.BeginTabItem("FSD"))
+        {
+            _application.DrawDeepDungeonFormalPanel();
+            ImGui.Separator();
+            ImGui.Text("通用輔助");
+            _application.DrawGeneralAssistantSettings();
+            _yAxis.DrawSettings();
+            ImGui.EndTabItem();
+        }
+
+        ImGui.EndTabBar();
+    }
+
+}

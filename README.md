@@ -1,26 +1,35 @@
-# 幻想
+# NewFolder3 · Yuzi 本地修正版
 
-FFXIV 国服 Dalamud 插件集合。本仓库当前项目：
+原作者署名 **John Smith**；本地整理与修改署名 **Yuzi**。插件作者字段为 `John Smith / Yuzi`，保留原作者。此仓库不是上游官方发行。
 
-- [直暴播报](幻想/直暴播报/README.md)：自定义播报自身直击、暴击、直暴伤害，分隔符/末尾符号可组合游戏图标，并在开战倒计时最后1秒播报。
+当前版本：**0.7.55.34**；Windows x64、Dalamud API 15、.NET 10。
 
-## Dalamud 自定义插件库
+## 安装与使用
 
-仓库根目录的 `pluginmaster.json` 是卫月自定义插件库清单。发布后，在 Dalamud 设置的 Experimental → Custom Plugin Repositories 中添加：
+在卫月的第三方插件仓库设置中添加：
 
-`https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmaster.json`
-
-该清单格式与 Dalamud 第三方插件库一致，采用的短链长度和结构参照用户提供的截图。
-
-## 参考实现
-
-- [Dalamud SamplePlugin](https://github.com/goatcorp/SamplePlugin)：SDK、服务注入和构建约定。
-- [Hit it, Joe!](https://github.com/Berna-L/ffxiv-tf2-crit-plugin)：使用 FlyText 事件处理暴击/直击类型；本项目复用事件类型并将结果写入聊天。
-
-## 构建
-
-需要 .NET 10 SDK 和 Dalamud 开发环境。运行：
-
-```powershell
-dotnet build .\幻想\直暴播报\CritChat.csproj -c Release -p:DalamudLibPath="$env:APPDATA\XIVLauncherCN\addon\Hooks\dev"
+```text
+https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmaster.json
 ```
+
+刷新后查找 **NewFolder3（本地修正版）**。也可下载 [dist/NewFolder3.zip](dist/NewFolder3.zip)，完整解压后通过本地/开发插件位置加载 `NewFolder3.dll`；七个 DLL 和清单保持同目录。
+
+已使用本地版本的用户应先在副本外停止任务并停用旧条目，再选择库链安装或新的本地路径，避免同名插件重复加载。迁移配置前自行备份。
+
+详见 [使用说明](docs/使用说明.md)、[发布说明](docs/发布说明-0.7.55.34.md) 和 [开发说明](docs/开发说明.md)。AE、BMR、vnavmesh 由使用者自行安装，本包不附带游戏/卫月 SDK 或个人配置。
+
+## 验证状态与已知问题
+
+- 2026-11-13：本版独立尾王练习完成一次，通关后正常退本并完成 1/1，没有角色死亡；开场先取色再输出、18% 提前准备换色及六次战斗内取色接管已在该轮覆盖。
+- 本轮最高已记录血量差约 19.20%，未覆盖 24% 强制停手与其恢复；未出现对应优先小怪；独立尾王不占用存档，不能据此认定完整爬楼后的删档修复已实测。
+- **已知缺陷：AE 启停请求被接受后，记录空版本号时发生诊断空引用，会中断当帧剩余更新。当前上传保留已测试的 .34 逻辑，此问题尚未修复。**
+- 离线自动测试与源代码构建结果见 [发布构建信息](dist/BUILDINFO.json)。构建通过不等于所有场景均已在游戏内验证。
+
+## 目录
+
+- `NewFolder3/`：与本版本对应的源码，包括固定版本的 OmenTools 源码。
+- `dist/`：安装 ZIP、SHA256、构建及验证记录。
+- `docs/`：使用、开发、来源和发布说明。
+- `licenses/`：第三方许可证；根目录 `LICENSE` 为原项目 GPL-3.0 文本。
+
+本次按维护者要求替换了 main 分支原有内容；旧文件仍可从 Git 提交历史恢复，没有把旧插件继续登记到当前库链。后续其他插件应使用独立源码目录与清单条目。

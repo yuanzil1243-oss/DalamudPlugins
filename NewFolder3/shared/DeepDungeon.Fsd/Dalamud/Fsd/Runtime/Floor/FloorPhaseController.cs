@@ -396,6 +396,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 
 		public void CancelActiveMovement()
 		{
+			_floorRuntime?.SuspendPassageRecovery();
             _ctx?.CombatAssist.Reset(_ctx);
 			_floorRuntime?.EndActiveWaypointTelemetry(RunWaypointTerminalOutcome.Aborted, "MovementCanceled");
 			bool navigationActive = _navHelper?.HasActiveTarget == true;

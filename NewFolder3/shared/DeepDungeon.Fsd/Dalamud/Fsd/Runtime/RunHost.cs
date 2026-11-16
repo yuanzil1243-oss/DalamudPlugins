@@ -222,6 +222,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			{
 				MarkPlayerDeathFatalIfObserved();
 				StopInDutyMovementAfterDutyExit();
+				if (ObserveDutyTimeout()) return;
 				_attachedScenario.Update(framework);
 
 				_lastStatus = _context.StatusLine ?? string.Empty;
@@ -459,6 +460,36 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		try { _context.Navigator.CancelAll(); } catch { }
 		_inDutyControllersActive = false;
 		Service.Log.Warning("[RunHost] Deep Dungeon run marked fatal because the local player died.");
+	}
+
+	private bool ObserveDutyTimeout()
+	{
+		var ctx = _context;
+		if (ctx == null || ctx.StatusIsError || _attachedScenario is not Scenarios.FarmingScenario { EntryAccepted: true }) return false;
+		var duty = ctx.Duty;
+		if (duty.IsInDuty && !duty.IsTransitioning && duty.TimerRemainingSeconds is { } seconds)
+			ctx.TimeoutEvidence.Observe(duty.DungeonId, duty.Floor, seconds, duty.TimerMaximumSeconds, duty.TimerSampleAtUtc);
+		bool stable = !duty.IsTransitioning && Service.LocalPlayer != null &&
+			!Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas] &&
+			!Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas51] &&
+			Service.ClientState.IsLoggedIn;
+		var decision = ctx.TimeoutEvidence.Evaluate(duty.IsInDuty, stable, ctx.DutyCompletionObserved, ctx.DutyFailureObserved, DateTime.UtcNow);
+		if (decision == DutyTimeoutDecision.WaitingForExitEvidence)
+		{
+			// Never finalize a missing-completion exit before zoning and the final event grace finish.
+			if (!duty.IsInDuty) ctx.StatusLine = "等待退本完成並核對副本超時證據…";
+			return !duty.IsInDuty;
+		}
+		if (decision != DutyTimeoutDecision.Expired) return false;
+		ctx.MarkDutyFailed("duty-timeout");
+		_floorController.RecordReplayEvent("duty-timeout-confirmed", new {
+			floor = ctx.TimeoutEvidence.LastFloor, dungeonId = ctx.TimeoutEvidence.DungeonId,
+			lastTimerSeconds = ctx.TimeoutEvidence.RemainingSeconds, timerSampleAtUtc = ctx.TimeoutEvidence.SampleAtUtc,
+			outsideDuty = !duty.IsInDuty, reason = ctx.DutyFailureReason });
+		_floorController.CancelActiveMovement();
+		if (!ctx.TryHoldFailedAttempt("副本時間耗盡"))
+			ctx.StatusLine = "已確認副本時間耗盡；按失敗流程核對並清理所屬存檔，不計成功次數。";
+		return false;
 	}
 
 	private void StopInDutyMovementAfterDutyExit()

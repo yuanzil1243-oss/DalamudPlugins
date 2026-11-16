@@ -290,6 +290,7 @@ namespace DeepDungeon.Fsd.Dalamud
                 movementContext.SetBossRotationSuppressed ??= suppressed => _bossRotationSuppressed = suppressed;
             }
             _ddHost?.Update(framework);
+            UpdateReplaySupport();
             UpdateCompanionControls();
             _configuration.BossMechanicsActive = _bossMechanics.IsEnabled;
             if (_detailedMapCatalogManager.ActiveRunSnapshot != null &&

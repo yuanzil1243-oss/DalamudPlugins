@@ -81,6 +81,10 @@ internal partial class FsdEngine
         ImGui.Separator();
         ImGui.Spacing();
         ImGui.Text("機制與走位");
+        bool autoReplay = _configuration.AutoRecordBmrReplays;
+        if (ImGui.Checkbox("任務期間自動開啟 BMR 回放（預設）", ref autoReplay))
+        { _configuration.AutoRecordBmrReplays = autoReplay; _configuration.Save(); _nextReplayCheck = default; }
+        ImGui.TextWrapped(_replayStatus);
         int mechanicsProvider = (int)settings.Provider;
         ImGui.SetNextItemWidth(ImGui.GetFontSize() * 18);
         if (ImGui.Combo("##FsdBossProvider", ref mechanicsProvider, BossMechanicsProviderLabels, BossMechanicsProviderLabels.Length))

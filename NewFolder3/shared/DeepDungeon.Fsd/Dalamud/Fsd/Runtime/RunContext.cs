@@ -103,6 +103,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		public bool DutyCompletionObserved { get; private set; }
 		internal long DutyCompletionSequence { get; private set; }
 		public bool DutyFailureObserved { get; private set; }
+		internal readonly DutyTimeoutEvidence TimeoutEvidence = new();
+		internal string DutyFailureReason { get; private set; } = string.Empty;
 
 		private readonly object _preferredAggroLock = new();
 		private ulong _preferredAggroTargetId;
@@ -176,6 +178,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		DutyCompletionObserved = false;
 		DutyCompletionSequence = 0;
 		DutyFailureObserved = false;
+		DutyFailureReason = string.Empty;
+		TimeoutEvidence.Reset();
 		
 		ClearSuppressedCombatTargets();
 		
@@ -222,8 +226,9 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
         return true;
     }
 
-	public void MarkDutyFailed()
+	public void MarkDutyFailed(string reason = "duty-failed")
 	{
+		if (!DutyFailureObserved) DutyFailureReason = reason;
 		DutyFailureObserved = true;
 		DutyCompletionObserved = false;
 	}

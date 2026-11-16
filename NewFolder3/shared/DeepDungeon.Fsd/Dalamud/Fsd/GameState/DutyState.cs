@@ -27,6 +27,9 @@ namespace DeepDungeon.Fsd.Dalamud.GameState
 		public bool IsTransitioning { get; private set; }
 		public bool StateReadFailed { get; private set; }
 		public string LastStateReadError { get; private set; } = string.Empty;
+		public int? TimerRemainingSeconds { get; private set; }
+		public uint TimerMaximumSeconds { get; private set; }
+		public DateTime TimerSampleAtUtc { get; private set; }
 
 		// Floor type (enum form of IsBossFloor, with stabilization)
 		public DeepDungeonFloorKind CurrentFloorKind { get; private set; } = DeepDungeonFloorKind.Unknown;
@@ -82,6 +85,13 @@ namespace DeepDungeon.Fsd.Dalamud.GameState
 				IsBossFloor = isBossFloor;
 				IsTransporting = isTransporting;
 				IsTransitioning = isTransporting;
+				TimerRemainingSeconds = null;
+				if (!isTransporting && floor > 0 && dd->HasTimer())
+				{
+					TimerSampleAtUtc = DateTime.UtcNow;
+					TimerRemainingSeconds = Math.Max(0, dd->GetTimeRemaining((int)new DateTimeOffset(TimerSampleAtUtc).ToUnixTimeSeconds()));
+					TimerMaximumSeconds = dd->GetContentTimeMax();
+				}
 
 				if (Floor > 0)
 				{
@@ -198,6 +208,7 @@ namespace DeepDungeon.Fsd.Dalamud.GameState
 
 		private void ResetDutyFields(bool isTransporting, bool isTransitioning)
 		{
+			TimerRemainingSeconds = null;
 			IsInDuty = false;
 			DungeonId = 0;
 			Floor = 0;

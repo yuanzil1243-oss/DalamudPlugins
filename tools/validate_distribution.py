@@ -10,7 +10,7 @@ require(isinstance(feed,list) and len(feed)==1,'The replaced feed must contain e
 entry=feed[0]
 require(entry['InternalName']=='NewFolder3','Plugin identity mismatch')
 require(entry['Author']=='John Smith / Yuzi','Author must retain John Smith and append Yuzi')
-require(entry['AssemblyVersion']=='0.7.55.34' and entry['DalamudApiLevel']==15,'Version/API mismatch')
+require(entry['AssemblyVersion']=='0.7.55.35' and entry['DalamudApiLevel']==15,'Version/API mismatch')
 require(entry['ApplicableVersion']=='any','Applicable version mismatch')
 raw='https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main'
 for key in ('DownloadLinkInstall','DownloadLinkUpdate'):

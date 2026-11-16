@@ -5,11 +5,12 @@
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-  "AssemblyVersion": "0.7.55.34",
+  "AssemblyVersion": "0.7.55.35",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
-  "Description": "基于原版修改，完善了深层迷宫的探索、战斗、道具使用和楼层推进逻辑，已有完整流程通关下底的实测记录。内置自由选层探索模式，可按需选择楼层进行探索。"
+  "Description": "基于原版修改，完善了深层迷宫的探索、战斗、道具使用和楼层推进逻辑，已有完整流程通关下底的实测记录。内置自由选层探索模式，可按需选择楼层进行探索。",
+  "Changelog": "0.7.55.35：新增开门后有界导航恢复与失败收尾；确认副本超时退场后按失败策略循环，不计成功次数；默认联动开启BMR自动回放，导出日志可附对应时段回放及SHA256快照清单。离线回归265项通过，游戏内待验证。"
 }

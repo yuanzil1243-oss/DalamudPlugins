@@ -197,6 +197,7 @@ internal sealed partial class FloorExplorationController : IDisposable
             return;
 
         IsDisposed = true;
+        _passageRecovery?.Dispose();
         DisposeWisdomRetreat();
         ReleasePassageStandstill();
         NormalGraph = null;
@@ -263,11 +264,15 @@ bool primaryOwnsOperation = true)
 
     internal unsafe void UpdateFloorActive(InstanceContentDeepDungeon* dd)
     {
+        if (_ctx.MobCombat.Engaged.Count > 0 || _holdingCombat ||
+            CurrentObjectiveDecision.PrimaryObjective != FloorObjectiveKind.EnterPassage)
+            SuspendPassageRecovery();
         // Release the passage's BMR override before checking any newly appearing cast.
         if (_holdingCombat || _ctx.MobCombat.Engaged.Count > 0) ReleasePassageStandstill();
-        else if (TryUpdatePassageStandstill(dd)) return;
+        else if (TryUpdatePassageStandstill(dd)) { SuspendPassageRecovery(); return; }
         // Mechanics own movement before either combat relocation or optional exploration.
         bool mechanics = YieldToMobMechanics();
+        if (mechanics) SuspendPassageRecovery();
         if (_ctx.WisdomConfirmed && UpdateWisdomRetreat(dd, mechanics)) return;
         var owner = MobMovementPolicy.Choose(mechanics, _ctx.MobCombat.PriorityFight,
             _ctx.MobCombat.DangerousEngaged || _ctx.WisdomConfirmed && _ctx.MobCombat.Engaged.Count > 0, _ctx.MobCombat.Consolidating);
@@ -4281,6 +4286,7 @@ bool primaryOwnsOperation = true)
         // Defense in depth: no stale arbiter decision may skip remaining high-floor work.
         if (PassageFirst && (PendingExplorationWork || _ctx.MobCombat.Engaged.Count > 0))
         {
+            SuspendPassageRecovery();
             ReleasePassageStandstill();
             _navDriver.Cancel();
             _status = "91–98层：等待本层探索、箱子和接战清理完成后传送";
@@ -4292,6 +4298,7 @@ bool primaryOwnsOperation = true)
         _ctx?.ClearPreferredAggroTarget();
         if (!RequireTransitionPermission("passage navigation", FloorObjectiveKind.EnterPassage))
         {
+            SuspendPassageRecovery();
             ReleasePassageStandstill();
             return;
         }
@@ -4305,18 +4312,24 @@ bool primaryOwnsOperation = true)
             !PassageLocator.TryResolvePassageDestination(dd, objectEvidence, out var dest, out bool usedActor, out var passageRoomIndex))
         {
             _status = "Passage position unknown";
+            _passageRecovery?.Suspend();
+            _passageUnknownAt ??= DateTime.UtcNow;
             RecordPassageNavigationEvent("passage-navigation", "Unknown", usedActor: false, passageRoomIndex: -1, playerRoom: RoomGraph.GetLocalPlayerRoomIndex(dd));
-            _navDriver!.Reset();
+            _navDriver!.Cancel();
+            if ((DateTime.UtcNow - _passageUnknownAt.Value).TotalSeconds >= 30) FailPassageRecovery("passage-destination-unknown-for-30-seconds");
             return;
         }
 
+        _passageUnknownAt = null;
+        if (usedActor) _passageActorWaitAt = null;
         int playerRoom = RoomGraph.GetLocalPlayerRoomIndex(dd);
         // Knowing the actor does not make a failing cross-room path reachable.
         // Keep the room graph fallback until inside its room, then approach the exact walking point.
         int? targetRoom = PassageNavigationPolicy.RoutingRoom(usedActor, passageRoomIndex, playerRoom);
         if (usedActor) dest = ResolvePassageWalkingPosition(dest);
 
-        var result = _navDriver!.Drive(dest, player.Position, 0.5f, dd, playerRoom, targetRoom);
+        var result = PassageRecovery.Tick(dest, player.Position,
+            () => _navDriver!.Drive(dest, player.Position, 0.5f, dd, playerRoom, targetRoom));
 
         switch (result)
         {
@@ -4336,6 +4349,9 @@ bool primaryOwnsOperation = true)
                     _status = "At passage room, waiting for passage actor";
                     RecordPassageNavigationEvent("passage-room-center-arrived", result.ToString(), usedActor, passageRoomIndex, playerRoom);
                     _navDriver.Reset();
+                    _passageActorWaitAt ??= DateTime.UtcNow;
+                    if ((DateTime.UtcNow - _passageActorWaitAt.Value).TotalSeconds >= 15)
+                        FailPassageRecovery("passage-actor-missing-after-room-arrival");
                     break;
                 }
                 this.RunTelemetry?.ObservePassageCommit(DateTime.UtcNow);
@@ -4356,6 +4372,7 @@ bool primaryOwnsOperation = true)
                 this.RunTelemetry?.ObserveNavigationIssue();
                 RecordPassageNavigationEvent("passage-navigation", result.ToString(), usedActor, passageRoomIndex, playerRoom);
                 _status = "Passage navigation failed";
+                FailPassageRecovery();
                 break;
         }
     }

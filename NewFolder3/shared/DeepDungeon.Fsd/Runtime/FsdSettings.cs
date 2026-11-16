@@ -12,6 +12,7 @@ public sealed class FsdSettings
     public FsdBossMechanicsSettings BossMechanics { get; set; } = new();
     public FsdRotationSettings Rotation { get; set; } = new();
     public FsdCombatSettings Combat { get; set; } = new();
+    public bool AutoRecordBmrReplays { get; set; } = true;
 
     [JsonIgnore, NonSerialized]
     public bool BossMechanicsActive;

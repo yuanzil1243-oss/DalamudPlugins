@@ -337,23 +337,12 @@ namespace DeepDungeon.Fsd.Dalamud
 					}
 					ImGui.EndDisabled();
 					ImGui.SameLine();
-					if (ImGui.Button("導出日誌##fsf_export_logs_top"))
+					ImGui.BeginDisabled(_runLogExportTask != null);
+					if (ImGui.Button("導出日誌與回放##fsf_export_logs_top"))
 					{
-						try
-						{
-							string archivePath =
-								DeepDungeonRunLogExporter.ExportRecentToDesktop(_hostIdentity);
-							_runLogExportNotice =
-								$"日誌置於 {archivePath.Replace('\\', '/')}";
-							_runLogExportFailed = false;
-						}
-						catch (Exception ex)
-						{
-							_runLogExportNotice = "最近三天沒有可導出的運行日誌";
-							_runLogExportFailed = true;
-							Service.Log.Error($"[FsdEngine] Run-log export failed: {ex}");
-						}
+						StartRunLogExport();
 					}
+					ImGui.EndDisabled();
 					ImGui.Unindent();
 				}
 

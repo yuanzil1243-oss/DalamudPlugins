@@ -22,6 +22,7 @@ internal static class Program
         int passed = 0;
         passed += Run("y-axis-movement-packets", YAxisPacketTests.Run);
         passed += ProbeNavigationTests.Run();
+        passed += Run35RegressionTests.Run();
         passed += ProgressionContinuationTests.Run();
         passed += FloorsetPauseTests.Run();
         passed += CheckpointEntryTests.Run();

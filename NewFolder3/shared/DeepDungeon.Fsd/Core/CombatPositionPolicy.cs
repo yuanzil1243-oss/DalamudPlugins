@@ -60,22 +60,29 @@ public static class CombatPositionPolicy
     }
 }
 
-/// <summary>Floor-scoped failure accounting survives target and objective replacement.</summary>
+/// <summary>Historical failures remain diagnostic; only failures without verified output exhaust a floor.</summary>
 public sealed class CombatRecoveryBudget
 {
     public const int MaximumFailuresPerTarget = 2;
     public const int MaximumFailuresPerFloor = 8;
     private readonly Dictionary<ulong, int> _failures = new();
+    private readonly Dictionary<ulong, int> _engagedFailures = new();
     public int TotalFailures { get; private set; }
-    public bool Exhausted => TotalFailures >= MaximumFailuresPerFloor;
+    public int ConsecutiveFailures { get; private set; }
+    public bool Exhausted => ConsecutiveFailures >= MaximumFailuresPerFloor;
     public bool HasExhaustedTargets => _failures.Values.Any(count => count >= MaximumFailuresPerTarget);
     public bool AllRecordedTargetsExhausted => _failures.Count > 0 && _failures.Values.All(count => count >= MaximumFailuresPerTarget);
-    public bool IsTargetExhausted(ulong targetId) =>
-        _failures.TryGetValue(targetId, out int count) && count >= MaximumFailuresPerTarget;
-    public void RecordFailure(ulong targetId)
+    public bool IsTargetExhausted(ulong targetId, bool engaged = false) =>
+        (engaged ? _engagedFailures : _failures).TryGetValue(targetId, out int count) && count >= MaximumFailuresPerTarget;
+    public void RecordFailure(ulong targetId, bool engaged = false)
     {
-        _failures.TryGetValue(targetId, out int count);
-        _failures[targetId] = count + 1;
-        TotalFailures++;
+        var failures = engaged ? _engagedFailures : _failures;
+        failures.TryGetValue(targetId, out int count); failures[targetId] = count + 1;
+        TotalFailures++; ConsecutiveFailures++;
     }
+    // Called only after damage plus clear range/LoS at both supported heights is observed.
+    public void ObserveVerifiedOutput(ulong targetId, bool engaged)
+    { ConsecutiveFailures = 0; (engaged ? _engagedFailures : _failures).Remove(targetId); }
+    public void ResumeManually()
+    { ConsecutiveFailures = 0; _failures.Clear(); _engagedFailures.Clear(); }
 }

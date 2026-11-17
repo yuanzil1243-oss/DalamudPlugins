@@ -288,10 +288,10 @@ namespace DeepDungeon.Fsd.Dalamud
 				ImGui.Text("Necromancer FSD");
 				UiHelpers.DrawGrayTipText("Full Self-Delving (Supervised) in Deep Dungeons");
 				ImGui.Indent();
-                bool hostAssistActive = _ddHost?.AssistModeActive == true;
-                DrawFarmingSelection(hostAssistActive);
+                bool hostTaskActive = _ddHost?.FsdActive == true;
+                DrawFarmingSelection(hostTaskActive);
 
-				DrawDetailedMapSettings(hostAssistActive);
+				DrawDetailedMapSettings(hostTaskActive);
 
 				// ===== Controls (moved under scenario selection) =====
 				{
@@ -330,6 +330,16 @@ namespace DeepDungeon.Fsd.Dalamud
                         ImGui.EndDisabled();
                         ImGui.SameLine();
 					}
+                    if (inDD && _ddHost?.ExplorationErrorPaused == true)
+                    {
+                        ImGui.BeginDisabled(!_ddHost.CanResumeExploration);
+                        if (ImGui.Button("继续探索##fsf_resume_exploration_error"))
+                        {
+                            if (_ddHost.ResumeExploration()) _farmingError = null;
+                        }
+                        ImGui.EndDisabled();
+                        ImGui.SameLine();
+                    }
 					ImGui.BeginDisabled(!fsdRunning);
 					if (ImGui.Button("停止##fsf_stop_top"))
 					{

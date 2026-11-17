@@ -75,6 +75,15 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 			_floorRuntime?.PendingIntuition ?? throw new InvalidOperationException("No active floor Intuition attempt state.");
 		public FloorPhase CurrentPhase => _phase;
 		public string Status => _status;
+        internal bool CanResumeExploration => _ctx != null && _floorRuntime is { IsDisposed: false, Kind: FloorRuntimeKind.Normal } &&
+            _floorRuntime.DungeonId == _ctx.Duty.DungeonId && _floorRuntime.Floor == _ctx.Duty.Floor;
+        internal bool ResumeExplorationAfterError()
+        {
+            if (!CanResumeExploration) return false;
+            _floorRuntime!.ResumeExplorationAfterError();
+            _status = "已继续探索；按当前门、战斗和宝藏状态重新规划。";
+            return true;
+        }
 		public string? RunRecorderPath => _runRecorder?.FilePath;
 		public ObjectiveArbiterDecision CurrentObjectiveDecision => _floorRuntime?.Objectives.ObjectiveDecision ?? default;
 		public bool AllowsCombatChannel =>

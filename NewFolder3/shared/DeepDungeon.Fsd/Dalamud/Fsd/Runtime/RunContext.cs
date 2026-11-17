@@ -100,6 +100,14 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		// Status
 		public string StatusLine = string.Empty;
 		public bool StatusIsError = false;
+        internal readonly ExplorationRecoveryPause ExplorationRecovery = new();
+        internal void StopExplorationRecoverably(string reason)
+        {
+            StatusLine = reason; StatusIsError = true;
+            if (FarmingPlan != null && Duty.IsInDuty && !Duty.IsBossFloor && Duty.Floor > 0 &&
+                !DutyFailureObserved && !DutyCompletionObserved)
+                ExplorationRecovery.Pause(Duty.DungeonId, Duty.Floor, reason);
+        }
 		public bool DutyCompletionObserved { get; private set; }
 		internal long DutyCompletionSequence { get; private set; }
 		public bool DutyFailureObserved { get; private set; }
@@ -172,6 +180,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	public void ResetAttemptState()
 	{
         WisdomCombat.Reset();
+        ExplorationRecovery.Clear();
 		// Clear error state
 		StatusIsError = false;
 		StatusLine = string.Empty;
@@ -296,6 +305,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	{
 		if (targetId == 0)
 			return false;
+        if (MobCombat.Engaged.Any(enemy => enemy.GameObjectId == targetId)) return false;
 		if (CombatRecoveryBudget.IsTargetExhausted(targetId))
 			return true;
 

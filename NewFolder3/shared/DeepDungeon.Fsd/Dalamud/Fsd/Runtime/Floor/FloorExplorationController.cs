@@ -4081,16 +4081,9 @@ bool primaryOwnsOperation = true)
         if (DateTime.UtcNow - _noClearingTargetAt.Value >= TimeSpan.FromSeconds(60))
         {
             _navDriver.Cancel();
-            _ctx.StatusIsError = true;
-            _ctx.StatusLine = _status = "门未开启，60秒未找到可接战目标；已停止巡逻，请检查选敌和寻路日志。";
+            _status = "门未开启，60秒未找到可接战目标；探索已停止，可检查现场后点击继续探索。";
+            _ctx.StopExplorationRecoverably(_status);
             RecordReplayEvent("clearing-acquisition-stopped", new { floor = Floor, reason = "no-target-for-60-seconds" });
-            return;
-        }
-        if (RecoveryBudget.AllRecordedTargetsExhausted)
-        {
-            _ctx.StatusIsError = true;
-            _ctx.StatusLine = _status = "No remaining target within the combat position recovery retry limits.";
-            RecordReplayEvent("sight-recovery-stopped", new { reason = "all-observed-targets-exhausted", failures = RecoveryBudget.TotalFailures });
             return;
         }
         if (acquisitionFailure != EnemyChaseAcquisitionFailure.None)
@@ -4287,6 +4280,22 @@ bool primaryOwnsOperation = true)
 
 
     internal void ResetEngagedTargetProgress() => this.ActiveExecution?.Recovery.ResetEngagedTargetProgress();
+    internal void ResumeExplorationAfterError()
+    {
+        _navHelper.Cancel();
+        ActiveExecution?.Recovery.ResetEngagedTargetProgress();
+        _heldRecovery?.ResetEngagedTargetProgress();
+        RecoveryBudget.ResumeManually();
+        _ctx.ClearPreferredAggroTarget();
+        _ctx.ClearSuppressedCombatTargets();
+        _chaseHelper.Reset();
+        ResetPatrolPlan();
+        _noClearingTargetAt = null;
+        _nextNoTargetDiagnostic = default;
+        Objectives.ClearObjectiveDecision();
+        RecordReplayEvent("exploration-manually-continued", new { floor = Floor, generation = Generation,
+            historicalFailures = RecoveryBudget.TotalFailures, passageOpen = _ctx.Duty.PassageOpen });
+    }
     internal unsafe void UpdatePassageNavigation(InstanceContentDeepDungeon* dd)
     {
         var player = Service.LocalPlayer;

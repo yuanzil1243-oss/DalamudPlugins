@@ -72,7 +72,24 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
         };
 		public bool FarmingPaused => (_attachedScenario as Scenarios.FarmingScenario)?.Session.IsPaused == true;
 		public bool PauseAfterFloorsetClear => (_attachedScenario as Scenarios.FarmingScenario)?.Session.PauseAfterFloorsetClear == true;
-		public bool AssistModeActive => _isFsdMode;
+		public bool ExplorationErrorPaused => _context?.ExplorationRecovery.IsPaused == true;
+        public bool CanResumeExploration => _isFsdMode && _context is { StatusIsError: true } &&
+            _attachedScenario is Scenarios.FarmingScenario { EntryAcceptedForRecovery: true } &&
+            _floorController.CanResumeExploration && _context.ExplorationRecovery.CanResume(new(
+                _context.Duty.DungeonId, _context.Duty.Floor, _context.Duty.IsInDuty, !_context.Duty.StateReadFailed,
+                _context.Duty.IsTransitioning || Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas] ||
+                    Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas51],
+                Service.ClientState.IsLoggedIn && Service.LocalPlayer is { IsDead: false, CurrentHp: > 0 },
+                _context.DutyFailureObserved, _context.DutyCompletionObserved, _context.Duty.TimerRemainingSeconds is <= 0));
+        public bool ResumeExploration()
+        {
+            if (!CanResumeExploration || !_floorController.ResumeExplorationAfterError()) return false;
+            _context!.ExplorationRecovery.Clear(); _context.StatusIsError = false;
+            _context.StatusLine = _lastStatus = "已继续探索；保留当前任务、存档和楼层进度。";
+            _lastStatusIsError = false;
+            return true;
+        }
+        public bool AssistModeActive => _isFsdMode && !ExplorationErrorPaused;
 		public bool ScenarioAttached => _attachedScenario != null;
 
 	// Expose shared controller for scenarios/panels that need fine-grained state.
@@ -193,6 +210,27 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			if (!_isFsdMode || FarmingPaused)
 				return;
 
+            if (ExplorationErrorPaused && _context != null)
+            {
+                var duty = _context.Duty;
+                // A failed state read or zoning can temporarily clear IsInDuty. Keep the
+                // retained attempt inert until the actual exit or failure is confirmed.
+                bool stable = !duty.StateReadFailed && !duty.IsTransitioning &&
+                    Service.ClientState.IsLoggedIn && Service.LocalPlayer != null &&
+                    !Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas] &&
+                    !Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas51];
+                if (_context.DutyFailureObserved || _context.DutyCompletionObserved ||
+                    Service.LocalPlayer is { IsDead: true } || (stable && !duty.IsInDuty))
+                {
+                    _context.ExplorationRecovery.Clear();
+                    _context.StatusIsError = false;
+                }
+                else
+                {
+                    if (stable) ObserveDutyTimeout();
+                    return;
+                }
+            }
 			if (_context != null)
 			{
 				if (_context.Duty.StateReadFailed)
@@ -236,6 +274,12 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 				if (_context.Duty.IsInDuty && !_context.StatusIsError && DutyEntryReady && !IsFinalBossPractice)
 					UpdateControllers(framework);
 
+                if (ExplorationErrorPaused)
+                {
+                    _floorController.CancelActiveMovement(); _context.Navigator.CancelAll();
+                    _lastStatus = _context.StatusLine ?? string.Empty; _lastStatusIsError = true;
+                    return;
+                }
 				if (_attachedScenario.IsComplete)
 				{
 					if (_context.StatusIsError)
@@ -390,6 +434,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			}
 		}
 
+            if (ExplorationErrorPaused) return;
 			// Auto-open chests when assist mode is active
 			if (assistActive)
 			{
@@ -460,7 +505,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	private bool ObserveDutyTimeout()
 	{
 		var ctx = _context;
-		if (ctx == null || ctx.StatusIsError || _attachedScenario is not Scenarios.FarmingScenario { EntryAccepted: true }) return false;
+		if (ctx == null || (ctx.StatusIsError && !ctx.ExplorationRecovery.IsPaused) ||
+            _attachedScenario is not Scenarios.FarmingScenario { EntryAcceptedForRecovery: true }) return false;
 		var duty = ctx.Duty;
 		if (duty.IsInDuty && !duty.IsTransitioning && duty.TimerRemainingSeconds is { } seconds)
 			ctx.TimeoutEvidence.Observe(duty.DungeonId, duty.Floor, seconds, duty.TimerMaximumSeconds, duty.TimerSampleAtUtc);
@@ -758,6 +804,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	{
 		try
 		{
+            if (context.ExplorationRecovery.IsPaused)
+            { context.ExplorationRecovery.Clear(); context.StatusIsError = false; }
 			if (context.StatusIsError)
 				return;
 

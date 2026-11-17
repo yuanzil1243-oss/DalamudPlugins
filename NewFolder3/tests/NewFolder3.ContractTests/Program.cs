@@ -25,6 +25,7 @@ internal static class Program
         passed += Run35RegressionTests.Run();
         passed += Run36RegressionTests.Run();
         passed += Run38RegressionTests.Run();
+        passed += Run39RegressionTests.Run();
         passed += ProgressionContinuationTests.Run();
         passed += FloorsetPauseTests.Run();
         passed += CheckpointEntryTests.Run();

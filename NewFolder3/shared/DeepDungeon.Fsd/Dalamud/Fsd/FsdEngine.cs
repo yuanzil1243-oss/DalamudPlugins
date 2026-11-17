@@ -110,7 +110,7 @@ namespace DeepDungeon.Fsd.Dalamud
         }
 
         internal DutyState? DutyState => _dutyState;
-        internal bool IsRunActive => _ddHost is { FsdActive: true, FarmingPaused: false, DutyEntryReady: true };
+        internal bool IsRunActive => _ddHost is { FsdActive: true, FarmingPaused: false, ExplorationErrorPaused: false, DutyEntryReady: true };
         internal string? ActiveDetailedMapReleaseId =>
             _detailedMapCatalogManager.ActiveRunReleaseId;
         public DeepDungeonStateSnapshot CurrentDeepDungeonState => _currentDeepDungeonState;

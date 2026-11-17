@@ -34,6 +34,7 @@ internal sealed class CombatPositionRecoveryController : IDisposable
     private int _seedIndex, _candidateIndex, _pathQueries, _failedPositions, _playerRoom;
     private float _actionRange, _playerRadius, _targetRadius;
     private bool _ownsPath;
+    private bool _targetEngaged;
     private bool _resumeSearch;
     private DateTime? _yieldedAt;
 
@@ -70,6 +71,7 @@ internal sealed class CombatPositionRecoveryController : IDisposable
             ResetEngagedTargetProgress();
             _targetId = target.GameObjectId; _observedHp = current.CurrentHp; _lastProgressAt = now;
         }
+        _targetEngaged = aggro;
         _attackWindow.Observe(attackOpportunity, false, now);
         _actionRange = _ctx.CombatAssist.GetCachedEngageRange(_ctx.Configuration);
         _playerRadius = player.HitboxRadius; _targetRadius = current.HitboxRadius;
@@ -80,7 +82,11 @@ internal sealed class CombatPositionRecoveryController : IDisposable
                 _actionRange, _playerRadius, _targetRadius, 0, 0) &&
                 CombatPositionNavigation.Sight(player.Position, current.Position, out _) == CombatSight.Clear &&
                 CombatPositionNavigation.Sight(player.Position - new Vector3(0, 7, 0), current.Position, out _) == CombatSight.Clear;
-            if (clearOutput) _lastDamageAt = _lastProgressAt = now;
+            if (clearOutput)
+            {
+                _lastDamageAt = _lastProgressAt = now;
+                _budget.ObserveVerifiedOutput(_targetId, aggro);
+            }
             if (_phase != Phase.Idle && clearOutput)
             {
                 _record("sight-recovery-completed", new { targetId = _targetId, reason = "target-hp-progress", hp = current.CurrentHp });
@@ -88,7 +94,8 @@ internal sealed class CombatPositionRecoveryController : IDisposable
             }
         }
         _observedHp = current.CurrentHp;
-        if (_budget.Exhausted) { Stop("Combat position recovery exhausted the floor retry limit."); return true; }
+        if (_budget.Exhausted && !aggro)
+        { Stop("Combat position recovery exhausted the floor retry limit."); return true; }
         if (_phase != Phase.Idle)
         {
             if (now >= _deadline) { Fail("recovery-deadline", current); return true; }
@@ -115,7 +122,7 @@ internal sealed class CombatPositionRecoveryController : IDisposable
         bool stalled = (aggro ? now - _lastProgressAt : _attackWindow.StartedAt == default
             ? TimeSpan.Zero : now - _attackWindow.StartedAt) >= CombatPositionPolicy.UnknownNoProgressLimit;
         if ((!inRange || sight != CombatSight.Blocked || now - _lastDamageAt < TimeSpan.FromSeconds(1)) && !stalled) return false;
-        if (_budget.IsTargetExhausted(_targetId))
+        if (_budget.IsTargetExhausted(_targetId, aggro))
         {
             if (aggro) { Stop("Engaged target remains unreachable after bounded combat recovery; manual intervention required."); return true; }
             return false;
@@ -261,16 +268,17 @@ internal sealed class CombatPositionRecoveryController : IDisposable
     }
     private void Fail(string reason, IBattleChara target)
     {
-        _budget.RecordFailure(_targetId);
-        bool heldThreat = _ctx.MobCombat.PriorityFight || _ctx.MobCombat.DangerousEngaged;
+        _budget.RecordFailure(_targetId, _targetEngaged);
+        bool heldThreat = _targetEngaged;
         _record(heldThreat ? "held-target-recovery-attempt-failed" : "clearing-target-deprioritized", new { targetId = _targetId, reason, hp = target.CurrentHp, failures = _budget.TotalFailures,
-            targetExhausted = _budget.IsTargetExhausted(_targetId) });
+            targetExhausted = _budget.IsTargetExhausted(_targetId, _targetEngaged),
+            engaged = _targetEngaged, consecutiveFailures = _budget.ConsecutiveFailures });
         if (heldThreat)
         {
             // Keep the aggro obligation and marker. Never silently blacklist a live priority enemy.
             EndAttempt(); _lastProgressAt = DateTime.UtcNow;
             _record("held-target-recovery-failed", new { targetId = _targetId, reason, hp = target.CurrentHp });
-            if (_budget.IsTargetExhausted(_targetId)) Stop("Priority/solo target cannot be reached after two recovery attempts; manual intervention required.");
+            if (_budget.IsTargetExhausted(_targetId, true)) Stop("Engaged target cannot be reached after two recovery attempts; manual continuation required.");
             return;
         }
         _chase.DeprioritizeCurrentTarget(); _ctx.SuppressCombatTarget(_targetId, TimeSpan.FromSeconds(20));
@@ -280,8 +288,9 @@ internal sealed class CombatPositionRecoveryController : IDisposable
     }
     private void Stop(string reason)
     {
-        EndAttempt(); _navigation.Cancel(); _ctx.StatusIsError = true; _ctx.StatusLine = reason; _status(reason);
-        _record("sight-recovery-stopped", new { reason, targetId = _targetId, failures = _budget.TotalFailures });
+        EndAttempt(); _navigation.Cancel(); _ctx.StopExplorationRecoverably(reason); _status(reason);
+        _record("sight-recovery-stopped", new { reason, targetId = _targetId, failures = _budget.TotalFailures,
+            consecutiveFailures = _budget.ConsecutiveFailures, recoverable = _ctx.ExplorationRecovery.IsPaused });
     }
     private void StopPath()
     {

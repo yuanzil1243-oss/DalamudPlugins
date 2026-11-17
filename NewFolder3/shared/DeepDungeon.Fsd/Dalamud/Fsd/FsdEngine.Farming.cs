@@ -234,8 +234,8 @@ internal partial class FsdEngine
                 ImGui.TextDisabled(_ddHost.PreparedSaveDescription);
         }
         ImGui.Unindent();
-        string? error = _farmingError ?? (_ddHost is { FsdActive: false, LastStatusIsError: true }
-            ? _ddHost.LastStatus : null);
+        string? error = _farmingError ?? (_ddHost?.ExplorationErrorPaused == true ? _ddHost.CurrentStatus :
+            _ddHost is { FsdActive: false, LastStatusIsError: true } ? _ddHost.LastStatus : null);
         if (!string.IsNullOrEmpty(error))
         {
             ImGui.PushStyleColor(ImGuiCol.Text, new System.Numerics.Vector4(1f, 0.55f, 0.55f, 1f));

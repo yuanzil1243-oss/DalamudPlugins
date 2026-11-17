@@ -26,6 +26,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
     public bool CountsAsCycle { get; private set; }
     public bool RecoversDutyFailure => _recoverFailure;
     internal bool EntryAccepted => _entered && _context?.StatusIsError != true;
+    internal bool EntryAcceptedForRecovery => _entered && !_complete;
     public bool RequiresDutyCompletionEvent => !session.Plan.ReusesSave && !_recoverFailure && !_aborted;
 
     public void Initialize(RunContext context)
@@ -78,7 +79,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
     public void Update(IFramework framework)
     {
         var ctx = _context;
-        if (ctx == null || _complete || session.IsPaused) return;
+        if (ctx == null || _complete || session.IsPaused || ctx.ExplorationRecovery.IsPaused) return;
         if (ctx.StatusIsError) { _complete = true; return; }
         if (ctx.TerminalReviewRequested)
         {

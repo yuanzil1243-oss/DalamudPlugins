@@ -944,6 +944,14 @@ bool primaryOwnsOperation = true)
             return;
         }
 
+        if (FreeHoardEnabled || _ctx.RunOptions.Current.BandedEnabled)
+        {
+            if (DeepDungeon.Fsd.Dalamud.Map.PalacePalData.RepositoryDownloadPending)
+            {
+                _status = "正在加载公共候选点，完成或超时后开始探索";
+                return;
+            }
+        }
         ResolveCurrentFloorIntuitionTimeoutIfNeeded(dd);
 
         var normalGraph = this.NormalGraph;

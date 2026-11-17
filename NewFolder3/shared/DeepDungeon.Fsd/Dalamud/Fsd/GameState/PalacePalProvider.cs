@@ -18,6 +18,7 @@ namespace DeepDungeon.Fsd.Dalamud.GameState
 		private byte _cachedFloor = 255;
 		private ushort _cachedTerritory;
 		private int _cachedLayout = -1;
+        private long _cachedRevision = -1;
 		private readonly Dictionary<int, List<Vector3>> _trapsByRoom = new();
 
 		public unsafe IReadOnlyList<Vector3> GetTrapPositionsForRoom(InstanceContentDeepDungeon* dd, int roomIndex)
@@ -40,12 +41,14 @@ namespace DeepDungeon.Fsd.Dalamud.GameState
 			ushort territory = (ushort)Service.ClientState.TerritoryType;
 			if (_cachedFloor == dd->Floor &&
 			    _cachedTerritory == territory &&
-			    _cachedLayout == dd->ActiveLayoutIndex)
+			    _cachedLayout == dd->ActiveLayoutIndex &&
+                _cachedRevision == PalacePalData.Revision)
 				return;
 
 			_cachedFloor = dd->Floor;
 			_cachedTerritory = territory;
 			_cachedLayout = dd->ActiveLayoutIndex;
+            _cachedRevision = PalacePalData.Revision;
 			RebuildRoomIndex(dd);
 		}
 

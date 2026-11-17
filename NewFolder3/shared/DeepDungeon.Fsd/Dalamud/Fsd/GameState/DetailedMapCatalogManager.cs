@@ -106,6 +106,7 @@ internal sealed class DetailedMapCatalogManager : IDisposable
     private readonly Uri? _catalogBaseUri;
     private readonly bool _deleteCatalogsWhenDisabled;
     private readonly HttpClient? _httpClient;
+    private readonly CancellationTokenSource _lifetime = new();
     private readonly Dictionary<(int LayoutIndex, int RoomIndex), DetailedMapRoomGraphPresentation>
         _presentations = new();
 
@@ -259,7 +260,7 @@ internal sealed class DetailedMapCatalogManager : IDisposable
             selectedScenarioKey!,
             installedReleaseComplete ? _installedPointer : null,
             installedReleaseComplete ? _latestEtag : null,
-            CancellationToken.None);
+            _lifetime.Token);
     }
 
     internal void RetryUpdate(
@@ -500,6 +501,11 @@ internal sealed class DetailedMapCatalogManager : IDisposable
                 DetailedMapHostOptions.NoOnlineCatalogServiceMessage);
         }
 
+        // ResponseHeadersRead does not apply HttpClient.Timeout to later body reads.
+        // Bound the entire multi-file check, including slow response streams.
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(60));
+        cancellationToken = deadline.Token;
         Uri latestUri = new(
             _catalogBaseUri,
             $"{scenarioKey}/{DetailedMapCatalogContract.LatestFileName}");
@@ -1157,7 +1163,11 @@ internal sealed class DetailedMapCatalogManager : IDisposable
         if (_disposed)
             return;
         _activeRun = null;
+        _lifetime.Cancel();
         _httpClient?.Dispose();
+        if (_checkTask != null) _ = _checkTask.ContinueWith(task => _ = task.Exception,
+            CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+        _lifetime.Dispose();
         _disposed = true;
     }
 

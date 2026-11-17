@@ -484,7 +484,7 @@ namespace DeepDungeon.Fsd.Dalamud
 						: DetailedMapHostOptions.NoOnlineCatalogFallbackMessage
 					: _detailedMapHostOptions.ContributesAnonymousEvidence
 					? "深宮寶藏存在某些規律，使用這些經驗以加速探索。啟用該項目會下載該層級的詳細地圖，並上傳深宮信息以共建。上傳內容不含個人標識。"
-					: "深宮寶藏存在某些規律，使用這些經驗以加速探索。";
+					: "啟用後從本插件GitHub倉庫下載已簽名的21–30／31–40詳細地圖，校驗後緩存。無需自己先挖過，不上傳個人資料；歷史地圖不保證全覆蓋。";
 				ImGui.BeginTooltip();
 				ImGui.PushTextWrapPos(
 					ImGui.GetFontSize() * 32f);
@@ -1031,8 +1031,10 @@ namespace DeepDungeon.Fsd.Dalamud
 			if (showActions)
 			{
 				// Warnings below map: PalacePal fetch status
+                if (!string.IsNullOrEmpty(Map.PalacePalData.RepositoryStatus))
+                    ImGui.TextWrapped(Map.PalacePalData.RepositoryStatus);
 				var (ppFailed, ppHasLocal) = GetPalacePalStatus();
-				if (ppFailed)
+                if (ppFailed && !Map.PalacePalData.RepositoryDownloadPending)
 				{
 					if (ppHasLocal)
 						ImGui.TextColored(new Vector4(1.0f, 0.85f, 0.3f, 1.0f), "警告：無法從 PalacePal 取得資料，使用本機快取標記。");

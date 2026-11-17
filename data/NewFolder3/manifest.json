@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "exportDate": "2026-11-18",
+  "coordinateDataVersion": "20261118",
+  "detailedScenarios": [
+    "pt-21-30",
+    "pt-31-40"
+  ],
+  "files": {
+    "detailed/pt-21-30/2026-11-09.1/catalog.json": {
+      "bytes": 51524,
+      "sha256": "7b35ed3c98c87bd8540329d4649f0aa605c60ca834be971efe5408a1633d68c8"
+    },
+    "detailed/pt-21-30/2026-11-09.1/catalog.sig.json": {
+      "bytes": 271,
+      "sha256": "38bcd1bd8f03f0c4134f00a069d3c206b6a49f75a1f122701e7293cbd581ef78"
+    },
+    "detailed/pt-21-30/2026-11-09.1/hoard-yield-catalog.json": {
+      "bytes": 271364,
+      "sha256": "b3350ce609219f9b9a339102637cdf7caec7621d8622d8fdadbdcdf879ac578a"
+    },
+    "detailed/pt-21-30/latest.json": {
+      "bytes": 343,
+      "sha256": "c8a94805900baba7f4af6ff64b3272db9ea9482c90e96696fd6f318a56263059"
+    },
+    "detailed/pt-31-40/2026-11-09.1/catalog.json": {
+      "bytes": 48042,
+      "sha256": "2fbb100e5ec429bc71f99437f69029b9b83363c8a6831dbc74fbaea647ff9ca7"
+    },
+    "detailed/pt-31-40/2026-11-09.1/catalog.sig.json": {
+      "bytes": 286,
+      "sha256": "2b262a5ba7428b2410a4d21cfda03d0db13c86bd9123a8cbee9fb79553234226"
+    },
+    "detailed/pt-31-40/2026-11-09.1/hoard-yield-catalog.json": {
+      "bytes": 265632,
+      "sha256": "6c9ead49c9ad8ba06f3e17b330463b155ba540f362f729e0d5bc8abd38511e7a"
+    },
+    "detailed/pt-31-40/latest.json": {
+      "bytes": 343,
+      "sha256": "da76ed1d29b0a27ccb8bb2c11e9ec81af2e116e26ff796c94251a7ba0dca39af"
+    },
+    "palacepal/20261118.json": {
+      "bytes": 152269,
+      "sha256": "b58967cd3d884a1c68cfad534acefc4d0891200278b794e33a8e3cb42f96309c"
+    }
+  }
+}

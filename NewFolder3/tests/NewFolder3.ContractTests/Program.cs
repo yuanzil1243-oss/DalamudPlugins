@@ -14,8 +14,8 @@ internal static class Program
 {
     public static int Main(string[] args)
     {
-        if (args.Length != 0 && (args.Length != 2 || args[0] != "--validate-local-catalogs"))
-            throw new ArgumentException("Usage: [--validate-local-catalogs <plugin-config-directory>]");
+        if (args.Length != 0 && (args.Length != 2 || args[0] is not ("--validate-local-catalogs" or "--validate-repository-data" or "--validate-repository-live")))
+            throw new ArgumentException("Usage: [--validate-local-catalogs <plugin-config-directory> | --validate-repository-data <repository-data-directory> | --validate-repository-live confirm]");
         typeof(FsdApplication).Assembly.GetType("DeepDungeon.Fsd.Dalamud.Service")!
             .GetProperty("Log", BindingFlags.Static | BindingFlags.NonPublic)!
             .SetValue(null, DispatchProxy.Create<IPluginLog, NoOpDispatchProxy>());
@@ -26,11 +26,12 @@ internal static class Program
         passed += Run36RegressionTests.Run();
         passed += Run38RegressionTests.Run();
         passed += Run39RegressionTests.Run();
+        passed += Run40RepositoryTests.Run();
         passed += ProgressionContinuationTests.Run();
         passed += FloorsetPauseTests.Run();
         passed += CheckpointEntryTests.Run();
         passed += MobCombatPolicyTests.Run();
-        passed += Run("public-no-service-build-profile", TestPublicNoServiceBuildProfile);
+        passed += Run("public-read-only-repository-build-profile", TestPublicNoServiceBuildProfile);
         passed += Run("public-allow-all-access-gate", TestPublicAllowAllAccessGate);
         passed += Run("detailed-map-host-options-no-service", TestDetailedMapHostOptionsNoService);
         passed += Run("saved-detailed-map-preference-falls-back-without-service", TestSavedDetailedMapPreferenceFallback);
@@ -46,6 +47,13 @@ internal static class Program
         {
             passed += Run("installed-local-catalogs-validate-and-load-offline", () => TestInstalledOfflineCatalogs(args[1]));
             passed += Run("modified-offline-catalog-is-rejected-and-falls-back", () => TestModifiedOfflineCatalog(args[1]));
+        }
+        if (args.Length == 2 && args[0] == "--validate-repository-data")
+            passed += Run40RepositoryTests.ValidatePublishedData(args[1]);
+        if (args.Length == 2 && args[0] == "--validate-repository-live")
+        {
+            if (args[1] != "confirm") throw new ArgumentException("Live repository validation requires confirm.");
+            passed += Run40RepositoryTests.ValidateLiveRepository();
         }
         Console.WriteLine($"NewFolder3 contract tests: {passed} passed");
         return 0;
@@ -95,25 +103,25 @@ internal static class Program
     {
         NewFolder3BuildCapabilities capabilities = NewFolder3BuildProfile.Capabilities;
         Assert(
-            capabilities.DetailedMapCatalogEndpoint == null &&
+            capabilities.DetailedMapCatalogEndpoint?.AbsoluteUri == "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/data/NewFolder3/detailed/" &&
             capabilities.CommunityEvidenceEndpoint == null &&
             capabilities.UsageTelemetryEndpoint == null &&
             capabilities.LongRunLogEndpoint == null &&
-            !capabilities.HasOnlineCatalogService &&
+            capabilities.HasOnlineCatalogService &&
             !capabilities.HasCommunityEvidenceUpload &&
             !capabilities.HasUsageTelemetry &&
             !capabilities.HasLongRunLogUpload &&
             !capabilities.ContributesAnonymousEvidence &&
             !capabilities.SupportsControlledPtSurvey &&
             capabilities.CreateAccessGate == null,
-            "Public build profile must resolve to an explicit no-service configuration.");
+            "Public build profile permits only repository reads; user-data upload remains disabled.");
 
         DetailedMapHostOptions options = NewFolder3BuildProfile.CreateDetailedMapHostOptions();
         Assert(
-            !options.HasOnlineCatalogService &&
-            options.CatalogBaseUri == null &&
+            options.HasOnlineCatalogService &&
+            options.CatalogBaseUri == capabilities.DetailedMapCatalogEndpoint &&
             !options.ContributesAnonymousEvidence,
-            "Public build profile must create DetailedMapHostOptions without a catalog URI.");
+            "Public build profile must use the signed repository catalog without evidence uploads.");
     }
 
     private static void TestPublicAllowAllAccessGate()

@@ -17,6 +17,17 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 		private static readonly object _lock = new();
 		private static bool _initialized;
 		private static string _localFilePath = string.Empty;
+        private static RepositoryPalacePalStore? _repository;
+        // Public fallbacks stay separate so saving personal imports cannot pin an old repository version.
+        private static readonly Dictionary<ushort, List<Marker>> _publicByTerritory = new();
+        private static long _revision;
+        public static long Revision { get { lock (_lock) return _revision; } }
+        public static bool RepositoryDownloadPending { get { lock (_lock) return _validCountByTerritory.GetValueOrDefault(_lastTerritory) == 0 && _repository?.Pending == true; } }
+        public static string RepositoryStatus
+        {
+            get { lock (_lock) return _validCountByTerritory.GetValueOrDefault(_lastTerritory) > 0
+                ? string.Empty : _repository?.Status ?? string.Empty; }
+        }
 
 		// cache of what we have saved locally (by territory)
 		private static readonly Dictionary<ushort, List<Marker>> _localByTerritory = new();
@@ -62,6 +73,7 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 				var baseDir = Service.PluginInterface.GetPluginConfigDirectory();
 				Directory.CreateDirectory(baseDir);
 				_localFilePath = Path.Combine(baseDir, LocalFileName);
+                _repository = new RepositoryPalacePalStore(baseDir);
 
 				if (File.Exists(_localFilePath))
 				{
@@ -120,11 +132,46 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 					}
 				}
 				else
-				{
-					_lastFetchSucceeded = false;
-				}
-			}
-		}
+                {
+                    _lastFetchSucceeded = false;
+                }
+                _revision++;
+                _repository?.Request(terr, _validCountByTerritory.GetValueOrDefault(terr) > 0);
+                ApplyRepository_NoLock();
+            }
+        }
+
+        public static void PollRepositoryDownload()
+        {
+            lock (_lock)
+            {
+                if (_repository?.Poll() == true) ApplyRepository_NoLock();
+                if (_initialized && _lastTerritory != 0 && Service.ClientState.TerritoryType == _lastTerritory)
+                    _repository?.Request(_lastTerritory, _validCountByTerritory.GetValueOrDefault(_lastTerritory) > 0);
+            }
+        }
+
+        private static void ApplyRepository_NoLock()
+        {
+            if (_repository?.Data == null) return;
+            foreach (var (territory, records) in _repository.Data)
+            {
+                if (_publicByTerritory.ContainsKey(territory)) continue;
+                _publicByTerritory[territory] = records.Select(m => new Marker { Type = m.Type, X = m.X, Y = m.Y, Z = m.Z }).ToList();
+                _revision++;
+            }
+        }
+
+        public static void Shutdown()
+        {
+            lock (_lock)
+            {
+                _repository?.Dispose(); _repository = null;
+                _initialized = false; _localFilePath = string.Empty;
+                _localByTerritory.Clear(); _validCountByTerritory.Clear(); _publicByTerritory.Clear();
+                _lastTerritory = 0; _lastFetchSucceeded = false; _revision++;
+            }
+        }
 
 		private static string GetPalacePalConfigDir()
 		{
@@ -201,7 +248,18 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 			}
 		}
 
-		private static bool TryFetchFromPalacePalSQLite_NoLock(
+        private static bool TryFetchFromPalacePalSQLite_NoLock(ushort territoryId, out List<Marker> markers,
+            out PalacePalTerritoryImportReport importReport)
+        {
+            try { return ReadPalacePalSQLite_NoLock(territoryId, out markers, out importReport); }
+            catch (Exception error)
+            {
+                Service.Log.Warning($"[PalacePalData] Local SQLite import unavailable: {error.Message}");
+                markers = new(); importReport = new(); return false;
+            }
+        }
+
+		private static bool ReadPalacePalSQLite_NoLock(
 			ushort territoryId,
 			out List<Marker> markers,
 			out PalacePalTerritoryImportReport importReport)
@@ -363,7 +421,7 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 			lock (_lock)
 			{
 				var result = new List<Vector3>();
-				if (_localByTerritory.TryGetValue(_lastTerritory, out var list))
+                if (TryGetCurrentMarkers_NoLock(out var list))
 				{
 					for (int i = 0; i < list.Count; i++)
 					{
@@ -380,6 +438,13 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 				return result;
 			}
 		}
+
+        private static bool TryGetCurrentMarkers_NoLock(out List<Marker> markers)
+        {
+            if (_validCountByTerritory.GetValueOrDefault(_lastTerritory) > 0 &&
+                _localByTerritory.TryGetValue(_lastTerritory, out markers!)) return true;
+            return _publicByTerritory.TryGetValue(_lastTerritory, out markers!);
+        }
 
 		private static int CountValidMarkers(ushort territoryId, IReadOnlyList<Marker> markers)
 		{
@@ -448,8 +513,7 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 				{
 					if (!_initialized)
 						EnsureInitialized_NoLock();
-					return _validCountByTerritory.TryGetValue(_lastTerritory, out int validCount) &&
-					       validCount > 0;
+                    return TryGetCurrentMarkers_NoLock(out var markers) && markers.Count > 0;
 				}
 			}
 		}

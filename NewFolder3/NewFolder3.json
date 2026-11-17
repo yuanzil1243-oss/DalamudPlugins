@@ -5,12 +5,12 @@
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-  "AssemblyVersion": "0.7.55.39",
+  "AssemblyVersion": "0.7.55.40",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "Description": "基于原版修改，完善了深层迷宫的探索、战斗、道具使用和楼层推进逻辑，已有完整流程通关下底的实测记录。内置自由选层探索模式，可按需选择楼层进行探索。",
-  "Changelog": "0.7.55.39 测试版：修正战斗恢复历史失败累计导致的提前停止，确认恢复输出后清除连续失败计数，未接战与已接战分别计次；可恢复的探索报错保留当前任务，副本内才显示“继续探索”，正常运行时隐藏。死亡、超时、过图及楼层不符禁止继续；保留存档归属、宝藏进度和执行期设置锁定。游戏内待验证。"
+  "Changelog": "0.7.55.40 测试版：发布经授权整理的21–30／31–40详细地图及朝圣交错路公共候选点；新用户启用详细地图后本地缺失会自动下载，校验签名后缓存，可离线复用。候选点后台按需下载，与个人数据分开保存，保留个人数据优先级。含.39恢复计数与继续探索功能；游戏内待验证。"
 }

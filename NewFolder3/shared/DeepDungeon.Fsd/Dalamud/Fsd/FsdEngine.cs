@@ -159,7 +159,9 @@ namespace DeepDungeon.Fsd.Dalamud
         {
             try
             {
+                bool wasInDeepDungeon = _currentInDeepDungeon;
                 CheckDeepDungeonState();
+                if (wasInDeepDungeon && _currentInDeepDungeon) TryInvokePalacePalFetch();
             }
             catch (Exception ex)
             {
@@ -260,6 +262,7 @@ namespace DeepDungeon.Fsd.Dalamud
 
         public void Update(IFramework framework)
         {
+            Map.PalacePalData.PollRepositoryDownload();
             _fsfScenarioIndex = GetEffectiveScenarioIndex();
             string? selectedDetailedMapScenario =
                 GetSelectedDetailedMapScenarioKey();
@@ -522,6 +525,7 @@ namespace DeepDungeon.Fsd.Dalamud
             ResetRoomPresentation();
             _detailedMapCatalogManager.ReleaseRunSnapshot();
             _detailedMapCatalogManager.Dispose();
+            Map.PalacePalData.Shutdown();
 
             if (_ddRuntimeInit)
             {

@@ -6,7 +6,7 @@ namespace NewFolder3;
 
 /// <summary>
 /// Explicit online-service and access-gate capabilities for this host build.
-/// Public checkouts resolve to <see cref="PublicNoService"/>. Official private
+/// Public checkouts resolve to <see cref="PublicRepository"/>. Official private
 /// builds may stage <c>OfficialBuildProfile.g.cs</c> to replace these values via
 /// <see cref="NewFolder3BuildProfile.ProvideOfficialCapabilities"/>.
 /// </summary>
@@ -26,9 +26,9 @@ internal sealed class NewFolder3BuildCapabilities
     public bool HasUsageTelemetry => UsageTelemetryEndpoint != null;
     public bool HasLongRunLogUpload => LongRunLogEndpoint != null;
 
-    public static NewFolder3BuildCapabilities PublicNoService { get; } = new()
+    public static NewFolder3BuildCapabilities PublicRepository { get; } = new()
     {
-        DetailedMapCatalogEndpoint = null,
+        DetailedMapCatalogEndpoint = new Uri("https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/data/NewFolder3/detailed/"),
         CommunityEvidenceEndpoint = null,
         UsageTelemetryEndpoint = null,
         LongRunLogEndpoint = null,
@@ -41,7 +41,7 @@ internal sealed class NewFolder3BuildCapabilities
 
 /// <summary>
 /// Build-profile extension boundary. Without an official overlay this is the
-/// public no-service profile: no catalog URI, no evidence URI, allow-all gate.
+/// public repository profile: read-only signed catalogs, no evidence upload, allow-all gate.
 /// </summary>
 internal static partial class NewFolder3BuildProfile
 {
@@ -82,6 +82,6 @@ internal static partial class NewFolder3BuildProfile
     {
         NewFolder3BuildCapabilities? official = null;
         ProvideOfficialCapabilities(ref official);
-        return official ?? NewFolder3BuildCapabilities.PublicNoService;
+        return official ?? NewFolder3BuildCapabilities.PublicRepository;
     }
 }

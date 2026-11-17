@@ -48,12 +48,11 @@ public sealed class CheckpointEntrySettings
     public int StartFloor { get; set; } = 31;
     public int StopAfterFloor { get; set; } = 50;
     public int? ResumeSlot { get; set; }
-    public bool HoldOnFailure { get; set; }
 
     public FsdStartRequest CreateRequest(FarmingMode mode, FsdStartScenario scenario) =>
         Enabled && mode == FarmingMode.FreeExploration && scenario == FsdStartScenario.Farming
             ? new(StopAfterFloor: StopAfterFloor, DiagnosticStartFloor: ResumeSlot.HasValue ? null : StartFloor, ResumeSlot: ResumeSlot,
-                HoldOnFailure: false, Scenario: scenario)
+                Scenario: scenario)
             : new(Scenario: scenario);
 }
 

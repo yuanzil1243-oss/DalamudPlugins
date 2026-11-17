@@ -1,4 +1,4 @@
-﻿using DeepDungeon.Fsd.Core;
+using DeepDungeon.Fsd.Core;
 using DeepDungeon.Fsd.Runtime;
 
 namespace NewFolder3;
@@ -53,10 +53,10 @@ internal static class ProgressionContinuationTests
     }
     private static void LegacyHoldSetting()
     {
-        var settings = new CheckpointEntrySettings { Enabled = true, HoldOnFailure = true };
+        var settings = System.Text.Json.JsonSerializer.Deserialize<CheckpointEntrySettings>("{\"Enabled\":true,\"HoldOnFailure\":true}")!;
         var request = settings.CreateRequest(FarmingMode.FreeExploration, FsdStartScenario.Farming);
-        Assert(!request.HoldOnFailure, "legacy hidden setting must not preserve a failed save");
-        var decision = FarmingSessionPolicy.Decide(Plan with { HoldOnFailure = request.HoldOnFailure }, new(91, false, true, false, false));
+        Assert(typeof(FsdStartRequest).GetProperty("HoldOnFailure") == null && typeof(FarmingPlan).GetProperty("HoldOnFailure") == null, "removed hold must not be reactivated through API or persisted state");
+        var decision = FarmingSessionPolicy.Decide(Plan, new(91, false, true, false, false));
         Assert(decision.RecoverFailure && decision.DeleteOwnedSave && decision.NextFloor == 1, "failed necromancer attempt retries from one");
     }
     private static readonly DateTime Now = new(2026, 11, 10, 12, 0, 0, DateTimeKind.Utc);
@@ -216,13 +216,13 @@ internal static class ProgressionContinuationTests
 
     private static void DiagnosticBoundaryPreserved()
     {
-        var plan = Plan with { StopAfterFloor = 10, HoldOnFailure = true };
+        var plan = Plan with { StopAfterFloor = 10 };
         Assert(FarmingSessionPolicy.ReachedStopBoundary(plan, new(1, true, false, false, false)),
             "An explicit ten-floor review boundary must still stop.");
         Assert(!FarmingSessionPolicy.ReachedStopBoundary(Plan, new(1, true, false, false, false)),
             "A normal climb has no implicit ten-floor review boundary.");
         var held = FarmingSessionPolicy.Decide(plan, new(1, false, true, false, false));
-        Assert(!held.DeleteOwnedSave && held.Error.Length > 0, "Held failures must preserve their save.");
+        Assert(held.DeleteOwnedSave && held.RecoverFailure && !held.CountCycle, "An explicit success boundary must not preserve a failed save.");
     }
 
     private static void HoardCyclePreserved()

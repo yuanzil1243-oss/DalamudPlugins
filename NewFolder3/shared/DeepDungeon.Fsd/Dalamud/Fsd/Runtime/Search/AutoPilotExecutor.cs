@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -38,6 +38,29 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Search
 		private FloorPlanTrace _lastPlanTrace;
 		private bool _hasPlanningSnapshot;
 		private bool _inheritedNoHoardInferred;
+        private string? _optionalHoardSkipReason;
+        public string? OptionalHoardSkipReason => _optionalHoardSkipReason;
+        public bool HoardSearchEnabled => _configSnapshot.BandedEnabled && _optionalHoardSkipReason == null;
+        internal bool TryResumeOptionalHoard(bool currentFloorPositiveEvidence)
+        {
+            if (!currentFloorPositiveEvidence || _optionalHoardSkipReason != "intuition-text-unresolved") return false;
+            _optionalHoardSkipReason = null;
+            return true;
+        }
+
+        internal bool CanSkipOptionalHoard(string reason) =>
+            _configSnapshot.HoardDistributionHintsOnly && _configSnapshot.BandedEnabled &&
+            (_optionalHoardSkipReason == null ||
+             _optionalHoardSkipReason == "intuition-text-unresolved" && reason == "high-floor-time-reserve");
+        public bool TrySkipOptionalHoard(string reason)
+        {
+            if (!CanSkipOptionalHoard(reason)) return false;
+            _optionalHoardSkipReason = reason;
+            var retained = _roomPlan.Select(entry => entry with { ShouldProbeHoard = false, ShouldVisitForIntel = false })
+                .Where(entry => entry.ShouldSearchChests).ToArray();
+            _roomPlan.Clear(); _roomPlan.AddRange(retained);
+            return true;
+        }
 
 		internal AutoPilotExecutor(
 			Func<int, (bool HoardSearched, bool ChestsSearched, bool IntelVisited)> getRoomProgress,
@@ -98,7 +121,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Search
 
 		public bool OpenChestsEnabled => _configSnapshot.OpenBronze || _configSnapshot.OpenSilver || _configSnapshot.OpenGold;
 
-		public HoardEvidenceState HoardEvidenceState => _lastHoardEvidenceState;
+		public HoardEvidenceState HoardEvidenceState => _optionalHoardSkipReason != null ? HoardEvidenceState.Disabled : _lastHoardEvidenceState;
 
 		internal unsafe IReadOnlyList<Vector3> GetPalacePalCandidatesForRoom(
 			InstanceContentDeepDungeon* dd,
@@ -111,11 +134,11 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Search
 		}
 
 		public bool IsHoardEvidenceUnstable =>
-			_lastHoardEvidenceState is HoardEvidenceState.IntuitionPending or HoardEvidenceState.IntuitionWaitingForIndicator;
+            _optionalHoardSkipReason == null && (_lastHoardEvidenceState is HoardEvidenceState.IntuitionPending or HoardEvidenceState.IntuitionWaitingForIndicator);
 
 		public bool IsHoardWorkResolved =>
 			_hasPlanningSnapshot &&
-			(!_configSnapshot.BandedEnabled ||
+			(!HoardSearchEnabled ||
 			 _hoardOpenedThisFloor ||
 			 _lastHoardEvidenceState is HoardEvidenceState.FloorsetMaxed or
 				 HoardEvidenceState.FloorsetDistributionExcluded ||
@@ -157,6 +180,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Search
 			Service.Log.Info($"[AutoPilot] Floor changed to {_lastFloor}, resetting");
 
 			_configSnapshot = configSnapshot.Copy();
+            _optionalHoardSkipReason = null;
 			Service.Log.Debug($"[AutoPilot] Floor {_lastFloor} options | banded={_configSnapshot.BandedEnabled} gold={_configSnapshot.OpenGold} silver={_configSnapshot.OpenSilver} bronze={_configSnapshot.OpenBronze} hoardBaseline={dd->HoardCount}");
 
 			_roomPlan.Clear();
@@ -335,6 +359,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Search
 
 		internal unsafe List<RoomPlanEntry> GeneratePlan(InstanceContentDeepDungeon* dd, NormalFloorGraphSnapshot normalGraph, ChatWatchers? chatWatchers, Vector3 playerPosition, bool nativeIntuitionActive)
 		{
+            TryResumeOptionalHoard(chatWatchers?.ChatSaysHoard == true || _cachedHoardIndicatorPos.HasValue);
 			_roomPlan.Clear();
 			_retainedNonHoardRoute.Clear();
 
@@ -456,7 +481,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Search
 				ReachableRooms = reachableRooms.ToArray(),
 				RoomDistances = normalGraph.RoomDistances,
 				Rooms = roomData,
-				BandedEnabled = _configSnapshot.BandedEnabled,
+				BandedEnabled = HoardSearchEnabled,
+                HoardDistributionHintsOnly = _configSnapshot.HoardDistributionHintsOnly,
 				OpenChestsEnabled = OpenChestsEnabled,
 				HoardOpenedThisFloor = _hoardOpenedThisFloor,
 				FloorsetBandedCount = floorsetBandedCount,
@@ -488,6 +514,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Search
 			       left.OpenSilver == right.OpenSilver &&
 			       left.OpenBronze == right.OpenBronze &&
 			       left.BandedEnabled == right.BandedEnabled &&
+                   left.HoardDistributionHintsOnly == right.HoardDistributionHintsOnly &&
 			       left.LeaveMode == right.LeaveMode &&
 			       left.LeaveAfterMinutes == right.LeaveAfterMinutes;
 		}

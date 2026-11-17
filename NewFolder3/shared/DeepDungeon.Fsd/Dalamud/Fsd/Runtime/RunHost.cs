@@ -431,11 +431,6 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			return;
 
         _context.MarkDutyFailed();
-        if (_context.TryHoldFailedAttempt("角色死亡"))
-        {
-            _floorController.CancelActiveMovement();
-            return;
-        }
         if (_context.FarmingPlan?.IsProgression == true)
         {
             _context.RunOptions.Update(o => o.LeaveMode = LeaveMode.Immediate);
@@ -487,8 +482,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			lastTimerSeconds = ctx.TimeoutEvidence.RemainingSeconds, timerSampleAtUtc = ctx.TimeoutEvidence.SampleAtUtc,
 			outsideDuty = !duty.IsInDuty, reason = ctx.DutyFailureReason });
 		_floorController.CancelActiveMovement();
-		if (!ctx.TryHoldFailedAttempt("副本時間耗盡"))
-			ctx.StatusLine = "已確認副本時間耗盡；按失敗流程核對並清理所屬存檔，不計成功次數。";
+		ctx.StatusLine = "已確認副本時間耗盡；按失敗流程核對並清理所屬存檔，不計成功次數。";
 		return false;
 	}
 
@@ -768,11 +762,6 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 				return;
 
             context.MarkDutyFailed();
-            if (context.TryHoldFailedAttempt("攻略失敗"))
-            {
-                _floorController.CancelActiveMovement();
-                return;
-            }
             if (context.FarmingPlan?.IsProgression == true)
             {
                 context.RunOptions.Update(o => o.LeaveMode = LeaveMode.Immediate);

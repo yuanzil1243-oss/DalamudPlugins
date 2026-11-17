@@ -21,8 +21,6 @@ public sealed record FarmingPlan(
     public int? StopAfterFloor { get; init; }
     // Explicit checkpoint tests from UI/API; normal challenge runs still start/restart at floor one.
     public bool UsesDiagnosticCheckpoints { get; init; }
-    // Run-only diagnostic option: retain the duty and save for in-place inspection.
-    public bool HoldOnFailure { get; init; }
     public bool PreserveExternalSave { get; init; }
     public bool DeleteExternalSaveOnFailure { get; init; }
     public bool IsProgression => ProgressionModePolicy.IsProgression(Mode);
@@ -67,15 +65,16 @@ public readonly record struct FarmingTargets(bool Hoard, bool Gold, bool Silver,
 
 public static class FarmingTargetPolicy
 {
-    public static bool LocksHoard(FarmingMode mode) => mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery or FarmingMode.DeepProgression or FarmingMode.FreeExploration or FarmingMode.FinalBoss;
-    public static bool LocksGold(FarmingMode mode) => LocksHoard(mode);
+    public static bool LocksHoard(FarmingMode mode) => mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery or FarmingMode.DeepProgression or FarmingMode.FinalBoss;
+    public static bool LocksGold(FarmingMode mode) => mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery or FarmingMode.DeepProgression or FarmingMode.FreeExploration or FarmingMode.FinalBoss;
     public static bool LocksSilverBronze(FarmingMode mode) => mode is FarmingMode.HoardDiscovery or FarmingMode.DeepProgression or FarmingMode.FreeExploration or FarmingMode.FinalBoss;
 
     public static FarmingTargets Constrain(FarmingMode mode, in FarmingTargets targets) => mode switch
     {
         FarmingMode.Aetherpool => new(false, false, targets.Silver || !targets.Bronze, targets.Bronze),
         FarmingMode.HoardDiscovery => new(true, false, false, false),
-        FarmingMode.DeepProgression or FarmingMode.FreeExploration => new(false, true, true, false),
+        FarmingMode.DeepProgression => new(false, true, true, false),
+        FarmingMode.FreeExploration => new(targets.Hoard, true, true, false),
         FarmingMode.FinalBoss => new(false, false, false, false),
         _ => targets
     };

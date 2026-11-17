@@ -156,6 +156,8 @@ internal partial class FsdEngine
         ImGui.BeginDisabled(research || FarmingTargetPolicy.LocksHoard(mode));
         changed = ImGui.Checkbox("探索埋藏的寶藏", ref hoard);
         ImGui.EndDisabled();
+        if (!research && mode == FarmingMode.FreeExploration)
+            ImGui.TextWrapped("挖寶預設關閉：優先使用感知系統提示，有寶藏後尋找指示點，無寶藏則正常開門前進；無感知時使用歷史候選點。普通層組第8、9層不新用感知，91–98層可用且時間充裕時允許為寶藏繞路。普通補給箱仍沿去門路線。");
         ImGui.BeginDisabled(research || FarmingTargetPolicy.LocksGold(mode));
         changed |= ImGui.Checkbox("開啟金寶箱", ref gold);
         ImGui.EndDisabled();
@@ -269,7 +271,7 @@ internal partial class FsdEngine
             ? FsdStartScenario.ControlledSurvey : FsdStartScenario.Farming);
         if (scenario == FsdStartScenario.ControlledSurvey)
         {
-            if (request.DiagnosticStartFloor.HasValue || request.ResumeSlot.HasValue || request.HoldOnFailure)
+            if (request.DiagnosticStartFloor.HasValue || request.ResumeSlot.HasValue)
                 return new FsdControlResult(false, "Diagnostic checkpoints are unavailable for controlled survey capture.");
             return StartControlledPilgrimsTraverseCapture(
                 Math.Max(1, _configuration.NecromancerFsdLoopCount), _configuration.NecromancerFsdLoopInfinite,
@@ -297,7 +299,7 @@ internal partial class FsdEngine
     {
         var (mode, saveUse, startFloor, cycles, infinite, targets, checkpointOptions) = request;
         var (hoard, gold, silver, bronze) = targets;
-        var (stopAfterFloor, diagnosticStartFloor, resumeSlot, holdOnFailure, _) = checkpointOptions ?? new FsdStartRequest();
+        var (stopAfterFloor, diagnosticStartFloor, resumeSlot, _) = checkpointOptions ?? new FsdStartRequest();
         if (stopAfterFloor.HasValue && (mode != FarmingMode.FreeExploration ||
             stopAfterFloor.Value is < 10 or > 100 || stopAfterFloor.Value % 10 != 0))
         {
@@ -311,7 +313,7 @@ internal partial class FsdEngine
             error = "尾王模式需要選擇 Bossmod Reborn，以協調99層機制避讓與主動取色。";
             return false;
         }
-        if ((holdOnFailure || resumeSlot.HasValue) && (mode != FarmingMode.FreeExploration ||
+        if (resumeSlot.HasValue && (mode != FarmingMode.FreeExploration ||
             !stopAfterFloor.HasValue || resumeSlot is < 0 or > 1))
         {
             error = "续用已有存档只支持自由探索，请选择有效槽位和结束层。";
@@ -325,15 +327,13 @@ internal partial class FsdEngine
             return false;
         }
         plan = plan! with { StopAfterFloor = stopAfterFloor, StartFloor = diagnosticStartFloor ?? plan.StartFloor,
-            UsesDiagnosticCheckpoints = diagnosticStartFloor.HasValue, HoldOnFailure = holdOnFailure,
+            UsesDiagnosticCheckpoints = diagnosticStartFloor.HasValue,
             PreserveExternalSave = mode == FarmingMode.FreeExploration && resumeSlot.HasValue,
             DeleteExternalSaveOnFailure = mode == FarmingMode.FreeExploration && resumeSlot.HasValue };
         bool resumeCurrentDuty = _dutyState?.IsInDuty == true;
-        if (resumeCurrentDuty && mode != FarmingMode.FinalBoss && (!holdOnFailure || !resumeSlot.HasValue ||
-            _dutyState!.IsTransitioning || _dutyState.DungeonId != 4 ||
-            _dutyState.Floor < plan.StartFloor || _dutyState.Floor >= plan.StartFloor + 10))
+        if (resumeCurrentDuty && mode != FarmingMode.FinalBoss)
         {
-            error = "原副本接續只支援保留現場的PT測試，須指定來源槽位與目前所在層段起點。";
+            error = "普通存檔任務請在副本外啟動；已有存檔可選擇槽位後續跑。";
             return false;
         }
         if (mode == FarmingMode.FinalBoss &&

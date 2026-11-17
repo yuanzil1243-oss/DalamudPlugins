@@ -13,7 +13,6 @@ public sealed record FsdStartRequest(
     int? StopAfterFloor = null,
     int? DiagnosticStartFloor = null,
     int? ResumeSlot = null,
-    bool HoldOnFailure = false,
     FsdStartScenario? Scenario = null);
 
 public sealed record FsdFarmingRequest(

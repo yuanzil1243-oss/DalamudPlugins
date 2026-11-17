@@ -80,7 +80,8 @@ internal sealed partial class FloorExplorationController : IDisposable
     private string _blockedTransitionOperation = string.Empty;
     private static readonly TimeSpan GeneralTickInterval = TimeSpan.FromMilliseconds(500);
     private ObjectiveArbiterDecision CurrentObjectiveDecision => Objectives.ObjectiveDecision;
-    private bool PassageFirst => Kind == FloorRuntimeKind.Normal && MobCombatPolicy.HighFloorEnabled(_ctx.FarmingPlan?.Mode, DungeonId, Floor);
+    private bool PassageFirst => Kind == FloorRuntimeKind.Normal &&
+        (MobCombatPolicy.HighFloorEnabled(_ctx.FarmingPlan?.Mode, DungeonId, Floor) || FreeHoardAdvance);
     private bool PendingExplorationWork => _executor?.PlannedRouteCount > 0 || _executor?.RoomContext != null ||
         _activeWaypoint.HasValue || (_taskRunner != null && _taskRunner.Phase != TaskPhase.Idle);
     private bool AllowsChestSidecarInteraction => (!_ctx.WisdomConfirmed || _ctx.WisdomCombat.AllowsExploration(_ctx.MobCombat.Engaged.Count)) &&
@@ -430,7 +431,7 @@ bool primaryOwnsOperation = true)
             _status = "Waiting for banded chest evidence...";
             return true;
         }
-        if (!bandedPosition.HasValue || !IsOnPassageRoute(dd, bandedPosition.Value))
+        if (!bandedPosition.HasValue || !IsHoardPositionAllowed(dd, bandedPosition.Value))
             return false;
 
         int roomIndex = RoomGraph.GetRoomIndexForPosition(
@@ -582,7 +583,7 @@ bool primaryOwnsOperation = true)
             executor?.HasPendingBandedWaypoint == true ||
             _searchExecutionKind == SearchExecutionKind.BandedReentry;
         if (!visibleBandedChest &&
-            executor?.ConfigSnapshot.BandedEnabled == true &&
+            executor?.HoardSearchEnabled == true &&
             !executor.HasOpenedHoardThisFloor &&
             objectEvidence != null &&
             BandedChestLocator.TryFindNearestToPlayer(objectEvidence, out var visibleBandedPosition))
@@ -590,12 +591,12 @@ bool primaryOwnsOperation = true)
             visibleBandedChest = visibleBandedPosition.HasValue;
         }
         bool bandedRevealPending = IsBandedRevealExpectationPending();
-        if (PassageFirst && passageOpen && _passageRouteScope.Ready)
+        if (PassageFirst && passageOpen && _passageRouteScope.Ready && !AllowHoardDetour)
         {
-            visibleBandedChest = executor?.ConfigSnapshot.BandedEnabled == true &&
+            visibleBandedChest = executor?.HoardSearchEnabled == true &&
                 !executor.HasOpenedHoardThisFloor && objectEvidence != null &&
                 BandedChestLocator.TryFindNearestToPlayer(objectEvidence, out var scopedBanded) &&
-                scopedBanded.HasValue && IsOnPassageRoute(dd, scopedBanded.Value);
+                scopedBanded.HasValue && IsHoardPositionAllowed(dd, scopedBanded.Value);
         }
         bool hoardWorkResolved =
             this.Kind == FloorRuntimeKind.Boss ||
@@ -613,7 +614,7 @@ bool primaryOwnsOperation = true)
             !passageOpen &&
             hoardWorkResolved &&
             evidenceState != HoardEvidenceState.IntuitionPending;
-        if (PassageFirst && passageOpen && _passageRouteScope.Ready)
+        if (PassageFirst && passageOpen && _passageRouteScope.Ready && !AllowHoardDetour)
         {
             var scoped = executor?.SnapshotPlannedRoute();
             bool scopedHoard = scoped?.Any(e => e.ShouldProbeHoard || e.ShouldVisitForIntel) == true;
@@ -751,6 +752,9 @@ bool primaryOwnsOperation = true)
             }
         }
 
+        if (_executor.TryResumeOptionalHoard(_chatWatchers?.ChatSaysHoard == true || _executor.CachedHoardIndicatorPos.HasValue))
+            RequestPlanRefresh("late-positive-resumed-optional-hoard");
+
         bool matchesCurrentFloor =
             PlanningState.PendingEvidenceFloor == this.Floor &&
             PlanningState.PendingEvidenceDungeonId == this.DungeonId;
@@ -797,7 +801,7 @@ bool primaryOwnsOperation = true)
             return true;
         }
 
-        bool bandedEligible = _executor.ConfigSnapshot.BandedEnabled && !_executor.HasOpenedHoardThisFloor;
+        bool bandedEligible = _executor.HoardSearchEnabled && !_executor.HasOpenedHoardThisFloor;
         Vector3? visibleBanded = null;
         if (bandedEligible && !BandedChestLocator.TryFindNearestToPlayer(this.ObjectEvidence.Current!, out visibleBanded))
         {
@@ -808,7 +812,7 @@ bool primaryOwnsOperation = true)
             (_searchExecutionKind == SearchExecutionKind.BandedReentry ||
              _activeWaypoint?.Type == RoomObjectiveType.ChestBanded ||
              _executor.HasPendingBandedWaypoint);
-        if (visibleBanded.HasValue && !IsOnPassageRoute(dd, visibleBanded.Value)) visibleBanded = null;
+        if (visibleBanded.HasValue && !IsHoardPositionAllowed(dd, visibleBanded.Value)) visibleBanded = null;
         var decision = LateHoardEvidencePlanner.Decide(new LateHoardEvidenceSnapshot
         {
             PendingVersion = evidenceVersion,
@@ -816,7 +820,7 @@ bool primaryOwnsOperation = true)
             StableNormalFloor = true,
             EvidenceMatchesCurrentFloor = true,
             FloorActiveAllowsReplan = true,
-            MandatoryHoardWorkResolved = _executor.IsHoardWorkResolved || PassageFirst && _passageRouteScope.Ready &&
+            MandatoryHoardWorkResolved = _executor.IsHoardWorkResolved || PassageFirst && _passageRouteScope.Ready && !AllowHoardDetour &&
                 !visibleBanded.HasValue && !_executor.SnapshotPlannedRoute().Any(e => e.ShouldProbeHoard || e.ShouldVisitForIntel),
             PendingOrVisibleBandedWork = pendingBanded || visibleBanded.HasValue,
             RefreshedPlan = _executor.SnapshotPlannedRoute()
@@ -1086,6 +1090,12 @@ bool primaryOwnsOperation = true)
 
         if (!PendingIntuition.TryGetCurrentFloorUseElapsedMilliseconds(dd->Floor, DateTime.UtcNow, out var elapsedMilliseconds))
             return false;
+
+        if (FreeHoardEnabled && elapsedMilliseconds >= 15000 && !_chatWatchers.ChatSaysHoard &&
+            !_chatWatchers.ChatSaysNoHoard && _executor?.CachedHoardIndicatorPos == null &&
+            TrySkipOptionalHoard("intuition-text-unresolved"))
+            RecordReplayEvent("optional-hoard-policy-skipped", new { floor = Floor, elapsedMilliseconds,
+                reason = "intuition-text-unresolved", confirmedAbsent = false, latePositiveCanResume = true });
 
         var decision = CurrentIntuitionResolutionPlanner.Decide(new CurrentIntuitionResolutionSnapshot
         {
@@ -2679,7 +2689,7 @@ bool primaryOwnsOperation = true)
         if (allowBandedRevealExpectation &&
             completedRoomWasHoardSearch &&
             objectiveOutcome.Hoard == ObjectiveOutcomeKind.Succeeded &&
-            _executor.ConfigSnapshot.BandedEnabled &&
+            _executor.HoardSearchEnabled &&
             !_executor.HasOpenedHoardThisFloor)
         {
             StartBandedRevealExpectation(roomIndex);
@@ -2853,7 +2863,7 @@ bool primaryOwnsOperation = true)
 
     private unsafe void HandleVisibleBandedDetection(InstanceContentDeepDungeon* dd, IPlayerCharacter player, int roomIndex, Vector3 bandedPosition)
     {
-        if (!IsOnPassageRoute(dd, bandedPosition)) return;
+        if (!IsHoardPositionAllowed(dd, bandedPosition)) return;
         var executor = _executor;
         if (executor == null)
             return;
@@ -3329,7 +3339,7 @@ bool primaryOwnsOperation = true)
             ClearBandedRevealExpectation("hoard-opened");
             return false;
         }
-        if (_executor?.ConfigSnapshot.BandedEnabled != true)
+        if (_executor?.HoardSearchEnabled != true)
         {
             ClearBandedRevealExpectation("banded-disabled");
             return false;
@@ -3534,13 +3544,13 @@ bool primaryOwnsOperation = true)
         {
             CanAttemptPomanderUse = CanAttemptPomanderUse(),
             NextFloorIsMob = ProgressionItemPolicy.CanBenefitNextFloor(dd->DeepDungeonId, dd->Floor, _ctx.FarmingPlan?.StopAfterFloor),
-            BandedEnabled = _executor?.ConfigSnapshot.BandedEnabled ?? false,
+            BandedEnabled = _executor?.HoardSearchEnabled ?? false,
             HasOpenedHoardThisFloor = _executor?.HasOpenedHoardThisFloor ?? false,
-            HoardOpportunity = DeepDungeonFloorsetTracker.GetCurrentOpportunity(dd->Floor),
+            HoardOpportunity = HoardOpportunity(dd->Floor),
             IntuitionActive = _nativeIntuitionActive,
             UsedIntuitionThisFloor = _chatWatchers?.UsedIntuitionThisFloor == true,
             SightUseBlocked = IsSightUseBlocked(),
-            IntuitionUsable = pomandersUsableThisFloor && IsPomanderAvailableForFloorUse(FloorInitPlanner.IntuitionPomanderSlotIndex),
+            IntuitionUsable = AllowNewHoardIntuition(dd->Floor) && pomandersUsableThisFloor && IsPomanderAvailableForFloorUse(FloorInitPlanner.IntuitionPomanderSlotIndex),
             SightUsable = pomandersUsableThisFloor && IsPomanderAvailableForFloorUse(FloorInitPlanner.SightPomanderSlotIndex),
             AffluenceUsable = pomandersUsableThisFloor && IsPomanderAvailableForFloorUse(FloorInitPlanner.AffluencePomanderSlotIndex),
             StrengthUsable = pomandersUsableThisFloor && CombatBuffUsable(FloorInitPlanner.StrengthPomanderSlotIndex),
@@ -3634,18 +3644,17 @@ bool primaryOwnsOperation = true)
         if (_chatWatchers == null ||
             _executor == null ||
             IsPomanderBlockedForFloor(slotIndex) ||
-            !_executor.ConfigSnapshot.BandedEnabled ||
+            !_executor.HoardSearchEnabled ||
             _executor.HasOpenedHoardThisFloor ||
             !FloorsetHoardDistributionPolicy.AllowsHoardPomander(
-                DeepDungeonFloorsetTracker.GetCurrentOpportunity(
-                    _ctx?.Duty.Floor ?? 0)))
+                HoardOpportunity(_ctx.Duty.Floor)))
         {
             return false;
         }
 
         return slotIndex switch
         {
-            FloorInitPlanner.IntuitionPomanderSlotIndex => !_nativeIntuitionActive,
+            FloorInitPlanner.IntuitionPomanderSlotIndex => !_nativeIntuitionActive && AllowNewHoardIntuition(_ctx.Duty.Floor) && !_chatWatchers.HasCurrentFloorIntuitionUse,
             FloorInitPlanner.SightPomanderSlotIndex => !_nativeIntuitionActive && !IsSightUseBlocked(),
             _ => false
         };
@@ -3663,16 +3672,15 @@ bool primaryOwnsOperation = true)
         return new RoomFinishPomanderSnapshot
         {
             CanAttemptPomanderUse = CanAttemptPomanderUse(),
-            BandedEnabled = _executor?.ConfigSnapshot.BandedEnabled ?? false,
+            BandedEnabled = _executor?.HoardSearchEnabled ?? false,
             HasOpenedHoardThisFloor = _executor?.HasOpenedHoardThisFloor ?? false,
             FloorsetBandedCount = floorsetState.TotalHoardCount,
-            HoardOpportunity = FloorsetHoardDistributionPolicy.Decide(
-                floorsetState,
-                dd->Floor),
+            HoardOpportunity = HoardOpportunity(dd->Floor),
+            HoardDistributionHintsOnly = FreeHoardEnabled,
             IntuitionActive = _nativeIntuitionActive,
             UsedIntuitionThisFloor = _chatWatchers?.UsedIntuitionThisFloor == true,
             SightUseBlocked = IsSightUseBlocked(),
-            IntuitionUsable = pomandersUsableThisFloor && IsPomanderAvailableForFloorUse(FloorInitPlanner.IntuitionPomanderSlotIndex),
+            IntuitionUsable = AllowNewHoardIntuition(dd->Floor) && pomandersUsableThisFloor && IsPomanderAvailableForFloorUse(FloorInitPlanner.IntuitionPomanderSlotIndex),
             SightUsable = pomandersUsableThisFloor && IsPomanderAvailableForFloorUse(FloorInitPlanner.SightPomanderSlotIndex),
             IntuitionCount = _pomanderManager.GetCount(FloorInitPlanner.IntuitionPomanderSlotIndex),
             RemainingMobFloors = GetRemainingMobFloorCount(dd)

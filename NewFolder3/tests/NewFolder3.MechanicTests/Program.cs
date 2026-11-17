@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 using DeepDungeon.Fsd.Core;
 using DeepDungeon.Fsd.Runtime;
@@ -226,7 +226,7 @@ tests.Add(("checkpoint-ui-request-is-opt-in-and-does-not-affect-other-modes", ()
     settings.StartFloor = 51;
     settings.StopAfterFloor = 100;
     var resume = settings.CreateRequest(FarmingMode.FreeExploration, FsdStartScenario.Farming);
-    Check(resume.ResumeSlot == 1 && resume.DiagnosticStartFloor == null && resume.StopAfterFloor == 100 && !resume.HoldOnFailure,
+    Check(resume.ResumeSlot == 1 && resume.DiagnosticStartFloor == null && resume.StopAfterFloor == 100,
         "existing-save request carries only slot and stop boundary");
     Check(settings.CreateRequest(FarmingMode.DeepProgression, FsdStartScenario.Farming).DiagnosticStartFloor == null, "challenge stays on floor one");
     Check(settings.CreateRequest(FarmingMode.Hoard, FsdStartScenario.Farming).DiagnosticStartFloor == null, "hoard unchanged");

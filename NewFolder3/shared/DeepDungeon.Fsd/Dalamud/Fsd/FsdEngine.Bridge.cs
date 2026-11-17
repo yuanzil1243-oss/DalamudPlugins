@@ -608,7 +608,6 @@ namespace DeepDungeon.Fsd.Dalamud
                 farmingFailures = activeHost?.FarmingFailures ?? 0,
                 farmingPaused = activeHost?.FarmingPaused ?? false,
                 pauseAfterFloorsetClear = activeHost?.PauseAfterFloorsetClear ?? false,
-                holdOnFailure = activeHost?.Context?.FarmingPlan?.HoldOnFailure == true,
                 hoardDiscoveries = activeHost?.HoardDiscoveries ?? 0,
                 preparedSave = activeHost?.PreparedSaveDescription ?? string.Empty,
 				targetLoops = activeHost?.TargetLoops ?? 0,

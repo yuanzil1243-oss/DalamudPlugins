@@ -96,7 +96,7 @@ internal partial class FsdEngine
         _ddHost?.FloorController.RecordReplayEvent("rotation-control", new {
             provider = control.Provider.ToString(), control.Enabled, before = control.Before.ToString(),
             after = control.After.ToString(), control.Accepted, control.Reason, control.DungeonId, control.Floor,
-            plugin = installed?.InternalName, version = installed?.Version.ToString(),
+            plugin = installed?.InternalName, version = DiagnosticMetadata.Read(() => installed?.Version.ToString()),
             playerAvailable = Service.LocalPlayer != null, job = Service.LocalPlayer?.ClassJob.RowId,
             inCombat = Service.Condition[ConditionFlag.InCombat], state = _currentDeepDungeonState });
     }

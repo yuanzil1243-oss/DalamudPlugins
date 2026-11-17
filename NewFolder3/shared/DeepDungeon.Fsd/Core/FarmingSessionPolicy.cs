@@ -27,8 +27,6 @@ public static class FarmingSessionPolicy
         if (plan.SaveUse == SaveUse.None)
             return new(false, result.EntryFloor, false, false, "只有獨立尾王模式可以不使用存檔；已停止，不計完成次數。");
         bool ownsSave = plan.SaveUse == SaveUse.Create;
-        if (plan.HoldOnFailure && (result.DutyFailed || result.Aborted))
-            return new(false, result.EntryFloor, false, false, "診斷已停止；保留副本與存檔，等待人工處理。");
         if (result.Aborted)
             return new(false, plan.StartFloor, ownsSave && !plan.PreserveExternalSave, false, "本次入本已中止，未計完成次數。");
         if (result.DutyFailed)

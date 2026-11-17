@@ -109,6 +109,10 @@ internal sealed class FloorItemExecutor : IDisposable
         FloorItemUsePurpose purpose = FloorItemUsePurpose.Automatic)
     {
         if (_disposed || dd == null ||
+            slotIndex == FloorInitPlanner.IntuitionPomanderSlotIndex &&
+                (!FreeExplorationHoardPolicy.AllowsNewIntuition(_ctx.FarmingPlan?.Mode, dd->Floor) ||
+                 _pomanderManager.IsActive(slotIndex) || _chatWatchers?.IntuitionActive == true ||
+                 _chatWatchers?.HasCurrentFloorIntuitionUse == true) ||
             ProgressionItemPolicy.AffectsNextFloor(slotIndex) &&
                 !ProgressionItemPolicy.CanBenefitNextFloor(dd->DeepDungeonId, dd->Floor, _ctx.FarmingPlan?.StopAfterFloor) ||
             !CanAttemptPomanderUse(allowCombat: ProgressionItemPolicy.AllowsCombat(slotIndex, _ctx.Duty.IsBossFloor, purpose)) ||

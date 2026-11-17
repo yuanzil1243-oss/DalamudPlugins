@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/refs/heads/main
 
 | 插件 | 当前版本 | 简介 | 作者 | 状态 | 使用与下载 |
 | --- | --- | --- | --- | --- | --- |
-| NewFolder3 | 0.7.55.35 | 深层迷宫改版，支持自动攻略与自由选层探索 | John Smith / Yuzi | 已发布，有已知问题 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3.zip) |
+| NewFolder3 | 正式0.7.55.35 / 测试0.7.55.36 | 深层迷宫改版，支持自动攻略与自由选层探索 | John Smith / Yuzi | 正式版保留，测试版待实测 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3.zip) |
 
 后续插件会在上表逐项加入，分别保留自己的版本、依赖和说明。
 
@@ -33,11 +33,11 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/refs/heads/main
 Windows x64、Dalamud API15、.NET10。AE、BMR、vnavmesh 等依赖由使用者自行安装，具体测试环境见使用说明。
 
 - [使用说明与已知问题](docs/使用说明.md)
-- [0.7.55.35 发布说明](docs/发布说明-0.7.55.35.md)
+- [0.7.55.35 正式版说明](docs/发布说明-0.7.55.35.md) · [0.7.55.36 测试版说明](docs/发布说明-0.7.55.36-测试版.md)
 - [开发说明](docs/开发说明.md) · [第三方声明](docs/第三方声明.md)
 - [源代码与构建方法](NewFolder3/README.md) · [构建及校验信息](dist/BUILDINFO.json)
 
-> 当前 .35 完成离线构建与 265 项回归，新增进门导航恢复、副本超时循环及 BMR 回放联动导出，游戏内待验证。此前 .34 的尾王通关记录不能替代本版验证；AE 空版本号诊断异常仍未在本次修改中处理，详情见使用说明。
+> .36仅进入卫月内置测试通道，完成301项离线回归，尚未游戏实测。开启卫月测试版本功能后，为NewFolder3选择接收测试版本即可测试，沿用同一库链。正式.35安装包保持原字节；.36源码见NewFolder3目录，.35源码保存在提交`1c6b25cc529640066010e9bc2ab88f004beecee0`。
 
 后续插件的文档入口按同级小节加入，首页只保留摘要，详细操作和变更记录放入各自文档。
 

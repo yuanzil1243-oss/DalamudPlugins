@@ -51,6 +51,7 @@ namespace DeepDungeon.Fsd.Runtime
 		public bool OpenBronze = false;
 
 		public bool BandedEnabled = true;
+        public bool HoardDistributionHintsOnly;
         public bool HarvestChestsRequired;
         public bool DiscoveryOnly;
 
@@ -66,6 +67,7 @@ namespace DeepDungeon.Fsd.Runtime
 				OpenSilver = OpenSilver,
 				OpenBronze = OpenBronze,
 				BandedEnabled = BandedEnabled,
+                HoardDistributionHintsOnly = HoardDistributionHintsOnly,
                 HarvestChestsRequired = HarvestChestsRequired,
                 DiscoveryOnly = DiscoveryOnly,
 				LeaveMode = LeaveMode,

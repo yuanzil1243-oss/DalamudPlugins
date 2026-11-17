@@ -1,0 +1,13 @@
+{
+  "NewFolder3": {
+    "stable": {
+      "buildInfo": "dist/BUILDINFO.json",
+      "sourceCommit": "1c6b25cc529640066010e9bc2ab88f004beecee0",
+      "preservedSha256": "74b581a7ec4d7e1b98a6606fcf32f9b77c5b892423a2447f4dec057ce659bbc7"
+    },
+    "testing": {
+      "buildInfo": "dist/testing/BUILDINFO.json",
+      "sourceCommit": "working-tree"
+    }
+  }
+}

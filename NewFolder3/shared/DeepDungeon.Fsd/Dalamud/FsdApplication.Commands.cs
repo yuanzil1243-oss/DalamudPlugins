@@ -31,7 +31,7 @@ public sealed partial class FsdApplication
                         {
                             "/cc fsd help",
                             "/cc fsd status",
-                            "/cc fsd start [stopAfterFloor=10..100] [startFloor=1..91] [resumeSlot=0|1] [holdOnFailure=true|false]",
+                            "/cc fsd start [stopAfterFloor=10..100] [startFloor=1..91] [resumeSlot=0|1]",
                             "/cc fsd stop",
                             "/cc fsd preflight [startFloor=21|31] (default: 21)",
                             "/cc fsd arm-survey",
@@ -135,7 +135,7 @@ public sealed partial class FsdApplication
 
     private object HandleStartCommand(string[] args)
     {
-        var options = ReadCommandOptions(args, null, "stopAfterFloor", "startFloor", "resumeSlot", "holdOnFailure");
+        var options = ReadCommandOptions(args, null, "stopAfterFloor", "startFloor", "resumeSlot");
         int? stopAfterFloor = ReadOptionalCommandInt(options, "stopAfterFloor", 10, 100);
         if (stopAfterFloor.HasValue && stopAfterFloor.Value % 10 != 0)
             throw new ArgumentException("stopAfterFloor must be a ten-floor boundary between 10 and 100.");
@@ -143,8 +143,7 @@ public sealed partial class FsdApplication
         if (startFloor.HasValue && startFloor.Value % 10 != 1)
             throw new ArgumentException("startFloor must begin a ten-floor group between 1 and 91.");
         int? resumeSlot = ReadOptionalCommandInt(options, "resumeSlot", 0, 1);
-        bool holdOnFailure = ReadOptionalCommandBool(options, "holdOnFailure") ?? false;
-        return Start(new FsdStartRequest(stopAfterFloor, startFloor, resumeSlot, holdOnFailure));
+        return Start(new FsdStartRequest(stopAfterFloor, startFloor, resumeSlot));
     }
 
     private static Dictionary<string, string> ReadCommandOptions(string[] args, string? positionalName,

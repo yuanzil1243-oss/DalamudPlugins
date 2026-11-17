@@ -149,12 +149,12 @@ namespace DeepDungeon.Fsd.Core
 				return HoardEvidenceState.IntuitionPending;
 			}
 
-            if (snapshot.FloorsetHoardOpportunity == FloorsetHoardOpportunity.Maxed)
+            if (!snapshot.HoardDistributionHintsOnly && snapshot.FloorsetHoardOpportunity == FloorsetHoardOpportunity.Maxed)
             {
                 return HoardEvidenceState.FloorsetMaxed;
             }
 
-            if (snapshot.FloorsetHoardOpportunity == FloorsetHoardOpportunity.ExcludedByDistribution)
+            if (!snapshot.HoardDistributionHintsOnly && snapshot.FloorsetHoardOpportunity == FloorsetHoardOpportunity.ExcludedByDistribution)
             {
                 return HoardEvidenceState.FloorsetDistributionExcluded;
             }

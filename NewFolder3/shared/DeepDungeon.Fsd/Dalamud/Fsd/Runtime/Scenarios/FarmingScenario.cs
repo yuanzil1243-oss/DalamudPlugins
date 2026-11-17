@@ -47,6 +47,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
             OpenSilver = session.OpenSilver,
             OpenBronze = session.OpenBronze,
             BandedEnabled = session.BandedEnabled,
+            HoardDistributionHintsOnly = plan.Mode == FarmingMode.FreeExploration,
             HarvestChestsRequired = plan.Mode == FarmingMode.Aetherpool,
             DiscoveryOnly = plan.Mode == FarmingMode.HoardDiscovery,
             LeaveMode = LeaveMode.AfterFinishDungeon,
@@ -59,7 +60,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
             context.TerminalRewardsRequired = _entryFloor == 91;
             context.PreparedSaveDescription = $"原副本接續，存檔 {session.OwnedSlot + 1}，起點 {_entryFloor} 層";
             context.StatusLine = $"原副本接續：第 {context.Duty.Floor} 層。";
-            Service.Log.Info($"[Farming] Resumed existing duty: floor={context.Duty.Floor}, entryFloor={_entryFloor}, ownedSlot={session.OwnedSlot}, holdOnFailure={plan.HoldOnFailure}");
+            Service.Log.Info($"[Farming] Resumed existing duty: floor={context.Duty.Floor}, entryFloor={_entryFloor}, ownedSlot={session.OwnedSlot}");
         }
         else if (plan.SaveUse == SaveUse.Prepared || session.OwnedSlot >= 0)
         {
@@ -157,13 +158,11 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
             if (ctx.AttemptAborted)
             {
                 _aborted = true;
-                if (ctx.TryHoldFailedAttempt(ctx.AttemptAbortReason)) return;
                 RequestLeave();
                 return;
             }
             if (ctx.DutyFailureObserved)
             {
-                if (ctx.TryHoldFailedAttempt("攻略失敗")) return;
                 if (session.Plan.IsProgression)
                 {
                     _recoverFailure = true;
@@ -289,6 +288,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
         _prepared?.Reset();
         _verification?.Reset();
         _rest?.Dispose();
+        (_delete as IDisposable)?.Dispose();
         _context = null;
     }
 }

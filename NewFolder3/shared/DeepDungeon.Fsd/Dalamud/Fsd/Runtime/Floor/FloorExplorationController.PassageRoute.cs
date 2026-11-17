@@ -1,4 +1,4 @@
-using DeepDungeon.Fsd.Core;
+﻿using DeepDungeon.Fsd.Core;
 using DeepDungeon.Fsd.Dalamud.GameState;
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
 
@@ -14,6 +14,10 @@ internal sealed partial class FloorExplorationController
         // Initialize after old hate is gone: the combat position is the route's actual start.
         if (_ctx.MobCombat.Engaged.Count > 0 || Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat])
             return true;
+        if (FreeHoardEnabled && Floor is >= 91 and <= 98 && _ctx.Duty.TimerRemainingSeconds is { } seconds &&
+            seconds <= FreeExplorationHoardPolicy.HighFloorReserveSeconds(Floor) && TrySkipOptionalHoard("high-floor-time-reserve"))
+            RecordReplayEvent("optional-hoard-policy-skipped", new { floor = Floor, secondsLeft = seconds,
+                reserveSeconds = FreeExplorationHoardPolicy.HighFloorReserveSeconds(Floor), reason = "high-floor-time-reserve", confirmedAbsent = false });
         int room = RoomGraph.GetLocalPlayerRoomIndex(dd);
         if (!_passageRouteScope.Ready)
         {
@@ -24,14 +28,15 @@ internal sealed partial class FloorExplorationController
                 _status = "91–98层：等待门房间和连通路线证据，暂不探索支路或传送";
                 return false;
             }
-            _executor.RouteFilter = _passageRouteScope.Filter;
-            _executor.SearchRoomAllowed = _passageRouteScope.Allows;
+            _executor.RouteFilter = FilterPassageExplorationRoute;
+            _executor.SearchRoomAllowed = room => AllowHoardDetour || _passageRouteScope.Allows(room);
             RecordReplayEvent("passage-exploration-scope", new { floor = Floor,
-                rooms = _passageRouteScope.Rooms, rule = "current-room-to-passage-only-no-branches" });
+                rooms = _passageRouteScope.Rooms, rule = FreeHoardEnabled ? "supplies-on-route-hoard-time-budgeted-detours" : "current-room-to-passage-only-no-branches",
+                secondsLeft = _ctx.Duty.TimerRemainingSeconds, reserveSeconds = FreeExplorationHoardPolicy.HighFloorReserveSeconds(Floor) });
         }
         _passageRouteScope.ObserveRoom(room);
         var old = _executor.SnapshotPlannedRoute();
-        var scoped = _passageRouteScope.Filter(old);
+        var scoped = FilterPassageExplorationRoute(old);
         if (!old.SequenceEqual(scoped))
         {
             // An old waypoint from before Wisdom/opening may lie on a branch.
@@ -50,4 +55,7 @@ internal sealed partial class FloorExplorationController
     private unsafe bool IsOnPassageRoute(InstanceContentDeepDungeon* dd, System.Numerics.Vector3 position) =>
         !PassageFirst || !_ctx.PassageOpenForCombat || _passageRouteScope.Ready && NormalGraph != null &&
         _passageRouteScope.Allows(RoomGraph.GetRoomIndexForPosition(dd, position, NormalGraph.ReachableRooms, -1));
+
+    private unsafe bool IsHoardPositionAllowed(InstanceContentDeepDungeon* dd, System.Numerics.Vector3 position) =>
+        AllowHoardDetour || IsOnPassageRoute(dd, position);
 }

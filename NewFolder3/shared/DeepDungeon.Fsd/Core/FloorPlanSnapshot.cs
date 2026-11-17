@@ -25,6 +25,7 @@ namespace DeepDungeon.Fsd.Core
         public int[,] RoomDistances { get; init; }
         public IReadOnlyList<PlanRoomData> Rooms { get; init; }
         public bool BandedEnabled { get; init; }
+        public bool HoardDistributionHintsOnly { get; init; }
         public bool OpenChestsEnabled { get; init; }
         public bool HoardOpenedThisFloor { get; init; }
         public int FloorsetBandedCount { get; init; }

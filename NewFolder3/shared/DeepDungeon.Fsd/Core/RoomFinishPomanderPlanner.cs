@@ -8,7 +8,7 @@ namespace DeepDungeon.Fsd.Core
         {
             if (!snapshot.BandedEnabled ||
                 snapshot.HasOpenedHoardThisFloor ||
-                snapshot.FloorsetBandedCount >= MaxHoardsPerFloorset ||
+                !snapshot.HoardDistributionHintsOnly && snapshot.FloorsetBandedCount >= MaxHoardsPerFloorset ||
                 !FloorsetHoardDistributionPolicy.AllowsHoardPomander(snapshot.HoardOpportunity) ||
                 snapshot.IntuitionActive ||
                 snapshot.UsedIntuitionThisFloor)

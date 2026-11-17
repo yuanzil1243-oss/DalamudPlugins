@@ -136,8 +136,6 @@ internal static class Run35RegressionTests
         var fail = new FarmingAttemptResult(71, false, true, false, false);
         var d = FarmingSessionPolicy.Decide(plan, fail);
         Check(!d.CountCycle && d.RecoverFailure && d.NextFloor == 1 && d.DeleteOwnedSave, "retry and no success count");
-        d = FarmingSessionPolicy.Decide(plan with { HoldOnFailure = true }, fail);
-        Check(!d.CountCycle && !d.RecoverFailure && !d.DeleteOwnedSave, "diagnostic hold");
         d = FarmingSessionPolicy.Decide(plan with { SaveUse = SaveUse.Prepared, PreserveExternalSave = true }, fail);
         Check(!d.DeleteOwnedSave && !d.CountCycle, "external save guard");
         d = FarmingSessionPolicy.Decide(plan with { Mode = FarmingMode.FinalBoss, SaveUse = SaveUse.None, StartFloor = 99 }, fail);

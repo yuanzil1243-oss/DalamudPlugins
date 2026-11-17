@@ -15,6 +15,7 @@ public static class MobCombatPolicy
     public static int Priority(uint dungeon, int floor, uint nameId) => dungeon != 4 ? 0 :
         nameId is 14264 or 14265 or 14266 ? 2 :
         floor is >= 71 and <= 79 && nameId == 14194 ||
+        floor is >= 61 and <= 69 && nameId == 14179 ||
         floor is >= 93 and <= 98 && nameId == 14222 ? 1 : 0;
 
     public static CombatEnemy? Select(uint dungeon, int floor, IEnumerable<CombatEnemy> enemies, ulong stickyId)

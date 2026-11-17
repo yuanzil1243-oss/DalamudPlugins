@@ -6,6 +6,7 @@ using global::Dalamud.Plugin.Services;
 using DeepDungeon.Fsd.Dalamud.GameState;
 using DeepDungeon.Fsd.Dalamud.Runtime;
 using DeepDungeon.Fsd.Dalamud.Runtime.Navigation;
+using DeepDungeon.Fsd.Core;
 
 namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 {
@@ -19,7 +20,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 	/// Reactive flow to delete a deep dungeon save slot via NPC �?menu �?save list �?yes/no confirm �?close menu.
 	/// Mirrors PTDeleteSaveFlow behavior.
 	/// </summary>
-	public sealed class GenericDeleteSaveFlow : IDeleteSaveFlow
+	public sealed class GenericDeleteSaveFlow : IDeleteSaveFlow, IDisposable
 	{
 		private RunContext? _ctx;
 		private readonly DungeonData _dungeon;
@@ -42,11 +43,11 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 		private bool _targetSlotObservedEmptyAfterDelete;
 		private DateTime _lastNpcNotFound = DateTime.MinValue;
 		private NavigationHelper? _npcNavHelper;
+		private readonly OwnedSaveCleanupWatchdog _watchdog = new();
 
 		private static readonly TimeSpan StabilityShort = TimeSpan.FromMilliseconds(150);
 		private static readonly TimeSpan StabilityNormal = TimeSpan.FromMilliseconds(250);
 		private static readonly TimeSpan CooldownNormal = TimeSpan.FromMilliseconds(400);
-		private static readonly TimeSpan WatchdogTimeout = TimeSpan.FromSeconds(6);
 		private static readonly TimeSpan PostInteractGrace = TimeSpan.FromMilliseconds(1500);
 		private static readonly TimeSpan NoWindowReinteractDelay = TimeSpan.FromMilliseconds(2200);
 
@@ -63,6 +64,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			_ctx = context;
 			_cooldowns.Clear();
 			_seenSince.Clear();
+			_watchdog.Reset(DateTime.UtcNow);
 			_lastProgress = DateTime.Now;
 			_nextTry = DateTime.MinValue;
 			_postInteractUntil = DateTime.MinValue;
@@ -84,17 +86,46 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 		public unsafe bool Update(IFramework framework)
 		{
 			if (_ctx == null) return false;
+			if (_ctx.CancellationSource.IsCancellationRequested) { _npcNavHelper?.Cancel(); return true; }
 			if (DateTime.Now < _nextTry) return false;
+			if (_ctx.Duty.IsInDuty) return Fail("Save cleanup refused while still inside a duty.");
+			bool paused = _ctx.Duty.IsTransitioning || Service.LocalPlayer == null;
+			if (paused) { _watchdog.Tick(DateTime.UtcNow, true); return false; }
 
 			// Snapshot addons
 			var hasYesno = DeepDungeonUi.TryGetSelectYesNo(out var yesno);
 			var hasSave = DeepDungeonUi.TryGetAddon("DeepDungeonSaveData", out var save);
 			var hasMenu = DeepDungeonUi.TryGetAddon("DeepDungeonMenu", out var menu);
+			var hasSelect = DeepDungeonUi.TryGetSelectString(out _);
+			var hasTalk = DeepDungeonUi.TryGetTalk(out _);
+			_watchdog.Observe(_targetSlotObservedEmptyAfterDelete ? 4 : hasYesno && _deleteSlotClickSent ? 3 : hasSave ? 2 : hasMenu ? 1 : 0, DateTime.UtcNow);
+			var watchdog = _watchdog.Tick(DateTime.UtcNow);
+			if (watchdog == CleanupWatchdogDecision.Fail)
+			{
+				_ctx.RecordDiagnostic?.Invoke("owned-save-cleanup-exhausted", new { slot = _slotIndex, _watchdog.Recoveries, _deleteConfirmed, _targetSlotObservedEmptyAfterDelete, status = _lastStatus });
+				return Fail("Save cleanup exhausted its verified-progress budget; no new save was created and no other slot was touched.");
+			}
+			if (watchdog == CleanupWatchdogDecision.Recover)
+			{
+				_ctx.RecordDiagnostic?.Invoke("owned-save-cleanup-recovery", new { slot = _slotIndex, _watchdog.Recoveries, hasSave, hasMenu, hasYesno, hasSelect, hasTalk, _deleteConfirmed });
+				// Never dismiss or accept an unknown confirmation/dialogue. Once deletion
+				// was dispatched, recover only by observing/reopening the same slot.
+				if (!hasYesno && !hasSelect && !hasTalk && !_deleteConfirmed)
+				{
+					DeepDungeonUi.CloseDeepDungeonEntryWindows();
+					_deleteSlotClickSent = _targetSlotObservedOccupied = false;
+					_firstProbeDone = false;
+					_seenSince.Clear();
+				}
+				_cooldowns.Clear();
+				_nextTry = DateTime.Now.AddMilliseconds(350);
+				return false;
+			}
 
 			MarkPresence("yesno", hasYesno);
 			MarkPresence("save", hasSave);
 			MarkPresence("menu", hasMenu);
-			var hasAnyUi = hasYesno || hasSave || hasMenu;
+			var hasAnyUi = hasYesno || hasSave || hasMenu || hasSelect || hasTalk;
 			UpdateNoWindow(hasAnyUi);
 			if (hasAnyUi)
 				_npcNavHelper?.Cancel();
@@ -102,6 +133,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			// 1) If SelectYesno present (delete confirm), confirm 0
 			if (hasYesno && SeenStable("yesno", StabilityShort) && !IsOnCooldown("yesno"))
 			{
+				if (_deleteConfirmed) { SetStatus("Save cleanup: waiting for the dispatched confirmation to close"); return false; }
 				if (!_deleteSlotClickSent || !_targetSlotObservedOccupied)
 				{
 					return Fail($"{_dungeon.Name} Del: unexpected confirm before an occupied slot was selected");
@@ -139,6 +171,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 					if (targetSlotEmpty)
 					{
 						_targetSlotObservedEmptyAfterDelete = true;
+						_watchdog.Observe(4, DateTime.UtcNow);
 						SetStatus($"{_dungeon.Name} Del: slot {(_slotIndex + 1)} verified empty");
 						DeepDungeonUi.TryCloseAddon("DeepDungeonSaveData");
 						_lastProgress = DateTime.Now;
@@ -155,6 +188,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				{
 					return Fail($"{_dungeon.Name} Del: slot {(_slotIndex + 1)} is already empty");
 				}
+				if (_deleteSlotClickSent) { SetStatus("Save cleanup: waiting for the selected slot confirmation"); return false; }
 
 				string? sourceError = _validateSource?.Invoke(slots);
 				if (!string.IsNullOrEmpty(sourceError)) return Fail(sourceError);
@@ -263,6 +297,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				}
 
 				var distance = Vector3.Distance(player.Position, npc.Position);
+				_watchdog.Observe(0, DateTime.UtcNow, distance);
 				if (distance > NpcInteractionGuard.MaxInteractDistance)
 				{
 					if (!moveHelper.VNav.NavmeshReady())
@@ -347,5 +382,6 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				return true;
 			}
 		}
+		public void Dispose() { _npcNavHelper?.Cancel(); _ctx = null; }
 	}
 }

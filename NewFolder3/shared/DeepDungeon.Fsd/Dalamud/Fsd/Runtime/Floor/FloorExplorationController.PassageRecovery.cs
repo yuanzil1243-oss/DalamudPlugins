@@ -33,7 +33,6 @@ internal sealed partial class FloorExplorationController
         const string reason = "傳送門尋路恢復已達上限；本次不計成功";
         _ctx.MarkDutyFailed("passage-navigation-exhausted");
         _navDriver.Cancel();
-        if (_ctx.TryHoldFailedAttempt(reason)) return;
         if (_ctx.FarmingPlan?.IsProgression == true)
         {
             _ctx.RunOptions.Update(o => o.LeaveMode = DeepDungeon.Fsd.Runtime.LeaveMode.Immediate);

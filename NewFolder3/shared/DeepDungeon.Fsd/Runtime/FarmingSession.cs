@@ -50,8 +50,12 @@ internal sealed class FarmingSession(FarmingPlan plan, int ownedSlot = -1, bool 
         return true;
     }
 
+    private bool _hoardTargetLocked;
+    public void LockHoardTarget() => _hoardTargetLocked = true;
+
     public bool TrySetTargets(in FarmingTargets targets)
     {
+        if (_hoardTargetLocked && targets.Hoard != BandedEnabled) return false;
         if (!FarmingTargetPolicy.IsValid(Plan.Mode, targets)) return false;
         BandedEnabled = targets.Hoard;
         OpenGold = targets.Gold;

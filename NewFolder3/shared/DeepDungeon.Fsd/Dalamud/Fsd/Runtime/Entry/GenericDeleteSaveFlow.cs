@@ -31,6 +31,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 		private readonly Dictionary<string, DateTime> _seenSince = new Dictionary<string, DateTime>();
 		private DateTime _nextTry = DateTime.MinValue;
 		private string _lastStatus = string.Empty;
+		private string _lastResetMenuDiagnostic = string.Empty;
 		private DateTime _lastLog = DateTime.MinValue;
 		private DateTime _lastProgress = DateTime.MinValue;
 		private DateTime _postInteractUntil = DateTime.MinValue;
@@ -64,6 +65,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			_ctx = context;
 			_cooldowns.Clear();
 			_seenSince.Clear();
+			_lastResetMenuDiagnostic = string.Empty;
 			_watchdog.Reset(DateTime.UtcNow);
 			_lastProgress = DateTime.Now;
 			_nextTry = DateTime.MinValue;
@@ -218,7 +220,15 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 					SetStatus(_deleteConfirmed
 						? $"{_dungeon.Name} Del: opening save data to verify slot"
 						: $"{_dungeon.Name} Del: opening save data via Agent");
-					DeepDungeonUi.OpenDeleteSaveViaAgent();
+					bool selected = DeepDungeonUi.TrySelectResetProgress(out var options, out var menuError);
+					string diagnostic = string.Join("\u001f", options) + "|" + menuError;
+					if (selected || diagnostic != _lastResetMenuDiagnostic)
+					{
+						_ctx.RecordDiagnostic?.Invoke("owned-save-delete-menu", new
+						{ slot = _slotIndex, intent = "reset-progress", selected, options, error = menuError });
+						_lastResetMenuDiagnostic = diagnostic;
+					}
+					if (!selected) SetStatus(menuError);
 					_lastMenuFire = DateTime.Now;
 					SetCooldown("menu-open-save", CooldownNormal);
 					_lastProgress = DateTime.Now;

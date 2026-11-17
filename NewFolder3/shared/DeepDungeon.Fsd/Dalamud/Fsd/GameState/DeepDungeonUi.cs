@@ -37,20 +37,8 @@ namespace DeepDungeon.Fsd.Dalamud.GameState
 			catch { return false; }
 		}
 		
-		/// <summary>
-		/// Opens DeepDungeonSaveData for deleting a save via Agent event.
-		/// This is more robust than addon callbacks as it's not affected by menu item order.
-		/// </summary>
-		public static unsafe bool OpenDeleteSaveViaAgent()
-		{
-			try
-			{
-				// EventType=0, Param=3: Delete Save (opens save data for deletion)
-				AgentId.DeepDungeonMenu.SendEvent(0, 3);
-				return true;
-			}
-			catch { return false; }
-		}
+		/// <summary>Compatibility wrapper; resolve the visible reset action instead of a fixed Agent row.</summary>
+		public static bool OpenDeleteSaveViaAgent() => TrySelectResetProgress(out _, out _);
 		
 		/// <summary>
 		/// Clicks a save slot in DeepDungeonSaveData via Agent event for ENTRY mode.

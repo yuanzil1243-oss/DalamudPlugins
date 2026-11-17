@@ -19,7 +19,7 @@
     "IsHide": false,
     "IsTestingExclusive": false,
     "Changelog": "0.7.55.35：新增开门后有界导航恢复与失败收尾；确认副本超时退场后按失败策略循环，不计成功次数；默认联动开启BMR自动回放，导出日志可附对应时段回放及SHA256快照清单。离线回归265项通过，游戏内待验证。",
-    "TestingAssemblyVersion": "0.7.55.36",
+    "TestingAssemblyVersion": "0.7.55.38",
     "TestingDalamudApiLevel": 15,
     "DownloadLinkTesting": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/testing/NewFolder3.zip"
   }

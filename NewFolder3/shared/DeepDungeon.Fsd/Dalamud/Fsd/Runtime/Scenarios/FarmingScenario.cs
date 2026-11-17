@@ -38,6 +38,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
             _aborted = _complete = true;
             return;
         }
+        session.LockHoardTarget();
         context.ResetAttemptState();
         context.FarmingPlan = session.Plan;
         var plan = session.Plan;

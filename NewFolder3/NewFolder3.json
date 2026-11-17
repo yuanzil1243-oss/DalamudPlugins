@@ -5,12 +5,12 @@
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-  "AssemblyVersion": "0.7.55.36",
+  "AssemblyVersion": "0.7.55.38",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "Description": "基于原版修改，完善了深层迷宫的探索、战斗、道具使用和楼层推进逻辑，已有完整流程通关下底的实测记录。内置自由选层探索模式，可按需选择楼层进行探索。",
-  "Changelog": "0.7.55.36 测试版：自由探索新增可选挖宝与感知宝藏文本判定；清理失败保留现场旧入口，失败删档流程增加有界恢复和槽空验证；针刺怪与食岩狼同优先级；兼容AE空版本号诊断。正式版仍为0.7.55.35，本版游戏内待验证。"
+  "Changelog": "0.7.55.38 测试版：删档按当前菜单文字选择“重置攻略进度”，适配挑战解锁造成的选项移动，保留删除确认保护；任务执行期间锁定宝藏探索开关，停止后可重新选择。卡死与战斗恢复另行排查；游戏内待验证。"
 }

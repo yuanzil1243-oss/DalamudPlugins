@@ -153,7 +153,7 @@ internal partial class FsdEngine
         bool silver = options?.OpenSilver ?? preferences?.OpenSilver ?? false;
         bool bronze = options?.OpenBronze ?? preferences?.OpenBronze ?? false;
         bool changed;
-        ImGui.BeginDisabled(research || FarmingTargetPolicy.LocksHoard(mode));
+        ImGui.BeginDisabled(running || research || FarmingTargetPolicy.LocksHoard(mode));
         changed = ImGui.Checkbox("探索埋藏的寶藏", ref hoard);
         ImGui.EndDisabled();
         if (!research && mode == FarmingMode.FreeExploration)

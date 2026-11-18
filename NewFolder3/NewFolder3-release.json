@@ -15,9 +15,9 @@
     "Description": "基于原版修改，完善了深层迷宫的探索、战斗、道具使用和楼层推进逻辑，已有完整流程通关下底的实测记录。内置自由选层探索模式，可按需选择楼层进行探索。",
     "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3.zip",
     "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3.zip",
-    "LastUpdate": 1794992646,
+    "LastUpdate": 1794993754,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "Changelog": "0.7.55.41 正式版：91–98层躲避后优先安全返回最近有效输出位置，路线受阻时有界等待怪物靠近或场景变化，避免短时间重复扣完重试；自由探索完成后默认验证删档，新增“完成后保留存档”选项；99层初次取Buff固定前往入口光色地板中心。整合.36–.40修复、继续探索及公共地图下载。394项离线回归通过，本次游戏实测待完成。"
+    "Changelog": "0.7.55.41：91–98层躲避后优先安全返回最近有效输出位置，路线受阻时有界等待怪物靠近或场景变化，避免短时间重复扣完重试；自由探索完成后默认验证删档，新增“完成后保留存档”选项；99层初次取Buff固定前往入口光色地板中心。整合.36–.40修复、继续探索及公共地图下载。394项离线回归通过，本次游戏实测待完成。"
   }
 ]

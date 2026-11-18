@@ -10,8 +10,8 @@
   "binaryProvenance": "Release x64 rebuild from the included .41 public source; all seven DLLs copied directly from that output. No private overlay, user-data upload, personal logs, live game input or plugin reload.",
   "package": {
     "file": "NewFolder3.zip",
-    "bytes": 1347858,
-    "sha256": "9961e110366c6e261f7c002fce01737f118a8677e45dfc4a47836f0633ef6d09",
+    "bytes": 1353473,
+    "sha256": "96905e6402c1e26a5fe8027aea06ba9257b8d5db7098786bf9957d49dc6fd2f2",
     "files": {
       "DeepDungeon.Fsd.Core.dll": "526b404243916fd8d107109399c3f98bbbdf97fb4dfa1aec879608df0a5d60c2",
       "DeepDungeon.Fsd.Dalamud.dll": "210551275dfb5005400e8cf7a60716cd969bf4656e2487b30272e747fd51c614",
@@ -19,9 +19,9 @@
       "GuerrillaNtp.dll": "2c083c720ecbc2224fc728132b971b38ebc30d787a443a490b855e9b04d0094f",
       "LICENSE.txt": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
       "NewFolder3.dll": "dd39328b7b796ef8e90f3f1c8429e88cd39207da2bd2a13fd80e362cd4bf354a",
-      "NewFolder3.json": "dd2964476661e77d8c83662f8c52c68d86b8ecf345556671b3a4dad01eeb42e6",
+      "NewFolder3.json": "86597209fa91b8ec9a480e81ec8f60ca8281d38d1ca5bf075a87ce85d67d91a2",
       "OmenTools.dll": "e543c0055997682dde0837e811798db17c55286492a83a074cfde70365b86d70",
-      "SHA256SUMS.txt": "73181159b51828da78408be2c82d8a3e10b07e324111ac3966836287232f7f94",
+      "SHA256SUMS.txt": "bb58da01b96b42d159a3609903b948cdd2ac432c659bb5933bdf1dde6d34592c",
       "TinyPinyin.dll": "3e7f3d65e7a5076ca823dce496bc182a658ee72aacb23012e8c186a8e5aa2ede",
       "icon.png": "f8506e225353f77292ce7e27e64a5dc039555d50f59b66faff24a65e03f10095",
       "licenses/Apache-2.0.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
@@ -106,9 +106,9 @@
     "NewFolder3/Directory.Build.props": "973415c6aad91d18140574ec74cc64669bfb14bf19b3316d2b4d7e239ea364db",
     "NewFolder3/FsdWindow.cs": "1c25a35f3649752b2dbf868869d44c37c40a5e1489430dbc820412227c0cfe3d",
     "NewFolder3/LICENSE": "230184f60bae2feaf244f10a8bac053c8ff33a183bcc365b4d8b876d2b7f4809",
-    "NewFolder3/NewFolder3-release.json": "ec382e08497fe006819d4fe0426df517e9dbf9045b025f18ff92e3e579a72d1a",
+    "NewFolder3/NewFolder3-release.json": "21953684b7918ae45244eae8348fa5d6077c54941f6b0ebb0442793ef51925f4",
     "NewFolder3/NewFolder3.csproj": "44d52cb432e7c8101c363f1d1872f5a84b9e661e6b7c28d09c719a932378de3c",
-    "NewFolder3/NewFolder3.json": "dd2964476661e77d8c83662f8c52c68d86b8ecf345556671b3a4dad01eeb42e6",
+    "NewFolder3/NewFolder3.json": "86597209fa91b8ec9a480e81ec8f60ca8281d38d1ca5bf075a87ce85d67d91a2",
     "NewFolder3/NewFolder3AccessGate.cs": "cc1c54858731f28f714cc6c3efe94501e795a357777dbbe98bac0dd54bce8c12",
     "NewFolder3/NewFolder3BuildProfile.cs": "955b3d57f2c1baa2154cdd40f436c849b10cc89b120b675615a910bd51b7c712",
     "NewFolder3/Plugin.cs": "30d0fedab904724bb5220a110d13ed869466c43e82e3a5a1e636bce076d6d49d",
@@ -815,5 +815,12 @@
     "NewFolder3/third_party/OmenTools/Utils/FuzzyMatcher/FuzzyMatcher.cs": "58b47bd17124a98e352af3984042a29c701bc05f9c0c2e3a0d93229513229dfe",
     "NewFolder3/third_party/OmenTools/Utils/FuzzyMatcher/FuzzySearchWeight.cs": "d67cfa72e345ef69f2f7167851183cfbf41a8e8771d2709879a1828791cbb635",
     "NewFolder3/third_party/OmenTools/packages.lock.json": "df10ac5d2ade317da3e66bee148826752de3e7da40998a9a0f3e6ea63a462b35"
+  },
+  "metadataCorrection": {
+    "updatedAt": "2026-11-18T17:22:34+08:00",
+    "reason": "Removed the redundant channel label from the changelog. Version and stable release channel remain unchanged.",
+    "binaryBuildSourceCommit": "e92b0c6a137f6bca4736ef19a9d181d4556a4cde",
+    "originalPackageSha256": "9961e110366c6e261f7c002fce01737f118a8677e45dfc4a47836f0633ef6d09",
+    "sevenDllsUnchanged": true
   }
 }

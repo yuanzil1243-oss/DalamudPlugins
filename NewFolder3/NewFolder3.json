@@ -5,12 +5,12 @@
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-  "AssemblyVersion": "0.7.55.40",
+  "AssemblyVersion": "0.7.55.41",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "Description": "基于原版修改，完善了深层迷宫的探索、战斗、道具使用和楼层推进逻辑，已有完整流程通关下底的实测记录。内置自由选层探索模式，可按需选择楼层进行探索。",
-  "Changelog": "0.7.55.40 测试版：发布经授权整理的21–30／31–40详细地图及朝圣交错路公共候选点；新用户启用详细地图后本地缺失会自动下载，校验签名后缓存，可离线复用。候选点后台按需下载，与个人数据分开保存，保留个人数据优先级。含.39恢复计数与继续探索功能；游戏内待验证。"
+  "Changelog": "0.7.55.41 正式版：91–98层躲避后优先安全返回最近有效输出位置，路线受阻时有界等待怪物靠近或场景变化，避免短时间重复扣完重试；自由探索完成后默认验证删档，新增“完成后保留存档”选项；99层初次取Buff固定前往入口光色地板中心。整合.36–.40修复、继续探索及公共地图下载。394项离线回归通过，本次游戏实测待完成。"
 }

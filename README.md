@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/refs/heads/main
 
 | 插件 | 当前版本 | 简介 | 作者 | 状态 | 使用与下载 |
 | --- | --- | --- | --- | --- | --- |
-| NewFolder3 | 正式0.7.55.35 / 测试0.7.55.40 | 深层迷宫改版，支持自动攻略与自由选层探索 | John Smith / Yuzi | 正式版保留，测试版待实测 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3.zip) |
+| NewFolder3 | 正式0.7.55.41 | 深层迷宫改版，支持自动攻略与自由选层探索 | John Smith / Yuzi | 已更新正式版，本次改动待游戏实测 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3.zip) |
 
 后续插件会在上表逐项加入，分别保留自己的版本、依赖和说明。
 
@@ -33,11 +33,11 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/refs/heads/main
 Windows x64、Dalamud API15、.NET10。AE、BMR、vnavmesh 等依赖由使用者自行安装，具体测试环境见使用说明。
 
 - [使用说明与已知问题](docs/使用说明.md)
-- [0.7.55.35 正式版说明](docs/发布说明-0.7.55.35.md) · [0.7.55.40 测试版说明](docs/发布说明-0.7.55.40-测试版.md)
+- [0.7.55.41 正式版说明](docs/发布说明-0.7.55.41.md) · [此前 .40 测试版说明](docs/发布说明-0.7.55.40-测试版.md)
 - [开发说明](docs/开发说明.md) · [第三方声明](docs/第三方声明.md)
 - [源代码与构建方法](NewFolder3/README.md) · [构建及校验信息](dist/BUILDINFO.json)
 
-> .40替换.39测试通道：启用详细地图后可自动下载已签名的21–30／31–40地图，无需先运行原版；缺少朝圣交错路候选点时后台下载并单独缓存。保留个人点位优先级，不自动上传使用者数据。公共数据范围见[data/NewFolder3](data/NewFolder3/README.md)。包含.39报错后继续与.38两项修复；357项离线回归通过，游戏实测待完成。正式.35安装包保持原字节；.40源码见NewFolder3目录，.35源码保存在提交`1c6b25cc529640066010e9bc2ab88f004beecee0`。
+> .41更新正式通道并撤下旧.40测试入口，整合.36–.40功能；新增91–98层躲避后的有界复位、自由探索默认删档与保留选项、99层首次固定中心取Buff。394项离线回归通过；本次修改尚未在游戏内复测。公共地图与候选点下载继续可用，数据范围见[data/NewFolder3](data/NewFolder3/README.md)。
 
 后续插件的文档入口按同级小节加入，首页只保留摘要，详细操作和变更记录放入各自文档。
 

@@ -22,7 +22,10 @@ public sealed record FsdFarmingRequest(
     int Cycles,
     bool Infinite,
     FarmingTargets Targets,
-    FsdStartRequest? Checkpoint = null);
+    FsdStartRequest? Checkpoint = null)
+{
+    public bool PreserveSaveOnCompletion { get; init; }
+}
 
 /// <summary>Typed control outcome; diagnostic payloads retain their existing bridge schema.</summary>
 public sealed record FsdControlResult(

@@ -37,6 +37,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		internal ControlledPtSurveySession? ControlledPtSurvey;
         internal DeepDungeon.Fsd.Core.FarmingPlan? FarmingPlan;
         internal Func<bool, bool>? SetBossMovementOverride;
+        internal bool Pt99InitialColorMovementActive;
         internal Action<bool>? SetBossRotationSuppressed;
         internal Action<string, object>? RecordDiagnostic;
         internal long CombatPreparationSequence { get; private set; }

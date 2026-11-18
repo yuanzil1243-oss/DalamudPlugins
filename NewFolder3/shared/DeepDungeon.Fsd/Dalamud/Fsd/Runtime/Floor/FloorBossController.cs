@@ -117,6 +117,13 @@ internal sealed class FloorBossController
             return;
         }
         _pt50ChaseOutputGuard?.Update(dd, externalMovement && bmrBossHandling);
+        if (dd->DeepDungeonId == 4 && dd->Floor == 99 && bmrBossHandling && _ctx.Pt99InitialColorMovementActive)
+        {
+            _navHelper.Cancel();
+            TryMaintainBossBuffs(dd);
+            Status = "99层入场：前往固定光色地板中心，等待实际Buff";
+            return;
+        }
         if (dd->DeepDungeonId == 4 && dd->Floor == 99 && externalMovement && bmrBossHandling)
         {
             _navHelper?.Cancel();

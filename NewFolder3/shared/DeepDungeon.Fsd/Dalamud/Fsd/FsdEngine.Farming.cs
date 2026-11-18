@@ -132,9 +132,16 @@ internal partial class FsdEngine
                 : $"新建第 {entry.StartFloor} 层存档";
             ImGui.TextWrapped($"目前設定：{sourceDescription}，通關第 {entry.StopAfterFloor} 層後停止。請點擊上方「啟動 FSD」開始。");
             if (entry.ResumeSlot.HasValue)
-                ImGui.TextWrapped("续用时自动读取所选槽位的存档起点；攻略失败后自动删除该槽存档并从失败层组起点重试，成功通关停止时保留存档。");
+                ImGui.TextWrapped("续用时自动读取所选槽位的存档起点；攻略失败后自动删除该槽存档并从失败层组起点重试。");
             ImGui.TextWrapped("自由探索使用指定起點與停止層，適合測試高層；死靈術士挑戰固定從第 1 層開始，失敗後重開，不使用測試起點。");
         }
+        var preferences = _configuration.Farming.GetPreferences(_configuration);
+        bool preserveSave = preferences.PreserveSaveOnCompletion;
+        if (ImGui.Checkbox("完成后保留存档##fsd_free_keep_save", ref preserveSave))
+        { preferences.PreserveSaveOnCompletion = preserveSave; changed = true; }
+        ImGui.TextWrapped(preserveSave
+            ? "通关所选结束层后保留本次存档并停止；失败仍按原流程删档重试。"
+            : "默认：通关所选结束层后，验证删除本次任务存档再停止；中途接续保留存档，其他槽位不受影响。");
         if (changed) _configuration.Save();
     }
 
@@ -290,7 +297,8 @@ internal partial class FsdEngine
         };
         var farming = new FsdFarmingRequest(settings.Mode, settings.Mode == FarmingMode.FinalBoss ? SaveUse.None : prepared ? SaveUse.Prepared : SaveUse.Create,
             defaultStartFloor,
-            p.Cycles, p.Infinite, new FarmingTargets(p.BandedEnabled == true, p.OpenGold, p.OpenSilver, p.OpenBronze), request);
+            p.Cycles, p.Infinite, new FarmingTargets(p.BandedEnabled == true, p.OpenGold, p.OpenSilver, p.OpenBronze), request)
+            { PreserveSaveOnCompletion = p.PreserveSaveOnCompletion };
         bool started = TryStartFarming(farming, out string error);
         return new FsdControlResult(started, error);
     }
@@ -329,7 +337,8 @@ internal partial class FsdEngine
         plan = plan! with { StopAfterFloor = stopAfterFloor, StartFloor = diagnosticStartFloor ?? plan.StartFloor,
             UsesDiagnosticCheckpoints = diagnosticStartFloor.HasValue,
             PreserveExternalSave = mode == FarmingMode.FreeExploration && resumeSlot.HasValue,
-            DeleteExternalSaveOnFailure = mode == FarmingMode.FreeExploration && resumeSlot.HasValue };
+            DeleteExternalSaveOnFailure = mode == FarmingMode.FreeExploration && resumeSlot.HasValue,
+            PreserveSaveOnCompletion = mode == FarmingMode.FreeExploration && request.PreserveSaveOnCompletion };
         bool resumeCurrentDuty = _dutyState?.IsInDuty == true;
         if (resumeCurrentDuty && mode != FarmingMode.FinalBoss)
         {

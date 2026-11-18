@@ -12,6 +12,7 @@ internal sealed class Pt99ColorMovementController
     private ICallGateSubscriber<Vector3, Vector3, bool>? _pathSafe;
     private ICallGateSubscriber<bool>? _moduleActive;
     private MovementInputController? _movement;
+    private NavigationHelper? _initialNavigation;
     private readonly Pt99ColorRouteSearch _routes = new();
     private readonly Pt99ColorRecoveryBudget _budget = new();
     private Pt99Color _desired;
@@ -80,6 +81,11 @@ internal sealed class Pt99ColorMovementController
                 Release(context, "prepull-safety-state-changed");
                 _routes.Reset(); _nextRouteCheck = default;
                 _prepullRoute = allowPrepullFloorRoute;
+            }
+            if (allowPrepullFloorRoute && desired == Pt99Color.Light)
+            {
+                UpdateInitialColor(context, position, now);
+                return;
             }
             if (!allowPrepullFloorRoute)
             {
@@ -156,6 +162,49 @@ internal sealed class Pt99ColorMovementController
         }
     }
 
+    // Opening only: a fixed floor center through the normal world-coordinate navigator.
+    // Combat color changes continue through the existing live-safety movement code above.
+    internal void UpdateInitialColor(RunContext context, Vector3 position, DateTime now)
+    {
+        var center = Pt99Arena.InitialLightPoolCenter;
+        var destination = new Vector3(center.X, position.Y, center.Y);
+        if (!_ownsMovement)
+        {
+            if (context.SetBossMovementOverride?.Invoke(true) != true)
+            { Wait(context, "movement-handoff-unconfirmed", "入场取色等待移动交接", now); return; }
+            _ownsMovement = true;
+            context.Pt99InitialColorMovementActive = true;
+            context.Navigator.CancelAll();
+            _initialNavigation ??= new NavigationHelper(new NavigatorVNavAdapter());
+            _moveStarted = _lastProgress = now;
+            _lastPosition = position;
+            _destination = destination;
+            context.RecordDiagnostic?.Invoke("pt99-initial-color-center", new {
+                position = new { position.X, position.Y, position.Z },
+                destination = new { destination.X, destination.Y, destination.Z }, observedUtc = now });
+        }
+        if (Vector2.DistanceSquared(new(position.X, position.Z), new(_lastPosition.X, _lastPosition.Z)) > 0.16f)
+        { _lastPosition = position; _lastProgress = now; }
+        if (now - _moveStarted > TimeSpan.FromSeconds(10) || now - _lastProgress > TimeSpan.FromSeconds(3))
+        {
+            _budget.RecordFailure();
+            Wait(context, "initial-center-buff-unconfirmed", "入场取色尚未确认，已停止本次定位", now);
+            _retryAt = now.AddSeconds(2);
+            return;
+        }
+        var state = _initialNavigation!.Navigate(destination, position, 0.25f, retryIntervalSeconds: 2);
+        if (state is NavigationState.Failed or NavigationState.StuckGiveUp)
+        {
+            _budget.RecordFailure();
+            Wait(context, "initial-center-navigation-failed", "入场固定点导航未完成，等待重试", now);
+            _retryAt = now.AddSeconds(2);
+            return;
+        }
+        Status = state == NavigationState.Arrived
+            ? "已到固定光色地板中心，等待实际Buff"
+            : "99层入场：前往固定光色地板中心";
+    }
+
     private void Wait(RunContext context, string reason, string status, DateTime now)
     {
         Release(context, reason);
@@ -169,6 +218,8 @@ internal sealed class Pt99ColorMovementController
 
     private void Release(RunContext? context, string reason)
     {
+        _initialNavigation?.Cancel();
+        if (context != null) context.Pt99InitialColorMovementActive = false;
         if (_movement?.Enabled == true) _movement.Enabled = false;
         _destination = null;
         if (!_ownsMovement) return;
@@ -181,6 +232,7 @@ internal sealed class Pt99ColorMovementController
     {
         Release(context, "color-confirmed-or-controller-reset");
         _movement?.Dispose(); _movement = null;
+        _initialNavigation = null;
         _desired = Pt99Color.None; _prepullRoute = false;
         _lastTick = _retryAt = _nextRouteCheck = _nextDiagnostic = _requestedAt = default;
         _budget.Reset(); _routes.Reset();

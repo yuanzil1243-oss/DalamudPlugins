@@ -64,4 +64,5 @@ public sealed class FarmingPreferences
     public bool OpenBronze { get; set; }
     public int Cycles { get; set; } = 1;
     public bool Infinite { get; set; }
+    public bool PreserveSaveOnCompletion { get; set; }
 }

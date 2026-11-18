@@ -39,13 +39,17 @@ public static class FarmingSessionPolicy
                 result.HarvestCompleted ? string.Empty : "採集未正常收尾，未計完成次數。");
         if (!result.DutyCompleted)
             return new(false, plan.StartFloor, ownsSave && !plan.PreserveExternalSave, false, "本次未通關，未計完成次數。");
+        if (plan.IsProgression && (result.EntryFloor is < 1 or > 91 || result.EntryFloor % 10 != 1))
+            return new(false, result.EntryFloor, false, false, "攻略起點無效，停止接續。");
+        bool preserveCompletedSave = plan.Mode == FarmingMode.FreeExploration
+            ? plan.PreserveSaveOnCompletion : plan.PreserveExternalSave;
+        if (plan.Mode == FarmingMode.FreeExploration && ReachedStopBoundary(plan, result))
+            return new(false, result.EntryFloor + 10, ownsSave && !preserveCompletedSave, false, string.Empty);
         if (plan.IsProgression)
         {
-            if (result.EntryFloor is < 1 or > 91 || result.EntryFloor % 10 != 1)
-                return new(false, result.EntryFloor, false, false, "攻略起點無效，停止接續。");
             return result.EntryFloor == 91
                 ? new(true, plan.Mode == FarmingMode.FreeExploration ? plan.StartFloor : 1,
-                    ownsSave && !plan.PreserveExternalSave, false, string.Empty)
+                    ownsSave && !preserveCompletedSave, false, string.Empty)
                 : new(false, result.EntryFloor + 10, false, false, string.Empty);
         }
         return new(true, plan.StartFloor, ownsSave && !plan.PreserveExternalSave, false, string.Empty);

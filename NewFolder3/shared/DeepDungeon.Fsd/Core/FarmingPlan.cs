@@ -23,6 +23,7 @@ public sealed record FarmingPlan(
     public bool UsesDiagnosticCheckpoints { get; init; }
     public bool PreserveExternalSave { get; init; }
     public bool DeleteExternalSaveOnFailure { get; init; }
+    public bool PreserveSaveOnCompletion { get; init; }
     public bool IsProgression => ProgressionModePolicy.IsProgression(Mode);
     public bool ReusesSave => Mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery;
     public bool ShowsDetailedMap => Mode == FarmingMode.Hoard && BandedEnabled;

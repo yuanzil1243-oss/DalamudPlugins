@@ -23,6 +23,7 @@ internal sealed class CombatPositionRecoveryController : IDisposable
     private readonly Action<string, object> _record;
     private readonly CombatPositionNavigation _geometry = new();
     private readonly EnemyChaseAttackWindow _attackWindow = new();
+    private readonly CombatRepositionState _reposition = new();
     private readonly List<Vector3> _seeds = new(264), _candidates = new(32), _rejected = new(3);
     private CancellationTokenSource? _cancel;
     private Task<List<Vector3>>? _pending;
@@ -37,6 +38,9 @@ internal sealed class CombatPositionRecoveryController : IDisposable
     private bool _targetEngaged;
     private bool _resumeSearch;
     private DateTime? _yieldedAt;
+    private Vector3 _lastPlayerPosition;
+    private Vector3? _preferredReturn;
+    private bool HighFloorRecovery => MobCombatPolicy.HighFloorEnabled(_ctx.FarmingPlan?.Mode, _ctx.Duty.DungeonId, _ctx.Duty.Floor);
 
     public CombatPositionRecoveryController(RunContext context, NavigationHelper navigation, EnemyChaseHelper chase,
         NormalFloorGraphSnapshot? graph, CombatRecoveryBudget budget, RunFloorTelemetryTrace? telemetry,
@@ -72,6 +76,9 @@ internal sealed class CombatPositionRecoveryController : IDisposable
             _targetId = target.GameObjectId; _observedHp = current.CurrentHp; _lastProgressAt = now;
         }
         _targetEngaged = aggro;
+        _lastPlayerPosition = player.Position;
+        if (aggro && HighFloorRecovery && _reposition.ResumeAfterMechanics(now))
+            _record("post-dodge-recovery-resumed", new { targetId = _targetId, graceSeconds = CombatRepositionState.DodgeGrace.TotalSeconds });
         _attackWindow.Observe(attackOpportunity, false, now);
         _actionRange = _ctx.CombatAssist.GetCachedEngageRange(_ctx.Configuration);
         _playerRadius = player.HitboxRadius; _targetRadius = current.HitboxRadius;
@@ -86,6 +93,7 @@ internal sealed class CombatPositionRecoveryController : IDisposable
             {
                 _lastDamageAt = _lastProgressAt = now;
                 _budget.ObserveVerifiedOutput(_targetId, aggro);
+                _reposition.ObserveOutput(player.Position, now);
             }
             if (_phase != Phase.Idle && clearOutput)
             {
@@ -94,6 +102,23 @@ internal sealed class CombatPositionRecoveryController : IDisposable
             }
         }
         _observedHp = current.CurrentHp;
+        bool postDodge = aggro && HighFloorRecovery && _reposition.InDodgeGrace(now);
+        if (aggro && HighFloorRecovery)
+        {
+            // A safe usable position gets a chance to fire before any further relocation.
+            if (postDodge && CanOutputAt(player.Position, current.Position))
+            { EndAttempt(); return false; }
+            var retry = _reposition.Retry(player.Position, current.Position, EnemyLayout(), now);
+            if (retry == CombatRepositionRetry.Waiting)
+            {
+                _navigation.Cancel();
+                _status("躲避／站位恢复：等待已接战怪靠近或安全路线变化");
+                return true;
+            }
+            if (retry == CombatRepositionRetry.TimedOut)
+            { Fail("combat-layout-unchanged-after-bounded-wait", current); return true; }
+            if (retry == CombatRepositionRetry.Changed) _nextGeometryAt = DateTime.MinValue;
+        }
         if (_budget.Exhausted && !aggro)
         { Stop("Combat position recovery exhausted the floor retry limit."); return true; }
         if (_phase != Phase.Idle)
@@ -114,14 +139,14 @@ internal sealed class CombatPositionRecoveryController : IDisposable
         bool inRange = CombatPositionPolicy.WithinRange(player.Position, current.Position, _actionRange,
             _playerRadius, _targetRadius, 0, 0);
         if (!inRange && _attackWindow.StartedAt == default &&
-            (!aggro || now - _lastProgressAt < CombatPositionPolicy.UnknownNoProgressLimit)) return false;
+            (!aggro || now - _lastProgressAt < CombatPositionPolicy.UnknownNoProgressLimit) && !postDodge) return false;
         var sight = CombatPositionNavigation.Sight(player.Position, current.Position, out var hit);
         if (sight != CombatSight.Blocked && CombatPositionNavigation.Sight(player.Position - new Vector3(0, 7, 0),
                 current.Position, out var burrowHit) == CombatSight.Blocked)
         { sight = CombatSight.Blocked; hit = burrowHit; }
         bool stalled = (aggro ? now - _lastProgressAt : _attackWindow.StartedAt == default
             ? TimeSpan.Zero : now - _attackWindow.StartedAt) >= CombatPositionPolicy.UnknownNoProgressLimit;
-        if ((!inRange || sight != CombatSight.Blocked || now - _lastDamageAt < TimeSpan.FromSeconds(1)) && !stalled) return false;
+        if ((!inRange || sight != CombatSight.Blocked || now - _lastDamageAt < TimeSpan.FromSeconds(1)) && !stalled && !postDodge) return false;
         if (_budget.IsTargetExhausted(_targetId, aggro))
         {
             if (aggro) { Stop("Engaged target remains unreachable after bounded combat recovery; manual intervention required."); return true; }
@@ -152,6 +177,16 @@ internal sealed class CombatPositionRecoveryController : IDisposable
         _pending = null; _phase = Phase.Searching; _startPosition = player; _targetAtPlan = target;
         _playerRoom = RoomGraph.GetLocalPlayerRoomIndex(dd);
         _seedIndex = _candidateIndex = _pathQueries = 0; _seeds.Clear(); _candidates.Clear();
+        _preferredReturn = null;
+        if (_targetEngaged && HighFloorRecovery && _graph != null && _playerRoom >= 0 &&
+            _reposition.ReturnPosition(player, DateTime.UtcNow) is { } previous)
+        {
+            int room = RoomGraph.GetRoomIndexForPosition(dd, previous, _graph.ReachableRooms, -1);
+            if (room >= 0 && _graph.RoomDistances[_playerRoom, room] is >= 0 and <= 1 &&
+                !_rejected.Any(p => Vector3.DistanceSquared(p, previous) < 1) &&
+                _geometry.HasStandingMargin(previous, target, _actionRange, _playerRadius, _targetRadius))
+            { _preferredReturn = previous; _candidates.Add(previous); }
+        }
         AddSeeds(player, player.Y, target.Y);
         if (Vector2.DistanceSquared(new(player.X, player.Z), new(target.X, target.Z)) <= 225)
             AddSeeds(target, player.Y, target.Y);
@@ -188,7 +223,15 @@ internal sealed class CombatPositionRecoveryController : IDisposable
                 if (_geometry.HasStandingMargin(p, current.Position, _actionRange, _playerRadius, _targetRadius)) _candidates.Add(p);
             }
             if (_seedIndex < _seeds.Count) return true;
-            _candidates.Sort((a, b) => Vector3.DistanceSquared(_startPosition, a).CompareTo(Vector3.DistanceSquared(_startPosition, b)));
+            _candidates.Sort((a, b) =>
+            {
+                if (_preferredReturn is { } preferred)
+                {
+                    int order = (a == preferred ? 0 : 1).CompareTo(b == preferred ? 0 : 1);
+                    if (order != 0) return order;
+                }
+                return Vector3.DistanceSquared(_startPosition, a).CompareTo(Vector3.DistanceSquared(_startPosition, b));
+            });
             if (_candidates.Count == 0) { Fail("no-compatible-local-position", current); return true; }
             StartPathQuery(player.Position); return true;
         }
@@ -268,6 +311,16 @@ internal sealed class CombatPositionRecoveryController : IDisposable
     }
     private void Fail(string reason, IBattleChara target)
     {
+        var now = DateTime.UtcNow;
+        bool waitForChange = _targetEngaged && HighFloorRecovery;
+        if (waitForChange && _reposition.InDodgeGrace(now))
+        {
+            EndAttempt();
+            _reposition.WaitForChange(_lastPlayerPosition, target.Position, EnemyLayout(), now);
+            _record("post-dodge-recovery-waiting", new { targetId = _targetId, reason, failureCharged = false });
+            _status("躲避后暂无安全复位路线；等待已接战怪靠近");
+            return;
+        }
         _budget.RecordFailure(_targetId, _targetEngaged);
         bool heldThreat = _targetEngaged;
         _record(heldThreat ? "held-target-recovery-attempt-failed" : "clearing-target-deprioritized", new { targetId = _targetId, reason, hp = target.CurrentHp, failures = _budget.TotalFailures,
@@ -277,6 +330,7 @@ internal sealed class CombatPositionRecoveryController : IDisposable
         {
             // Keep the aggro obligation and marker. Never silently blacklist a live priority enemy.
             EndAttempt(); _lastProgressAt = DateTime.UtcNow;
+            if (waitForChange) _reposition.WaitForChange(_lastPlayerPosition, target.Position, EnemyLayout(), now);
             _record("held-target-recovery-failed", new { targetId = _targetId, reason, hp = target.CurrentHp });
             if (_budget.IsTargetExhausted(_targetId, true)) Stop("Engaged target cannot be reached after two recovery attempts; manual continuation required.");
             return;
@@ -304,16 +358,35 @@ internal sealed class CombatPositionRecoveryController : IDisposable
     public void ResetEngagedTargetProgress()
     {
         EndAttempt(); _targetId = 0; _observedHp = 0; _lastProgressAt = _lastDamageAt = default; _attackWindow.Reset();
+        _reposition.Reset(); _preferredReturn = null;
     }
     public void Dispose() => ResetEngagedTargetProgress();
     public void YieldMovement()
     {
+        if (_targetId != 0 && HighFloorRecovery) _reposition.YieldToMechanics();
         if (_phase == Phase.Idle) return;
         StopPath();
         _yieldedAt ??= DateTime.UtcNow;
         _cancel?.Cancel();
         _pending = null;
         _resumeSearch = true;
+    }
+    private bool CanOutputAt(Vector3 player, Vector3 target) =>
+        CombatPositionPolicy.WithinRange(player, target, _actionRange, _playerRadius, _targetRadius, 0, 0) &&
+        CombatPositionNavigation.Sight(player, target, out _) == CombatSight.Clear &&
+        CombatPositionNavigation.Sight(player - new Vector3(0, 7, 0), target, out _) == CombatSight.Clear;
+
+    private ulong EnemyLayout()
+    {
+        ulong signature = 0;
+        foreach (var enemy in _ctx.MobCombat.Unengaged)
+        {
+            // Coarse cells avoid treating idle animation/jitter as a new safe route.
+            ulong x = unchecked((uint)(int)MathF.Floor(enemy.Position.X / 2));
+            ulong z = unchecked((uint)(int)MathF.Floor(enemy.Position.Z / 2));
+            signature ^= unchecked(enemy.GameObjectId * 1099511628211UL ^ x * 16777619UL ^ z);
+        }
+        return signature;
     }
     public static unsafe bool TryResolveRoomDestination(InstanceContentDeepDungeon* dd, int room, out Vector3 destination)
     {

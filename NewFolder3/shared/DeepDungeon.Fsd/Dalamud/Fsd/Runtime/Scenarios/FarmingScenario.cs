@@ -205,14 +205,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
         _aborted |= ctx.AttemptAborted;
         var result = new FarmingAttemptResult(
             _entryFloor, ctx.DutyCompletionObserved, ctx.DutyFailureObserved, ctx.HarvestComplete, _aborted);
-        if (FarmingSessionPolicy.ReachedStopBoundary(session.Plan, result))
-        {
-            _aborted = true; // Stop the host before it can construct the next entry attempt.
-            _complete = true;
-            ctx.StatusLine = $"已通過 {session.Plan.StopAfterFloor} 層；停止並保留存檔，等待驗收。";
-            Service.Log.Info($"[Farming] Progression stop boundary reached: cleared={_entryFloor + 9}, next={_entryFloor + 10}, ownedSlot={session.OwnedSlot}");
-            return;
-        }
+        bool stopAtBoundary = FarmingSessionPolicy.ReachedStopBoundary(session.Plan, result);
         var decision = FarmingSessionPolicy.Decide(session.Plan, result);
         if (session.Plan.ReusesSave)
         {
@@ -246,6 +239,16 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
             ctx.RecordDiagnostic?.Invoke("owned-save-cleanup-completed", new
             { mode = session.Plan.Mode.ToString(), deletedSlot, entryFloor = _entryFloor, verifiedEmpty = true });
         }
+        if (stopAtBoundary)
+        {
+            _aborted = true; // Finish required cleanup before stopping the host.
+            _complete = true;
+            ctx.StatusLine = $"已通過 {session.Plan.StopAfterFloor} 層；" +
+                (_ownedSaveCleanupCompleted ? "本次存档已验证删除，停止探索。" : "存档已保留，停止探索。");
+            ctx.RecordDiagnostic?.Invoke("free-exploration-stop-boundary", new
+            { clearedFloor = _entryFloor + 9, saveDeleted = _ownedSaveCleanupCompleted, ownedSlot = session.OwnedSlot });
+            return;
+        }
         // A pause may defer counters/re-entry, never required cleanup. Intermediate
         // progression keeps its save; a completed run resumes without deleting twice.
         if (session.TryPauseAfterFloorsetClear(result, decision, _ownedSaveCleanupCompleted))
@@ -266,6 +269,8 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
         CountsAsCycle = decision.CountCycle;
         _recoverFailure = decision.RecoverFailure;
         session.CompleteAttempt(decision, ctx.HoardDiscoveries);
+        if (session.Plan.Mode == FarmingMode.FreeExploration && session.Plan.PreserveSaveOnCompletion && decision.CountCycle)
+            _aborted = true; // A retained completed save must never be entered again by a loop.
         if (decision.Error.Length > 0)
         {
             ctx.StatusLine = ctx.AttemptAbortReason + decision.Error + " FSD 已停止。";

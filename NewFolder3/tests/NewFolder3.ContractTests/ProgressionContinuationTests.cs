@@ -111,6 +111,7 @@ internal static class ProgressionContinuationTests
             StopAfterFloor = 100,
             UsesDiagnosticCheckpoints = true,
             PreserveExternalSave = true,
+            PreserveSaveOnCompletion = true,
             DeleteExternalSaveOnFailure = true
         };
         var failure = FarmingSessionPolicy.Decide(plan, new(71, false, true, false, false));

@@ -5,6 +5,8 @@ namespace DeepDungeon.Fsd.Core;
 public static class Pt99Arena
 {
     public static readonly Vector2 Center = new(-600, -300);
+    // Centroid of the entrance-side light-floor polygon; the opening always uses this fixed center.
+    public static readonly Vector2 InitialLightPoolCenter = new(-604.4116f, -287.5067f);
     // Interior samples verified against the pinned reference encounter's light/dark collision polygons.
     private static readonly Vector2[] Light = [new(-604.3f,-287.6f), new(-588,-309.5f), new(-581.5f,-292.5f), new(-596.5f,-303.5f), new(-610.5f,-303.5f)];
     private static readonly Vector2[] Dark = [new(-612,-290.5f), new(-596,-312.5f), new(-618.5f,-307.5f), new(-589.5f,-296.5f), new(-603.5f,-296.5f)];

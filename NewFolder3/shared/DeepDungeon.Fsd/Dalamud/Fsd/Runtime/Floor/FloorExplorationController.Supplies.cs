@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using DeepDungeon.Fsd.Core;
 using DeepDungeon.Fsd.Dalamud.GameState;
 using DeepDungeon.Fsd.Dalamud.Map;
@@ -61,7 +61,7 @@ internal sealed partial class FloorExplorationController
         bool paused = Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat] ||
             Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.WatchingCutscene] ||
             Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.OccupiedInCutSceneEvent] ||
-            MobMechanicsYielding || _ctx.Duty.IsTransitioning;
+            MobMechanicsYielding || _ctx.Duty.IsTransitioning || _hohPetrificationHolding;
         var inventory = Enumerable.Range(0, 16).Select(i => (int)_pomanderManager.GetCount((uint)i)).ToArray();
         bool inventoryDecreased = _lastOptionalInventory != null &&
             inventory.Where((count, i) => count < _lastOptionalInventory[i]).Any();
@@ -109,6 +109,17 @@ internal sealed partial class FloorExplorationController
         if (_ctx.FarmingPlan?.IsProgression != true || Kind != FloorRuntimeKind.Normal ||
             ObjectEvidence.Current is not { Available: true } evidence || Service.LocalPlayer is not { } player ||
             _executor == null) return;
+        if (HohWorkEnabled)
+            foreach (var chest in evidence.Chests)
+            {
+                int room = FindChestRoom(dd, chest.Object.Position);
+                if (!ObserveHohNativeChest(dd, chest, room) || !PendingHohChest(chest) ||
+                    !HohChestEnabled(chest.Kind) || _finishedSupplyChests.Contains(chest.Object.GameObjectId)) continue;
+                if (_executor.RoomContext is { } context && context.RoomIndex == room)
+                    context.AppendLiveChest(chest.Object.Position, chest.Kind switch {
+                        FloorChestKind.Gold => RoomObjectiveType.ChestGold,
+                        FloorChestKind.Silver => RoomObjectiveType.ChestSilver, _ => RoomObjectiveType.ChestBronze });
+            }
         // Capture before the entry incense can kill enemies. Waiting until the
         // exploration plan exists would misclassify those drops as initial chests.
         if (!_supplyBaselineTaken)
@@ -118,7 +129,7 @@ internal sealed partial class FloorExplorationController
         }
         if (!PlanningState.SetupPlanGenerated || DateTime.UtcNow < _nextSupplyScan) return;
         _nextSupplyScan = DateTime.UtcNow.AddMilliseconds(500);
-        int playerRoom = RoomGraph.GetLocalPlayerRoomIndex(dd);
+        int playerRoom = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
         if (playerRoom < 0) return;
         bool canSupply = HasSupplyTime(dd), canReturn = canSupply && FortuneFateSupply;
         Vector3? forward = _activeWaypoint?.Position;
@@ -136,13 +147,14 @@ internal sealed partial class FloorExplorationController
         foreach (var chest in evidence.Chests)
         {
             if (chest.Kind is not (FloorChestKind.Gold or FloorChestKind.Silver) ||
-                !chest.Object.IsTargetable || _finishedSupplyChests.Contains(chest.Object.GameObjectId)) continue;
+                !chest.Object.IsTargetable || _finishedSupplyChests.Contains(chest.Object.GameObjectId) ||
+                HohWorkEnabled && (!HohChestEnabled(chest.Kind) || !PendingHohChest(chest))) continue;
             int room = FindChestRoom(dd, chest.Object.Position);
             if (room < 0) continue;
             ulong id = chest.Object.GameObjectId;
-            // New entities after the initial snapshot are drop candidates. Late
-            // streaming also follows the conservative forward-only rule.
-            if (_seenSupplyChests.Add(id) && _supplyBaselineTaken) _lateSupplyChests.Add(id);
+            bool nativeCandidate = HohWorkEnabled && _hohNativeChestObjects.ContainsKey(id);
+            // HoH native room/type evidence outranks first-observed time. PT retains its old policy.
+            if (_seenSupplyChests.Add(id) && _supplyBaselineTaken && !nativeCandidate) _lateSupplyChests.Add(id);
             bool onWay = room == playerRoom && forward.HasValue && SupplyRoutePolicy.OnWay(
                 Xz(player.Position), Xz(chest.Object.Position), Xz(forward.Value));
             bool committed = _optionalChestBudget.Contains(id) && _optionalChestBudget.Reason(id) == null;
@@ -156,7 +168,7 @@ internal sealed partial class FloorExplorationController
             if (!IsOnPassageRoute(dd, chest.Object.Position)) continue;
             // Extra visits are only for drops in searched rooms, on the current path,
             // or after the Fortune/Fate combination. Initial chests keep normal plans.
-            if (canSupply && (committed || canReturn || onWay) &&
+            if (canSupply && (committed || canReturn || onWay || nativeCandidate) &&
                 (_lateSupplyChests.Contains(id) || _executor.IsChestRoomSearched(room)))
             {
                 // Queueing this live optional box is already a selection. The budget must
@@ -183,6 +195,7 @@ internal sealed partial class FloorExplorationController
         if (_extraChestWork && _executor.RoomContext == null && _activeWaypoint == null &&
             _executor.PlannedRouteCount == 0 && NormalGraph is { } graph)
             _executor.GeneratePlan(dd, graph, _chatWatchers, player.Position, _nativeIntuitionActive);
+        RefreshHohActualChestWork(dd);
     }
 
     private unsafe int FindChestRoom(InstanceContentDeepDungeon* dd, Vector3 position)
@@ -204,7 +217,7 @@ internal sealed partial class FloorExplorationController
             ObjectEvidence.Current is not { } evidence) return;
         foreach (var chest in evidence.Chests)
             if (Vector2.DistanceSquared(Xz(waypoint.Position), Xz(chest.Object.Position)) < 1 &&
-                chest.Kind is FloorChestKind.Gold or FloorChestKind.Silver)
+                (chest.Kind is FloorChestKind.Gold or FloorChestKind.Silver || HohWorkEnabled && chest.Kind == FloorChestKind.Bronze))
                 _finishedSupplyChests.Add(chest.Object.GameObjectId);
     }
 

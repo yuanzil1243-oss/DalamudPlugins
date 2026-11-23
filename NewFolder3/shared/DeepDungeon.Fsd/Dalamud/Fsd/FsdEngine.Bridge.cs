@@ -183,6 +183,9 @@ namespace DeepDungeon.Fsd.Dalamud
 
 		public FsdControlResult StopDeepDungeonFsd()
 		{
+            ResetHoh90Kiting();
+            _hohGazeMovement?.Reset();
+            _hohBossOrbit?.Stop("FSD停止，绕圈已结束");
 			if (_ddHost == null || !_ddHost.FsdActive)
 			{
 				return new FsdControlResult(false, "Deep Dungeon FSD is not active.", Snapshot: GetMobPilotSnapshot());
@@ -571,7 +574,7 @@ namespace DeepDungeon.Fsd.Dalamud
 			string hostStatus = activeHost?.CurrentStatus ?? string.Empty;
 			bool hostStatusIsError = activeHost?.CurrentStatusIsError ?? false;
 			string debugStatus = debug?.Status ?? string.Empty;
-			string snapshotStatus = (hostStatusIsError || host?.FarmingPaused == true) && !string.IsNullOrWhiteSpace(hostStatus)
+			string snapshotStatus = (hostStatusIsError || host?.FarmingPaused == true || activeHost?.Context?.HohContinuity.HoldsControls == true) && !string.IsNullOrWhiteSpace(hostStatus)
 				? hostStatus
 				: !string.IsNullOrWhiteSpace(debugStatus)
 					? debugStatus
@@ -598,6 +601,10 @@ namespace DeepDungeon.Fsd.Dalamud
 				ok = true,
 				hostIdentity = _hostIdentity,
 				hostVersion = _hostVersion,
+				hohContinuity = activeHost?.Context?.HohContinuity.Phase.ToString() ?? string.Empty,
+                hohContinuityHold = activeHost?.Context?.HohContinuity.HoldsControls ?? false,
+                hohBossRebuffPending = activeHost?.Context?.HohContinuity.BossRebuffPending ?? false,
+                hohResumeSequence = activeHost?.Context?.HohContinuity.ResumeSequence ?? 0,
 				fsdEngineVersion = FsdEngineIdentity.InformationalVersion,
 				inDeepDungeonTerritory = _currentInDeepDungeon,
 				mode,

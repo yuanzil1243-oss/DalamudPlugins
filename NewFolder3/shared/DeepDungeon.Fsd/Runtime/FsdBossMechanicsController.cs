@@ -13,8 +13,12 @@ public sealed class FsdBossMechanicsController
     private FsdBossMechanicsProvider _provider;
     private string _enableCommand = string.Empty;
     private string _disableCommand = string.Empty;
+    private readonly Func<DateTime> _clock;
+    private DateTime _nextCommandRetry, _nextOverrideAttempt;
+    private bool _lastCommandAccepted = true;
 
-    public FsdBossMechanicsController(Func<string, bool> dispatch) => _dispatch = dispatch;
+    public FsdBossMechanicsController(Func<string, bool> dispatch, Func<DateTime>? clock = null)
+    { _dispatch = dispatch; _clock = clock ?? (() => DateTime.UtcNow); }
     public bool IsEnabled { get; private set; }
 
     // Acquire synchronously before internal movement starts. Failed disable keeps external ownership.
@@ -24,7 +28,9 @@ public sealed class FsdBossMechanicsController
         if (active == _internalMovementOverride) return true;
         if (active && IsEnabled)
         {
-            if (!Send(_disableCommand)) return false;
+            if (_clock() < _nextOverrideAttempt) return false;
+            if (!Send(_disableCommand)) { _nextOverrideAttempt = _clock().AddMilliseconds(250); return false; }
+            _nextOverrideAttempt = default;
             _desiredEnabled = IsEnabled = false;
         }
         _internalMovementOverride = active;
@@ -63,7 +69,7 @@ public sealed class FsdBossMechanicsController
         bool enabled = !_internalMovementOverride && state.FloorKind != DeepDungeonFloorKind.Result &&
             (ProgressionModePolicy.IsProgression(mode) || state.FloorKind == DeepDungeonFloorKind.Boss);
         bool changed = on != _enableCommand || off != _disableCommand;
-        if (_hasPolicy && !changed && enabled == _desiredEnabled)
+        if (_hasPolicy && !changed && enabled == _desiredEnabled && (_lastCommandAccepted || _clock() < _nextCommandRetry))
             return;
         if (_hasPolicy && changed && _desiredEnabled)
             Send(_disableCommand);
@@ -72,6 +78,8 @@ public sealed class FsdBossMechanicsController
         _desiredEnabled = enabled;
         _hasPolicy = true;
         bool dispatched = Send(enabled ? on : off);
+        _lastCommandAccepted = dispatched;
+        _nextCommandRetry = dispatched ? default : _clock().AddSeconds(1);
         IsEnabled = enabled && dispatched;
     }
 
@@ -82,6 +90,7 @@ public sealed class FsdBossMechanicsController
         Send(_disableCommand);
         _hasPolicy = _desiredEnabled = IsEnabled = false;
         _runWasActive = _internalMovementOverride = false;
+        _lastCommandAccepted = true; _nextCommandRetry = _nextOverrideAttempt = default;
     }
 
     private bool Send(string command) =>

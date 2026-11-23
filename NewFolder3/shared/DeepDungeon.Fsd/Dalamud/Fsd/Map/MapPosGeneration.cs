@@ -5,6 +5,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DeepDungeon.Fsd.Core;
 using DeepDungeon.Fsd.Dalamud.Runtime.Helpers;
 using FFXIVClientStructs.FFXIV.Client.Game.Event;
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
@@ -31,6 +32,9 @@ namespace DeepDungeon.Fsd.Dalamud.Map
         private static readonly Dictionary<string, DateTime> _lastAutoGenerationAttempt = new();
         private static string _lastKey = string.Empty;
         private static bool _initialized;
+        private static readonly HohMapSession _hohSession = new();
+        private static DateTime _hohNextGenerationAt;
+        private static int _hohFloor = -1, _hohLayout = -1;
 
         private sealed class PersistFile
         {
@@ -79,6 +83,7 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 
         public static unsafe void OnEnterDeepDungeon(InstanceContentDeepDungeon* dd)
         {
+            _hohSession.Clear(); _hohFloor = _hohLayout = -1; _hohNextGenerationAt = default;
             // Clear stale debug snapshot from previous floor/layout
             RoomCenterGenerator.ClearDebugSnapshot();
             
@@ -91,6 +96,7 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 
         public static void OnExitDeepDungeon()
         {
+            _hohSession.Clear(); _hohFloor = _hohLayout = -1; _hohNextGenerationAt = default;
             lock (_lock)
             {
                 SaveToDisk_NoLock();
@@ -107,6 +113,8 @@ namespace DeepDungeon.Fsd.Dalamud.Map
                 return false;
             if (DutyTransitionUtil.IsBetweenAreas())
                 return false;
+            if (dd->DeepDungeonId == 2)
+                return EnsureHohCenters(dd, forceRegenerate);
 
             string key;
             var now = DateTime.UtcNow;
@@ -150,6 +158,9 @@ namespace DeepDungeon.Fsd.Dalamud.Map
                 return false;
             if (dd->ActiveLayoutIndex < 0 || dd->ActiveLayoutIndex > 2)
                 return false;
+            if (dd->DeepDungeonId == 2)
+                return EnsureHohCenters(dd, false) && Service.LocalPlayer is { } player &&
+                    _hohSession.TryGet(roomIndex, player.Position, out center);
             lock (_lock)
             {
                 var key = MakeKey(dd);
@@ -172,6 +183,16 @@ namespace DeepDungeon.Fsd.Dalamud.Map
                 return;
             if (dd->ActiveLayoutIndex < 0 || dd->ActiveLayoutIndex > 2)
                 return;
+            if (dd->DeepDungeonId == 2)
+            {
+                if (!EnsureHohCenters(dd, false) || Service.LocalPlayer is not { } player) return;
+                var rooms = new Vector3?[MaxRoomsPerFloor];
+                for (int i = 0; i < rooms.Length; i++)
+                    if (_hohSession.TryGet(i, player.Position, out var p)) rooms[i] = p;
+                rooms[roomIndex] = newCenter;
+                _hohSession.Set(rooms, player.Position);
+                return;
+            }
             lock (_lock)
             {
                 var key = MakeKey(dd);
@@ -191,6 +212,11 @@ namespace DeepDungeon.Fsd.Dalamud.Map
                 return false;
             if (dd->ActiveLayoutIndex < 0 || dd->ActiveLayoutIndex > 2)
                 return false;
+            if (dd->DeepDungeonId == 2)
+            {
+                _hohSession.Clear(); _hohNextGenerationAt = default;
+                return true;
+            }
             lock (_lock)
             {
                 var key = MakeKey(dd);
@@ -213,6 +239,7 @@ namespace DeepDungeon.Fsd.Dalamud.Map
 
         public static void ClearAllCenters()
         {
+            _hohSession.Clear(); _hohNextGenerationAt = default;
             lock (_lock)
             {
                 bool hadCenters = _centers.Count > 0;
@@ -238,6 +265,13 @@ namespace DeepDungeon.Fsd.Dalamud.Map
                 return false;
             if (dd->ActiveLayoutIndex < 0 || dd->ActiveLayoutIndex > 2)
                 return false;
+            if (dd->DeepDungeonId == 2)
+            {
+                EnterHohScope(dd);
+                bool accepted = Service.LocalPlayer is { } player && _hohSession.Set(centers, player.Position);
+                Service.Log.Info($"[HOH map] Runtime centers {(accepted ? "accepted" : "rejected")}: floor={dd->Floor}, layout={dd->ActiveLayoutIndex}, count={centers.Count(c => c.HasValue)}; persisted normal-layout cache not used");
+                return accepted;
+            }
 
             lock (_lock)
             {
@@ -347,6 +381,28 @@ namespace DeepDungeon.Fsd.Dalamud.Map
                     return true;
             }
             return false;
+        }
+
+        private static unsafe void EnterHohScope(InstanceContentDeepDungeon* dd)
+        {
+            if (_hohFloor != dd->Floor || _hohLayout != dd->ActiveLayoutIndex)
+            {
+                _hohFloor = dd->Floor; _hohLayout = dd->ActiveLayoutIndex;
+                _hohNextGenerationAt = default;
+                RoomCenterGenerator.ClearDebugSnapshot();
+            }
+            _hohSession.Enter(dd->Floor, dd->ActiveLayoutIndex);
+        }
+
+        private static unsafe bool EnsureHohCenters(InstanceContentDeepDungeon* dd, bool force)
+        {
+            if (DutyTransitionUtil.IsBetweenAreas() || Service.LocalPlayer is not { } player) return false;
+            EnterHohScope(dd);
+            if (!force && _hohSession.Available(player.Position)) return true;
+            if (DateTime.UtcNow < _hohNextGenerationAt) return false;
+            _hohNextGenerationAt = DateTime.UtcNow.AddSeconds(5);
+            // Do not read/write the persisted normal-layout cache for HoH, including layout index 0.
+            return TryAutoGenerateCenters(dd, $"HOH floor={dd->Floor}, layout={dd->ActiveLayoutIndex}, player={player.Position}");
         }
 
         private static unsafe bool TryAutoGenerateCenters(InstanceContentDeepDungeon* dd, string key)

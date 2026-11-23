@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="Fixtures/hoh90-last20.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures/hoh65-boss90.json" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="../../shared/DeepDungeon.Fsd/Core/DeepDungeon.Fsd.Core.csproj" />
     <ProjectReference Include="../../shared/DeepDungeon.Fsd/Runtime/DeepDungeon.Fsd.Runtime.csproj" />
   </ItemGroup>

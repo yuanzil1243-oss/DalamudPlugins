@@ -23,6 +23,8 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
     private readonly FsdApplication _application;
     private readonly YAxisAdjustController _yAxis;
     private readonly FsdWindow _window;
+    private readonly OriginalAuthorUpdateNoticeState _updateNoticeState = new();
+    private readonly OriginalAuthorUpdateNotice _updateNotice;
     private bool _disposed;
 
     public string Name => ProductIdentity.DisplayName;
@@ -66,7 +68,9 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
             _configuration =
                 pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             _configuration.Initialize(pluginInterface);
-            _accessGate = NewFolder3BuildProfile.CreateAccessGate(pluginInterface, pluginLog);
+            _updateNotice = new OriginalAuthorUpdateNotice(_updateNoticeState);
+            _accessGate = new OriginalAuthorUpdateNoticeAccessGate(
+                NewFolder3BuildProfile.CreateAccessGate(pluginInterface, pluginLog), _updateNoticeState);
             string hostVersion = typeof(Plugin).Assembly.GetName().Version?.ToString()
                 ?? throw new InvalidOperationException("Standalone host version is unavailable.");
             pluginLog.Information(
@@ -148,7 +152,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
 
             _commandManager.AddHandler(ProductIdentity.Command, new CommandInfo(OnCommand)
             {
-                HelpMessage = $"Open {ProductIdentity.DisplayName} Deep Dungeon FSD."
+                HelpMessage = $"Open {ProductIdentity.DisplayName} Deep Dungeon FSD. Boss circle: /newfolder3 circle [radius] [cw|ccw], off, status."
             });
             commandRegistered = true;
 
@@ -196,12 +200,19 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
 
     private void Draw()
     {
+        if (!_updateNoticeState.Acknowledged)
+        {
+            _updateNotice.Draw();
+            return;
+        }
         _windows.Draw();
         _yAxis.DrawOverlay();
     }
 
     private void OnFrameworkUpdate(IFramework framework)
     {
+        if (!_updateNoticeState.Acknowledged)
+            return;
         _application.Update(framework);
         _yAxis.Update(_application.CurrentDeepDungeonState);
         _communityEvidenceCollector?.ObserveRunState(
@@ -217,8 +228,12 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
 
     private void OnCommand(string command, string arguments)
     {
+        if (!_updateNoticeState.Acknowledged)
+            return;
         var args = arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (args.Length > 0 && args[0].Equals("fsd", StringComparison.OrdinalIgnoreCase))
+        if (args.Length > 0 && args[0].Equals("circle", StringComparison.OrdinalIgnoreCase))
+            _application.HandleBossCircleCommand(args[1..]);
+        else if (args.Length > 0 && args[0].Equals("fsd", StringComparison.OrdinalIgnoreCase))
             _application.HandleCommand(args[1..]);
         else
             _window.Toggle();

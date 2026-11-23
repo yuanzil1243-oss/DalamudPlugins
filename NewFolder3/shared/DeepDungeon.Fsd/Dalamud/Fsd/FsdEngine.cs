@@ -110,7 +110,8 @@ namespace DeepDungeon.Fsd.Dalamud
         }
 
         internal DutyState? DutyState => _dutyState;
-        internal bool IsRunActive => _ddHost is { FsdActive: true, FarmingPaused: false, ExplorationErrorPaused: false, DutyEntryReady: true };
+        internal bool IsRunActive => _ddHost is { FsdActive: true, FarmingPaused: false, ExplorationErrorPaused: false, DutyEntryReady: true } &&
+            _ddHost.Context?.HohContinuity.HoldsControls != true;
         internal string? ActiveDetailedMapReleaseId =>
             _detailedMapCatalogManager.ActiveRunReleaseId;
         public DeepDungeonStateSnapshot CurrentDeepDungeonState => _currentDeepDungeonState;
@@ -228,6 +229,9 @@ namespace DeepDungeon.Fsd.Dalamud
         
         private void ExitDeepDungeon()
         {
+            ResetHoh90Kiting();
+            _hohGazeMovement?.Reset();
+            _hohBossOrbit?.Stop("离开副本，绕圈已结束");
             try
             {
                 ClearPendingPassageFollowup();
@@ -285,6 +289,7 @@ namespace DeepDungeon.Fsd.Dalamud
             RefreshDeepDungeonStateSnapshot();
 
             // Tick the host to allow entry flows outside duty (FSD mode)
+            _ddHost?.ObserveHohContinuity();
             UpdateCompanionControls();
             _configuration.BossMechanicsActive = _bossMechanics.IsEnabled;
             if (_ddHost?.Context is { } movementContext)
@@ -295,6 +300,7 @@ namespace DeepDungeon.Fsd.Dalamud
             _ddHost?.Update(framework);
             UpdateReplaySupport();
             UpdateCompanionControls();
+            UpdateHohBossOrbit();
             _configuration.BossMechanicsActive = _bossMechanics.IsEnabled;
             if (_detailedMapCatalogManager.ActiveRunSnapshot != null &&
                 _ddHost?.FsdActive != true)
@@ -519,6 +525,10 @@ namespace DeepDungeon.Fsd.Dalamud
 
         public void Dispose()
         {
+            DisposeHoh90Kiting();
+            DisposeHoh70Puddle();
+            DisposeHohGazeMovement();
+            DisposeHohBossOrbit();
             _bossMechanics.Stop();
             _rotationControl.Reset();
             Service.ClientState.TerritoryChanged -= OnTerritoryChanged;

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using DeepDungeon.Fsd.Core;
 using DeepDungeon.Fsd.Dalamud;
 using DeepDungeon.Fsd.Dalamud.GameState;
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
@@ -382,6 +383,13 @@ namespace DeepDungeon.Fsd.Dalamud.Map
             
             // Detect grid configuration by trying both grids and comparing fit
             var grid = DetectGridConfig(roomCenters);
+            if (dd->DeepDungeonId == 2)
+            {
+                var nativeRooms = new List<int>();
+                for (int i = 0; i < dd->MapData.Length; i++)
+                    if (((ushort)dd->MapData[i] & 0xF) != 0) nativeRooms.Add(i);
+                if (HohMapSession.IsLargeRoomMap(nativeRooms)) grid = Grid4x3;
+            }
             int minClusters = Math.Min(grid.Cols, grid.Rows);
 
             // Store grid detection info in debug snapshot

@@ -44,6 +44,48 @@ public static class PassageCombatPolicy
     // An enemy already close to the starting point must not make retreat impossible, but we cannot approach it.
     public static bool SafeLocalPath(IReadOnlyList<Vector3> path, Vector3 start,
         IEnumerable<Vector3> idleEnemies, float maxLength = 22)
+        => SafeLocalPath(path, start, idleEnemies, maxLength, 0);
+
+    public static bool SafeHohRecoveryPath(IReadOnlyList<Vector3> path, Vector3 start,
+        IEnumerable<Vector3> idleEnemies, float maxLength = CombatPositionPolicy.MaximumPathLength) =>
+        TrySafeHohRecoveryPath(path, start, idleEnemies, out _, out _, out _, out _, maxLength);
+
+    public static bool TrySafeHohRecoveryPath(IReadOnlyList<Vector3> path, Vector3 start,
+        IEnumerable<Vector3> idleEnemies, out Vector3 blocker, out float startDistance,
+        out float minimumDistance, out string reason, float maxLength = CombatPositionPolicy.MaximumPathLength)
+    {
+        blocker = default; startDistance = minimumDistance = 0; reason = "invalid-path";
+        if (path.Count == 0 || !Finite(start)) return false;
+        var enemies = idleEnemies.ToArray();
+        if (enemies.Any(e => !Finite(e))) return false;
+        float length = 0;
+        var previous = start;
+        foreach (var point in path)
+        {
+            if (!Finite(point) || Math.Abs(point.Y - start.Y) > 3) return false;
+            length += Vector2.Distance(Xz(previous), Xz(point));
+            if (length > maxLength) { reason = "path-too-long"; return false; }
+            foreach (var enemy in enemies)
+            {
+                float initial = Vector2.Distance(Xz(start), Xz(enemy));
+                // A nearby idle enemy is never ignored: only movement away from its existing envelope is legal.
+                float clearance = initial < 2 ? initial : Math.Min(12, initial - .25f);
+                var segment = Xz(point) - Xz(previous);
+                float t = segment.LengthSquared() < .001f ? 0 : Math.Clamp(Vector2.Dot(Xz(enemy) - Xz(previous), segment) / segment.LengthSquared(), 0, 1);
+                float nearest = Vector2.Distance(Xz(previous) + t * segment, Xz(enemy));
+                if (nearest + .001f < clearance)
+                {
+                    blocker = enemy; startDistance = initial; minimumDistance = nearest;
+                    reason = "unengaged-enemy-on-local-path"; return false;
+                }
+            }
+            previous = point;
+        }
+        reason = "safe-path"; return true;
+    }
+
+    private static bool SafeLocalPath(IReadOnlyList<Vector3> path, Vector3 start,
+        IEnumerable<Vector3> idleEnemies, float maxLength, float ignoreNearStart)
     {
         if (path.Count == 0 || !Finite(start)) return false;
         var enemies = idleEnemies.ToArray();
@@ -56,7 +98,9 @@ public static class PassageCombatPolicy
             if (length > maxLength) return false;
             foreach (var enemy in enemies)
             {
-                float clearance = Math.Min(12, Vector2.Distance(Xz(start), Xz(enemy)) - .25f);
+                float startDistance = Vector2.Distance(Xz(start), Xz(enemy));
+                if (startDistance < ignoreNearStart) continue;
+                float clearance = Math.Min(12, startDistance - .25f);
                 if (clearance <= 0) return false;
                 var segment = Xz(point) - Xz(previous);
                 float t = segment.LengthSquared() < .001f ? 0 : Math.Clamp(Vector2.Dot(Xz(enemy) - Xz(previous), segment) / segment.LengthSquared(), 0, 1);

@@ -97,7 +97,9 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Helpers
 		/// </summary>
 		public unsafe bool UseStone(byte stoneId)
 		{
-			if (!CanDispatchItemRequest() || !TryGetDeepDungeon(nameof(UseStone), out var dd))
+			if (!TryGetDeepDungeon(nameof(UseStone), out var dd) ||
+                dd->DeepDungeonId == 2 && !DeepDungeon.Fsd.Core.DeepDungeonFloorItemUsePolicy.CanUseHohMagicite(dd->DeepDungeonBanId) ||
+                !CanDispatchItemRequest())
 				return false;
 
 			var stones = dd->Magicite;

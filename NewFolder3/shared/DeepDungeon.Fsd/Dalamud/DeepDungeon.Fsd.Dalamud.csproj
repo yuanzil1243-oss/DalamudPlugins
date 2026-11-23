@@ -12,7 +12,7 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <IsPackable>true</IsPackable>
     <PackageId>DeepDungeon.Fsd.Dalamud</PackageId>
-    <Version>3.0.1</Version>
+    <Version>3.0.8</Version>
     <Authors>DeepDungeon.Fsd</Authors>
     <Description>Dalamud/native adapters and the canonical Deep Dungeon FSD application.</Description>
   </PropertyGroup>

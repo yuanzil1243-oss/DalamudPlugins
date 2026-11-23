@@ -1,14 +1,23 @@
-# 构建 NewFolder3
+# 构建 NewFolder3 0.7.55.83-final-local
 
-这是 0.7.55.41 正式版的公开源码（包含此前.36–.40测试版功能）；上层目录的 docs 提供使用、开发及发布说明。
+这是基于 `.82-final-local` 第2次打包版的本地修改版源码，本次仅新增原作者更新确认提示。
 
-安装 global.json 所指定的 .NET10 SDK，准备国服 Dalamud API15 开发程序集。项目会读取 DALAMUD_HOME 或默认卫月开发库目录。OmenTools 跟踪源码已直接包含，无须初始化子模块。
+原作者已经完善了死宫、天宫、妖宫的下底功能，推荐使用原作者版本。
+
+- [原作者仓库](https://github.com/transparent-duck/NewFolder3)
+- 原作者库链：
+
+```text
+https://raw.githubusercontent.com/transparent-duck/NewFolder3/refs/heads/main/NewFolder3-release.json
+```
+
+安装 `global.json` 指定的.NET SDK，准备国服 Dalamud API15 开发程序集。OmenTools公开源码已随附，无须初始化子模块。
 
 ```powershell
 dotnet build NewFolder3.csproj -c Release -p:Platform=x64
-dotnet run --project tests/NewFolder3.MechanicTests -c Release
 dotnet run --project tests/NewFolder3.ContractTests -c Release
+dotnet run --project tests/NewFolder3.MechanicTests -c Release
 dotnet run --project tests/NewFolder3.RestExitTests -c Release
 ```
 
-采用公开 PublicRepository/allow-all 能力，仅从本插件仓库读取已签名地图，不启用用户数据上传。不附带上游私有服务、私有构建覆盖层、游戏/卫月 SDK 或个人配置；经授权整理的公共地图位于上层 data/NewFolder3。首次构建需从 NuGet 还原开发依赖。
+969+250+22=1241项离线检查通过，构建0错误、14项既有警告。新增提示窗尚待游戏界面验证。保留公开地图签名校验，不附带个人日志、配置、SDK、私有服务或上传端点。详见上级 `docs/发布说明-0.7.55.83-final-local.md`。

@@ -384,6 +384,11 @@ tests.Add(("dropped-chest-batch-in-searched-room-gets-a-new-objective-identity",
         ObjectiveOutcomeApplyStatus.Accepted, "new chest batch can finish independently");
 }));
 
+tests.AddRange(Hoh90MeteorTests.Cases());
+tests.AddRange(Hoh66Boss90Tests.Cases());
+tests.AddRange(Hoh69KitingTests.Cases());
+tests.AddRange(Hoh81MeteorTests.Cases());
+tests.AddRange(Hoh51RegressionTests.Cases());
 tests.AddRange(EndgameRegressionTests.Cases());
 tests.AddRange(Run30RegressionTests.Cases());
 tests.AddRange(Run31RegressionTests.Cases());

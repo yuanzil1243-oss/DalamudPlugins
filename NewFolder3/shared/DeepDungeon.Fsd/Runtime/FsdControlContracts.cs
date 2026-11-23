@@ -24,6 +24,7 @@ public sealed record FsdFarmingRequest(
     FarmingTargets Targets,
     FsdStartRequest? Checkpoint = null)
 {
+    public uint DungeonId { get; init; } = 4;
     public bool PreserveSaveOnCompletion { get; init; }
 }
 

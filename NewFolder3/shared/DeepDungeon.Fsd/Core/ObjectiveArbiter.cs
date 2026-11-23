@@ -33,7 +33,8 @@ namespace DeepDungeon.Fsd.Core
         bool ActiveChestInteraction,
         bool RequiredChestWork = false,
         bool SuppressCombat = false,
-        bool PassageFirst = false);
+        bool PassageFirst = false,
+        bool RecoverActiveChest = false);
 
     public readonly record struct ObjectiveChannelPermissions(
         CommandChannelPermission Movement,
@@ -52,7 +53,8 @@ namespace DeepDungeon.Fsd.Core
             var primary = SelectPrimary(snapshot);
             bool enteringPassage = primary == FloorObjectiveKind.EnterPassage;
             bool finishingCombatBeforePassage = primary == FloorObjectiveKind.FinishCombatBeforePassage;
-            var interaction = snapshot.PassageFirst && (!snapshot.PassageOpen || snapshot.CombatInProgress)
+            var interaction = snapshot.RecoverActiveChest ? CommandChannelPermission.CompatibleSidecar :
+                snapshot.PassageFirst && (!snapshot.PassageOpen || snapshot.CombatInProgress)
                 ? CommandChannelPermission.Blocked
                 : snapshot.ActiveChestInteraction &&
                 primary == FloorObjectiveKind.OpenVisibleBandedChest
@@ -84,6 +86,8 @@ namespace DeepDungeon.Fsd.Core
         {
             if (snapshot.BossObjective)
                 return FloorObjectiveKind.DefeatBoss;
+            if (snapshot.RecoverActiveChest)
+                return FloorObjectiveKind.OpenPlannedChest;
             // Suspend exploration without completing its ledger or pruning its route.
             // Once open, pending work below still blocks the transition channel.
             if (snapshot.PassageFirst && snapshot.CombatInProgress)

@@ -7,7 +7,7 @@ public sealed class AeRotationControl(Func<bool> readRunning, Func<bool> readPul
     public bool? LastStopRequest { get; private set; }
     public FsdRotationState ReadState()
     {
-        if (!readRunning() || !readPull() || LastStopRequest == true) return FsdRotationState.Off;
+        if (!readRunning() || !readPull()) return FsdRotationState.Off;
         return LastStopRequest == false ? FsdRotationState.On : FsdRotationState.Unknown;
     }
 

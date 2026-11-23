@@ -23,6 +23,35 @@ public static class CombatPositionPolicy
     public static bool IsFinite(Vector3 point) =>
         float.IsFinite(point.X) && float.IsFinite(point.Y) && float.IsFinite(point.Z);
 
+    public static bool HasRealHorizontalMove(Vector3 start, Vector3 end, float minimum = 1) =>
+        IsFinite(start) && IsFinite(end) && Vector2.DistanceSquared(new(start.X, start.Z), new(end.X, end.Z)) >= minimum * minimum;
+
+    /// <summary>Sample the returned ground path, rather than snapping a bridge endpoint onto a different storey.</summary>
+    public static bool HasContinuousGround(IReadOnlyList<Vector3> path, Vector3 start,
+        Func<Vector3, Vector3?> ground, Func<Vector3, Vector3, bool> clear,
+        out float maximumHeightStep)
+    {
+        maximumHeightStep = 0;
+        var previous = start;
+        foreach (var end in path)
+        {
+            if (!IsFinite(end)) return false;
+            var from = previous;
+            int samples = Math.Max(1, (int)Math.Ceiling(Vector3.Distance(from, end) / .5f));
+            if (samples > 100) return false;
+            for (int i = 1; i <= samples; i++)
+            {
+                var expected = Vector3.Lerp(from, end, i / (float)samples);
+                if (ground(expected) is not { } actual || !IsFinite(actual) ||
+                    Math.Abs(actual.Y - expected.Y) > .4f || !clear(previous, actual)) return false;
+                maximumHeightStep = Math.Max(maximumHeightStep, Math.Abs(actual.Y - previous.Y));
+                if (maximumHeightStep > .75f) return false;
+                previous = actual;
+            }
+        }
+        return true;
+    }
+
     public static bool WithinRange(Vector3 position, Vector3 target, float actionRange,
         float playerRadius, float targetRadius, float yOffset, float margin)
     {
@@ -36,10 +65,15 @@ public static class CombatPositionPolicy
     }
 
     public static bool ValidatePathEndpoint(Vector3 start, Vector3 requested,
-        IReadOnlyList<Vector3>? path, out float length, out string reason)
+        IReadOnlyList<Vector3>? path, out float length, out string reason) =>
+        ValidatePathEndpoint(start, requested, path, out length, out reason, MaximumPathLength);
+
+    public static bool ValidatePathEndpoint(Vector3 start, Vector3 requested,
+        IReadOnlyList<Vector3>? path, out float length, out string reason, float maximumPathLength)
     {
         length = 0;
-        if (!IsFinite(start) || !IsFinite(requested) || path == null || path.Count == 0)
+        if (!IsFinite(start) || !IsFinite(requested) || path == null || path.Count == 0 ||
+            !float.IsFinite(maximumPathLength) || maximumPathLength <= 0)
         { reason = "invalid-path"; return false; }
         var actual = path[^1];
         if (!IsFinite(actual)) { reason = "non-finite-path"; return false; }
@@ -54,7 +88,7 @@ public static class CombatPositionPolicy
             length += Vector3.Distance(previous, point);
             previous = point;
         }
-        if (length > MaximumPathLength) { reason = "path-too-long"; return false; }
+        if (length > maximumPathLength) { reason = "path-too-long"; return false; }
         reason = "endpoint-verified";
         return true;
     }
@@ -72,8 +106,9 @@ public sealed class CombatRecoveryBudget
     public bool Exhausted => ConsecutiveFailures >= MaximumFailuresPerFloor;
     public bool HasExhaustedTargets => _failures.Values.Any(count => count >= MaximumFailuresPerTarget);
     public bool AllRecordedTargetsExhausted => _failures.Count > 0 && _failures.Values.All(count => count >= MaximumFailuresPerTarget);
-    public bool IsTargetExhausted(ulong targetId, bool engaged = false) =>
-        (engaged ? _engagedFailures : _failures).TryGetValue(targetId, out int count) && count >= MaximumFailuresPerTarget;
+    public bool IsTargetExhausted(ulong targetId, bool engaged = false, int maximumFailures = MaximumFailuresPerTarget) =>
+        (engaged ? _engagedFailures : _failures).TryGetValue(targetId, out int count) &&
+        count >= Math.Max(1, maximumFailures);
     public void RecordFailure(ulong targetId, bool engaged = false)
     {
         var failures = engaged ? _engagedFailures : _failures;

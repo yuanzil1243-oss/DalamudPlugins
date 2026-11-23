@@ -16,7 +16,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	/// DutyState and general assists (auto-spin, recovery potion) are owned by FsdEngine,
 	/// not by this host. RunHost receives DutyState as a dependency.
 	/// </summary>
-	public sealed class RunHost : IDisposable
+	public sealed partial class RunHost : IDisposable
 	{
 		private readonly FsdSettings _configuration;
 
@@ -209,6 +209,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		{
 			if (!_isFsdMode || FarmingPaused)
 				return;
+            if (_context?.HohContinuity.HoldsHost == true) return;
 
             if (ExplorationErrorPaused && _context != null)
             {
@@ -474,6 +475,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		var player = Service.LocalPlayer;
 		if (player == null || !player.IsDead)
 			return;
+        if (DeepDungeon.Fsd.Runtime.HohRunContinuity.Applies(_context.FarmingPlan?.Mode, _context.Duty.DungeonId) &&
+            _context.HohContinuity.Phase != DeepDungeon.Fsd.Runtime.HohContinuityPhase.ConfirmedDeath) return;
 
         _context.MarkDutyFailed();
         if (_context.FarmingPlan?.IsProgression == true)
@@ -804,6 +807,16 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	{
 		try
 		{
+            if (DeepDungeon.Fsd.Runtime.HohRunContinuity.Applies(context.FarmingPlan?.Mode, context.Duty.DungeonId) &&
+                context.HohContinuity.DeferWipe(Service.LocalPlayer?.IsDead == true, DateTime.UtcNow))
+            {
+                if (Service.LocalPlayer is { IsDead: true }) context.HohContinuity.ObserveDeath(DateTime.UtcNow);
+                _floorController.CancelActiveMovement();
+                _floorController.RecordReplayEvent("hoh-wipe-awaiting-revival", new { floor = context.Duty.Floor,
+                    phase = context.HohContinuity.Phase.ToString(), playerDead = Service.LocalPlayer?.IsDead,
+                    reason = Service.LocalPlayer?.IsDead == true ? "observed-death-awaiting-revival" : "late-wipe-or-disconnected-frame-retained" });
+                return;
+            }
             if (context.ExplorationRecovery.IsPaused)
             { context.ExplorationRecovery.Clear(); context.StatusIsError = false; }
 			if (context.StatusIsError)

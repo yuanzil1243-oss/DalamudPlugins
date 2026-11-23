@@ -16,7 +16,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	/// Per-loop instance context; contains runtime services and cancellation.
 	/// Created once per dungeon run, survives until duty exit.
 	/// </summary>
-	public sealed class RunContext : IDisposable
+	public sealed partial class RunContext : IDisposable
 	{
 		public readonly FsdSettings Configuration;
 		public readonly CancellationTokenSource CancellationSource;
@@ -38,24 +38,78 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
         internal DeepDungeon.Fsd.Core.FarmingPlan? FarmingPlan;
         internal Func<bool, bool>? SetBossMovementOverride;
         internal bool Pt99InitialColorMovementActive;
+        internal readonly DeepDungeon.Fsd.Runtime.HohPetrificationState HohPetrification = new();
+        internal readonly DeepDungeon.Fsd.Runtime.HohRunContinuity HohContinuity = new();
+        internal readonly DeepDungeon.Fsd.Runtime.HohShieldBreakState HohShieldBreak = new();
+        internal bool ShieldBreakOutputPermitted;
         internal Action<bool>? SetBossRotationSuppressed;
         internal Action<string, object>? RecordDiagnostic;
         internal long CombatPreparationSequence { get; private set; }
         internal readonly WisdomCombatState WisdomCombat = new();
         private DateTime _nextWisdomAutoStop;
+        private readonly HashSet<object> _hohRecoveryMovementOwners = new();
+        internal bool HohRecoveryMovementActive => _hohRecoveryMovementOwners.Count > 0 &&
+            HohCurrentDutyResumePolicy.UsesBoundedReposition(FarmingPlan?.Mode, Duty.DungeonId, Duty.Floor);
+        internal void SetHohRecoveryMovement(object owner, bool active)
+        {
+            bool changed = active ? _hohRecoveryMovementOwners.Add(owner) : _hohRecoveryMovementOwners.Remove(owner);
+            if (changed) RecordDiagnostic?.Invoke("hoh-recovery-movement-state", new {
+                moving = HohRecoveryMovementActive, owners = _hohRecoveryMovementOwners.Count,
+                floor = Duty.Floor, reason = active ? "validated-recovery-search-or-movement" : "output-validation-or-release" });
+        }
         internal bool WisdomConfirmed
         {
             get { WisdomCombat.Sync(Duty.DungeonId, Duty.Floor); return WisdomCombat.Confirmed; }
         }
         internal bool PassageOpenForCombat => Duty.PassageOpen || WisdomConfirmed;
-        internal bool NormalCombatOutputSuppressed => WisdomConfirmed && WisdomCombat.SuppressOutput(MobCombat.Engaged.Count);
+        internal bool NormalCombatOutputSuppressed => HohContinuity.HoldsControls || WisdomConfirmed && WisdomCombat.SuppressOutput(MobCombat.Engaged.Count) ||
+            Duty.DungeonId == 2 && HohPetrification.StopAttackingAfterClear && !HohCombatInProgress;
+        // HoH91+ also feeds the shared local-consolidation adapter. Earlier HoH floors
+        // retain the native combat flag and existing target-of-player / hater check.
+        internal bool HohCombatInProgress => Duty.DungeonId == 2 &&
+            (Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat] ||
+             HohTargetingEnabled && HohCombatTargets.HasEngagement ||
+             Service.GameObjects.OfType<IBattleChara>().Any(e =>
+                 e.ObjectKind == global::Dalamud.Game.ClientState.Objects.Enums.ObjectKind.BattleNpc &&
+                 (global::Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind)e.SubKind == global::Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind.Combatant &&
+                 e.IsTargetable && !e.IsDead && e.CurrentHp > 0 && IsEngagedCombatTarget(e)));
+        internal bool IsHohPetrificationTargetAllowed(IBattleChara target) => Duty.DungeonId != 2 ||
+            HohHighFloorPolicy.Enabled(FarmingPlan?.Mode, Duty.DungeonId, Duty.Floor) && IsEngagedCombatTarget(target) ||
+            HohPetrification.AllowsTarget(HohPetrification.Clearing && IsHohPetrified(target),
+                HohPetrification.StopAttackingAfterClear && IsEngagedCombatTarget(target));
+        internal static bool IsHohPetrified(IBattleChara e) => e.StatusList.Any(s => s.StatusId == DeepDungeon.Fsd.Runtime.HohPetrificationState.StoneCurseStatus);
+        internal bool IsHohPetrificationClearTarget(IBattleChara target) =>
+            Hoh70FloorPolicy.Enabled(FarmingPlan?.Mode, Duty.DungeonId, Duty.Floor) &&
+            HohPetrification.Clearing && target.StatusList?.Any(s =>
+                s.StatusId == DeepDungeon.Fsd.Runtime.HohPetrificationState.StoneCurseStatus) == true;
+
+        internal IBattleChara? SelectHohPetrifiedTarget(IEnumerable<IBattleChara> candidates, Vector3 player)
+        {
+            candidates = candidates.Where(IsHohVoluntaryTargetAllowed);
+            ulong preferred = TryGetPreferredAggroTarget(out var id) ? id : 0;
+            return HohPetrifiedTargetPolicy.Select(candidates, IsEngagedCombatTarget,
+                e => IsCombatTargetSuppressed(e.GameObjectId), e => Vector3.DistanceSquared(player, e.Position),
+                e => e.GameObjectId == preferred,
+                e => IsEngagedCombatTarget(e) && Hoh70FloorPolicy.IsCentaur(e.BaseId, e.NameId));
+        }
 
         internal bool IsEngagedCombatTarget(IBattleChara target) =>
-            Floor.EnemyChaseHelper.IsAggroedToPlayer(target.GameObjectId) ||
-            target.TargetObjectId == Service.LocalPlayer?.GameObjectId;
+            HohTargetingEnabled ? HohCombatTargets.IsEngaged(target.GameObjectId) || IsNativeEngagedCombatTarget(target) :
+                Floor.EnemyChaseHelper.IsAggroedToPlayer(target.GameObjectId) || target.TargetObjectId == Service.LocalPlayer?.GameObjectId;
 
         internal void EnforceWisdomTargetGate()
         {
+            ClearUnsafeHohPullTargets();
+            if (Duty.DungeonId == 2 && (HohPetrification.Clearing || HohPetrification.StopAttackingAfterClear))
+            {
+                bool blocked = false;
+                if (Service.TargetManager.Target is IBattleChara ht && !IsHohPetrificationTargetAllowed(ht))
+                { Service.TargetManager.Target = null; blocked = true; }
+                if (Service.TargetManager.SoftTarget is IBattleChara hs && !IsHohPetrificationTargetAllowed(hs))
+                { Service.TargetManager.SoftTarget = null; blocked = true; }
+                if ((blocked || NormalCombatOutputSuppressed) && DateTime.UtcNow >= _nextWisdomAutoStop)
+                { _nextWisdomAutoStop = DateTime.UtcNow.AddMilliseconds(500); OmenTools.Interop.Game.ExecuteCommand.Implementations.AutoAttackCommand.Disable(); }
+            }
             if (!WisdomConfirmed) return;
             bool cleared = false;
             if (Service.TargetManager.Target is IBattleChara target &&
@@ -124,9 +178,10 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	internal RunContext(
 		FsdSettings configuration,
 		DutyState dutyState,
-		DetailedMapRunSnapshot detailedMap)
+		DetailedMapRunSnapshot detailedMap, Func<nint>? currentDeepDungeon = null)
 	{
 		Configuration = configuration;
+        _currentDeepDungeon = currentDeepDungeon ?? ReadCurrentDeepDungeon;
 		DetailedMap = detailedMap ??
 			throw new ArgumentNullException(nameof(detailedMap));
 		CancellationSource = new CancellationTokenSource();
@@ -154,15 +209,29 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	public CancellationToken Token => CancellationSource.Token;
 
     // Existing hate is an obligation, even for a mob we would not voluntarily pull.
+    internal int ControlledCombatEngagedCount => HohHighFloorPolicy.ControlsCombat(FarmingPlan?.Mode, Duty.DungeonId, Duty.Floor)
+        ? Math.Max(MobCombat.Engaged.Count, Math.Max(HohCombatTargets.EngagedCount,
+            Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat] ? 1 : 0))
+        : MobCombat.Engaged.Count;
+
     internal bool IsNewCombatTargetAllowed(IBattleChara target) =>
+        (!HohCentaurFightActive || IsEngagedCombatTarget(target)) &&
+        IsHohVoluntaryTargetAllowed(target) &&
+        (Duty.DungeonId == 2 && (HohPetrification.Clearing || HohPetrification.StopAttackingAfterClear)
+            ? IsHohPetrificationTargetAllowed(target) :
         PassageCombatPolicy.AllowsNewTarget(WisdomConfirmed,
-            MobCombatPolicy.HighFloorEnabled(FarmingPlan?.Mode, Duty.DungeonId, Duty.Floor),
-            PassageOpenForCombat, MobCombat.Engaged.Count, IsEngagedCombatTarget(target),
+            MobCombatPolicy.UsesControlledHighFloor(FarmingPlan?.Mode, Duty.DungeonId, Duty.Floor),
+            PassageOpenForCombat, ControlledCombatEngagedCount, IsEngagedCombatTarget(target),
             MobCombat.IsLocalSupplementCandidate(this, target)) &&
         DeepDungeon.Fsd.Core.MobPullPolicy.CanInitiateControlled(FarmingPlan?.Mode, Duty.DungeonId, Duty.Floor,
             target.NameId, MobCombat.Engaged.Count, MobCombat.DangerousEngaged,
-            Floor.EnemyChaseHelper.IsAggroedToPlayer(target.GameObjectId) ||
-            target.TargetObjectId == Service.LocalPlayer?.GameObjectId);
+            HohTargetingEnabled ? IsEngagedCombatTarget(target) :
+                Floor.EnemyChaseHelper.IsAggroedToPlayer(target.GameObjectId) ||
+                target.TargetObjectId == Service.LocalPlayer?.GameObjectId)) &&
+        (Duty.DungeonId == 2 && HohPetrification.Clearing && IsHohPetrified(target) ||
+            !HohHighFloorPolicy.ControlsCombat(FarmingPlan?.Mode, Duty.DungeonId, Duty.Floor) ||
+            PassageCombatPolicy.AllowsNewTarget(WisdomConfirmed, true, PassageOpenForCombat,
+                ControlledCombatEngagedCount, IsEngagedCombatTarget(target), MobCombat.IsLocalSupplementCandidate(this, target)));
 
 	public void Cancel()
 	{
@@ -180,7 +249,10 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	/// </summary>
 	public void ResetAttemptState()
 	{
+        HohContinuity.Reset();
         WisdomCombat.Reset();
+        HohCombatTargets.Reset();
+        HohPetrification.BeginFloor(0, 0);
         ExplorationRecovery.Clear();
 		// Clear error state
 		StatusIsError = false;
@@ -199,6 +271,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 
 	public void Dispose()
 	{
+        _hohRecoveryMovementOwners.Clear();
+        HohCombatTargets.Reset();
         try { CombatAssist.Reset(this); } catch { }
         WisdomCombat.Reset();
 		try { MobCombat.Dispose(); } catch { }
@@ -306,6 +380,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	{
 		if (targetId == 0)
 			return false;
+        if (HohTargetingEnabled && (HohCombatTargets.IsEngaged(targetId) ||
+            (Service.GameObjects?.OfType<IBattleChara>() ?? Enumerable.Empty<IBattleChara>()).Any(e => e.GameObjectId == targetId && IsNativeEngagedCombatTarget(e)))) return false;
         if (MobCombat.Engaged.Any(enemy => enemy.GameObjectId == targetId)) return false;
 		if (CombatRecoveryBudget.IsTargetExhausted(targetId))
 			return true;

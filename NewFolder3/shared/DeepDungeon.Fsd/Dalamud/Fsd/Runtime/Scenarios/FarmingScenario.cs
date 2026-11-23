@@ -9,6 +9,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Scenarios;
 internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUiCleanup? entryUiCleanup = null,
     IDeleteSaveFlow? deleteSaveFlow = null) : IScenario
 {
+    private readonly DungeonData _dungeon = DungeonCatalog.TryGetByDungeonId(session.Plan.DungeonId, out var dungeon) ? dungeon : throw new ArgumentException("Unsupported dungeon");
     private readonly DeepDungeonEntryUiCleanup _entryUiCleanup = entryUiCleanup ?? new();
     private RunContext? _context;
     private GenericEntryFlow? _create;
@@ -20,7 +21,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
     private bool _entered, _restDone, _complete, _recoverFailure, _aborted;
     private int _entryFloor;
 
-    public string Name => $"PT {session.Plan.DisplayName} ({(session.Plan.SaveUse == SaveUse.Prepared ? session.Source.Description : $"{session.NextFloor} 層")})";
+    public string Name => $"{(session.Plan.DungeonId == 2 ? "天宮" : "PT")} {session.Plan.DisplayName} ({(session.Plan.SaveUse == SaveUse.Prepared ? session.Source.Description : $"{session.NextFloor} 層")})";
     public bool IsComplete => _complete;
     public bool ShouldLoop => !_aborted;
     public bool CountsAsCycle { get; private set; }
@@ -66,12 +67,12 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
         }
         else if (plan.SaveUse == SaveUse.Prepared || session.OwnedSlot >= 0)
         {
-            _prepared = new PreparedSaveFlow(session.PrepareSource());
+            _prepared = new PreparedSaveFlow(session.PrepareSource(), dungeon: _dungeon);
             _prepared.Prepare(context);
         }
         else
         {
-            _create = new GenericEntryFlow(DungeonCatalog.PilgrimsTraverse, session.NextFloor, 0);
+            _create = new GenericEntryFlow(_dungeon, session.NextFloor, 0);
             _create.Prepare(context);
         }
     }
@@ -125,7 +126,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
             }
             ctx.TerminalRewardsRequired = _entryFloor == 91;
             _entered = true;
-            if (ctx.Duty.DungeonId != 4 || ctx.Duty.Floor != _entryFloor)
+            if (ctx.Duty.DungeonId != session.Plan.DungeonId || ctx.Duty.Floor != _entryFloor)
             {
                 ctx.StatusLine = $"入場地宮／樓層與來源不符：預期第 {_entryFloor} 聖路，實際第 {ctx.Duty.Floor} 聖路（地宮 {ctx.Duty.DungeonId}）；請手動退本並檢查存檔。";
                 ctx.RecordDiagnostic?.Invoke("entry-floor-mismatch", new { expectedFloor = _entryFloor,
@@ -195,7 +196,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
             _complete = true;
             return;
         }
-        _rest ??= new PilgrimsTraverseRestExitFlow(requireValidatedConfirmation: true);
+        _rest ??= new PilgrimsTraverseRestExitFlow(requireValidatedConfirmation: true, dungeon: _dungeon);
         if (!_restDone)
         {
             if (!_rest.IsPrepared) _rest.Prepare(ctx);
@@ -209,7 +210,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
         var decision = FarmingSessionPolicy.Decide(session.Plan, result);
         if (session.Plan.ReusesSave)
         {
-            _verification ??= new PreparedSaveFlow(session.Source, verifyOnly: true);
+            _verification ??= new PreparedSaveFlow(session.Source, verifyOnly: true, dungeon: _dungeon);
             if (!_verificationPrepared) { _verification.Prepare(ctx); _verificationPrepared = true; }
             if (!_verification.Update(framework)) return;
             if (ctx.StatusIsError) { _complete = true; return; }
@@ -225,7 +226,7 @@ internal sealed class FarmingScenario(FarmingSession session, DeepDungeonEntryUi
             }
             if (_delete == null)
             {
-                _delete = deleteSaveFlow ?? new GenericDeleteSaveFlow(DungeonCatalog.PilgrimsTraverse,
+                _delete = deleteSaveFlow ?? new GenericDeleteSaveFlow(_dungeon,
                     session.OwnedSlot, slots => ValidateOwnedSave(slots));
                 _delete.Prepare(ctx);
                 ctx.RecordDiagnostic?.Invoke("owned-save-cleanup-started", new

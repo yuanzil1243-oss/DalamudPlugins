@@ -304,7 +304,7 @@ namespace DeepDungeon.Fsd.Dalamud
 					{
 						try
 						{
-                            var request = _configuration.Farming.CheckpointEntry.CreateRequest(_configuration.Farming.Mode,
+                            var request = _configuration.Farming.ActiveCheckpointEntry.CreateRequest(_configuration.Farming.Mode,
                                 _fsfScenarioIndex == 2 ? FsdStartScenario.ControlledSurvey : FsdStartScenario.Farming);
                             var result = StartSelectedFarming(request);
                             if (!result.Ok)
@@ -2285,6 +2285,7 @@ namespace DeepDungeon.Fsd.Dalamud
 
         public void StopFullSelfDelving()
         {
+            ResetHoh90Kiting();
             try
             {
                 _ddHost?.StopFsd();

@@ -9,7 +9,7 @@ public enum FloorItemUsePurpose
     Automatic, GoldChestOvercap, SilverChestOvercap, ControlledStrength,
     NaturalReveal, ControlledReveal, NaturalPoisonfruit, NaturalPassageMazeroot,
     ControlledPoisonfruit, BossSerenity, FortuneBeforeFate, CleansingCharm,
-    HighFloorBuff, BossFate, FinalFloorWisdom
+    HighFloorBuff, BossFate, FinalFloorWisdom, HohEmergency, HohMagicite, HohMagiciteOvercap, HohPetrification, HohFrailty
 }
 
 public readonly record struct FloorItemUseKey(FloorItemUseKind Kind, uint ItemId);

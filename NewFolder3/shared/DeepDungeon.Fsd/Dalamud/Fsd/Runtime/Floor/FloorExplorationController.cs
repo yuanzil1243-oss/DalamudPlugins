@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -82,18 +82,23 @@ internal sealed partial class FloorExplorationController : IDisposable
     private ObjectiveArbiterDecision CurrentObjectiveDecision => Objectives.ObjectiveDecision;
     private bool PassageFirst => Kind == FloorRuntimeKind.Normal &&
         (MobCombatPolicy.HighFloorEnabled(_ctx.FarmingPlan?.Mode, DungeonId, Floor) || FreeHoardAdvance);
+    private bool HohPassagePreparation => Kind == FloorRuntimeKind.Normal &&
+        !_hohLocalChestsBeforeAdvance &&
+        HohHighFloorPolicy.WaitsForPassage(_ctx.FarmingPlan?.Mode, DungeonId, Floor, _ctx.PassageOpenForCombat);
     private bool PendingExplorationWork => _executor?.PlannedRouteCount > 0 || _executor?.RoomContext != null ||
         _activeWaypoint.HasValue || (_taskRunner != null && _taskRunner.Phase != TaskPhase.Idle);
     private bool AllowsChestSidecarInteraction => (!_ctx.WisdomConfirmed || _ctx.WisdomCombat.AllowsExploration(_ctx.MobCombat.Engaged.Count)) &&
-        (!PassageFirst || _ctx.PassageOpenForCombat && _ctx.MobCombat.Engaged.Count == 0) &&
+        !HohPassagePreparation &&
+        (HasPendingHohRelief || !PassageFirst || _ctx.PassageOpenForCombat && _ctx.MobCombat.Engaged.Count == 0) &&
+        !(HohHighFloorPolicy.Enabled(_ctx.FarmingPlan?.Mode, DungeonId, Floor) && _ctx.ControlledCombatEngagedCount > 0) &&
         !_holdingCombat && !MobMechanicsYielding && Objectives.HasObjectiveDecision &&
         Objectives.ObjectiveDecision.Channels.Interaction != CommandChannelPermission.Blocked;
     private Vector3 ResolvePassageWalkingPosition(Vector3 actor) => _passageDestination.Resolve(actor, Generation);
     private FarmingItemPolicy ItemPolicy => FarmingItemPolicy.For(_ctx.FarmingPlan?.Mode);
     private bool EntryIncenseWindowOpen() => this.Survey.EntryIncenseWindowOpen();
     private bool CombatBuffUsable(uint slot, bool overcapRelief = false) =>
-        IsPomanderAvailableForFloorUse(slot) && ItemPolicy.AllowsCombatBuff(
-            _pomanderManager.GetCount(slot), _ctx?.Duty.IsBossFloor == true, overcapRelief);
+        IsPomanderAvailableForFloorUse(slot) && (_ctx.Duty.DungeonId == 2 || ItemPolicy.AllowsCombatBuff(
+            _pomanderManager.GetCount(slot), _ctx.Duty.IsBossFloor, overcapRelief));
 
 
 
@@ -138,6 +143,8 @@ internal sealed partial class FloorExplorationController : IDisposable
         _chaseHelper = chase; _pomanderManager = pomanders; _chatWatchers = watchers;
         context.CombatRecoveryBudget = RecoveryBudget;
         chase.IsTargetBlocked = context.IsCombatTargetSuppressed;
+        chase.HasExistingEngagement = e => context.HohTargetingEnabled
+            ? context.IsEngagedCombatTarget(e) : EnemyChaseHelper.IsAggroedToPlayer(e.GameObjectId);
         _runTelemetryObserver = telemetryObserver; _passageDestination = passageDestination;
         _getPhase = getPhase; _setPhase = setPhase; _getStatus = getStatus; _setStatus = setStatus;
         _getNativeIntuition = getNativeIntuition; CancelActiveMovement = cancelMovement;
@@ -198,6 +205,7 @@ internal sealed partial class FloorExplorationController : IDisposable
             return;
 
         IsDisposed = true;
+        DisposeHohCentaurRetreat();
         _passageRecovery?.Dispose();
         DisposeWisdomRetreat();
         ReleasePassageStandstill();
@@ -242,11 +250,12 @@ bool primaryOwnsOperation = true)
             FloorObjectiveKind.DiscoverHoard or FloorObjectiveKind.OpenPlannedChest;
 
     private bool ShouldContinuePlannedRouteForPassageActivation(FloorObjectiveKind objective) =>
-        !PassageFirst &&
+        !PassageFirst && !HohPassagePreparation &&
         _ctx?.ControlledPtSurvey == null &&
         objective == FloorObjectiveKind.ActivatePassage &&
         _ctx?.Duty.PassageOpen != true &&
-        _executor?.PlannedRouteCount > 0;
+        _executor?.PlannedRouteCount > 0 &&
+        (!HohWorkEnabled || _hohActualChestWork);
 
     private bool ClearingMovementOwnedByCurrentObjective()
     {
@@ -274,9 +283,11 @@ bool primaryOwnsOperation = true)
         // Mechanics own movement before either combat relocation or optional exploration.
         bool mechanics = YieldToMobMechanics();
         if (mechanics) SuspendPassageRecovery();
+        if (TryUpdateHohCentaurRetreat(dd, mechanics)) return;
         if (_ctx.WisdomConfirmed && UpdateWisdomRetreat(dd, mechanics)) return;
         var owner = MobMovementPolicy.Choose(mechanics, _ctx.MobCombat.PriorityFight,
-            _ctx.MobCombat.DangerousEngaged || _ctx.WisdomConfirmed && _ctx.MobCombat.Engaged.Count > 0, _ctx.MobCombat.Consolidating);
+            _ctx.MobCombat.DangerousEngaged || _ctx.MobCombat.RotationPulling ||
+            _ctx.WisdomConfirmed && _ctx.MobCombat.Engaged.Count > 0, _ctx.MobCombat.Consolidating);
         bool heldCombat = owner is MobMovementOwner.Fight or MobMovementOwner.Consolidation;
         if (owner == MobMovementOwner.Mechanics)
         {
@@ -287,6 +298,7 @@ bool primaryOwnsOperation = true)
             if (Service.LocalPlayer is { } player && ShouldRunGeneralTick()) SyncLiveRunOptions(dd, player);
             return;
         }
+        if (TryUpdateHohPetrification(dd)) return;
         if (heldCombat)
         {
             _noClearingTargetAt = null;
@@ -301,6 +313,9 @@ bool primaryOwnsOperation = true)
                 RecordReplayEvent("mob-held-combat-started", new { floor = Floor, priority = _ctx.MobCombat.PriorityFight });
             }
             _taskRunner?.SetSuspended(true);
+            if (HohHighFloorPolicy.Enabled(_ctx.FarmingPlan?.Mode, DungeonId, Floor) &&
+                Service.LocalPlayer is { } highFloorPlayer && ShouldRunGeneralTick())
+                SyncLiveRunOptions(dd, highFloorPlayer);
             // A priority target must remain reachable even while consolidation is latched.
             if (owner == MobMovementOwner.Fight) UpdateHeldCombat(dd);
             else _ctx.MobCombat.TryUpdateConsolidation(dd, this);
@@ -316,10 +331,10 @@ bool primaryOwnsOperation = true)
         }
         if (this.Survey.TryUpdateControlledActive(dd, CurrentObjectiveDecision.PrimaryObjective))
             return;
-        if (PassageFirst && !Objectives.HasObjectiveDecision) return;
+        if ((PassageFirst || HohPassagePreparation) && !Objectives.HasObjectiveDecision) return;
 
         var objective = CurrentObjectiveDecision.PrimaryObjective;
-        if (PassageFirst && !_ctx.PassageOpenForCombat)
+        if (HohPassagePreparation || PassageFirst && !_ctx.PassageOpenForCombat && !HasPendingHohRelief)
         {
             // Preserve the exploration execution and its pending route, even when
             // the arbiter temporarily chooses ActivatePassage instead of search.
@@ -328,6 +343,8 @@ bool primaryOwnsOperation = true)
             {
                 _navDriver.Cancel(); _chaseHelper.Reset();
                 _taskRunner?.SetSuspended(true); _passageFirstPaused = true;
+                if (HohPassagePreparation)
+                    RecordReplayEvent("hoh91-door-preparation-started", new { floor = Floor, taskPreserved = true });
             }
             _taskRunner?.SetSuspended(true);
             UpdateClearingMechanics(dd);
@@ -338,6 +355,24 @@ bool primaryOwnsOperation = true)
             _passageFirstPaused = false;
             _navDriver.Cancel(); _chaseHelper.Reset();
             _taskRunner?.SetSuspended(false);
+            if (HohHighFloorPolicy.Enabled(_ctx.FarmingPlan?.Mode, DungeonId, Floor))
+                RecordReplayEvent("hoh91-door-preparation-completed", new { floor = Floor,
+                    passageOpen = _ctx.PassageOpenForCombat, taskPreserved = true });
+        }
+        // Keep the PT chest execution suspended while HoH clears existing hate after opening.
+        if (HohWorkEnabled && objective == FloorObjectiveKind.FinishCombatBeforePassage && HasActiveSearchExecution())
+        {
+            if (!_hohChestCombatPaused) { _navDriver.Cancel(); _chaseHelper.Reset(); }
+            _hohChestCombatPaused = true;
+            _taskRunner?.SetSuspended(true);
+            UpdateClearingMechanics(dd);
+            return;
+        }
+        if (_hohChestCombatPaused)
+        {
+            _hohChestCombatPaused = false;
+            _taskRunner?.SetSuspended(false);
+            if (ActiveExecution != null && IsSearchObjective(objective)) ActiveExecution.Objective = objective;
         }
         if (!EnsureObjectiveExecution(objective))
             return;
@@ -389,8 +424,12 @@ bool primaryOwnsOperation = true)
             return true;
         if (this.ActiveExecution != null &&
             HasActiveSearchExecution() &&
-            ShouldContinuePlannedRouteForPassageActivation(objective))
+            ((HasPendingHohRelief || _hohLocalChestsBeforeAdvance) && objective == FloorObjectiveKind.OpenPlannedChest ||
+             ShouldContinuePlannedRouteForPassageActivation(objective)))
         {
+            // A HoH overcap changes priority, not the chest transaction. Reuse its task
+            // so the shared PT item-use / count-confirmation / reopen flow can finish.
+            // HasPendingHohRelief is dungeon-2-only; all other preemption stays intact.
             this.ActiveExecution.Objective = objective;
             return true;
         }
@@ -520,6 +559,8 @@ bool primaryOwnsOperation = true)
 
     public void TickInteractionChannel(IFramework _)
     {
+        if (DungeonId == 2 && ActiveChestAttempt is { } capped &&
+            (capped.PendingHohMagiciteOvercap || capped.PendingGoldOvercapSlotIndex != null)) return;
         if (this.ItemUse.DispatchedThisUpdate == true ||
             this.IsDisposed ||
             !AllowsChestSidecarInteraction)
@@ -534,8 +575,12 @@ bool primaryOwnsOperation = true)
 
         if (waypoint.Value.Type == RoomObjectiveType.ChestBanded && _ctx?.RunOptions.Current.DiscoveryOnly == true)
             return;
+        var priorMimics = HohWorkEnabled && waypoint.Value.Type == RoomObjectiveType.ChestGold
+            ? VisibleHohMimics().Select(e => e.Id).ToArray() : null;
         if (_ctx?.ChestInteraction.TryInteract(ActiveChestAttempt, evidence, out var snapshot, out bool retry) == true)
         {
+            if (priorMimics != null && ActiveChestAttempt is { } attempt)
+                attempt.HohMimic.Begin(attempt.EntityId, waypoint.Value.Position, attempt.InteractionStartedAtUtc, priorMimics);
             if (!retry || _ctx?.Configuration.AggressiveChestInteraction != true)
             {
                 this.ObjectEvidence.Invalidate();
@@ -553,9 +598,11 @@ bool primaryOwnsOperation = true)
         {
             return;
         }
+        ObserveHohMimicChest();
         UpdateOptionalChestWatchdog(dd);
         UpdateSupplyCandidates(dd);
         TryUseCleansingCharm(dd);
+        TryMaintainHohItems(dd);
         TryMaintainEndgameItems(dd);
         if (!UpdatePassageRouteScope(dd)) { Objectives.ClearObjectiveDecision(); return; }
         var objectEvidence = this.Kind == FloorRuntimeKind.Normal
@@ -567,11 +614,15 @@ bool primaryOwnsOperation = true)
             return;
         }
 
+        RefreshHohActualChestWork(dd);
         var executor = _executor;
         var evidenceState = executor?.HoardEvidenceState ?? HoardEvidenceState.Disabled;
         var activeWaypoint = _activeWaypoint ?? executor?.CurrentWaypoint;
         bool passageOpen = _ctx?.PassageOpenForCombat == true;
-        bool combatInProgress = Service.Condition[ConditionFlag.InCombat] || _ctx?.MobCombat.Engaged.Count > 0;
+        bool combatInProgress = Service.Condition[ConditionFlag.InCombat] || _ctx?.MobCombat.Engaged.Count > 0 ||
+            _ctx?.HohCombatInProgress == true;
+        bool finishHohCombatBeforeExploration = DungeonId == 2 &&
+            _ctx?.HohPetrification.StopAttackingAfterClear == true && combatInProgress;
         bool suppressCombat = _ctx?.FarmingPlan?.ReusesSave == true;
         bool routineCombatAllowed = !suppressCombat && (combatInProgress || !passageOpen);
         bool chestInteractionAllowed =
@@ -644,9 +695,14 @@ bool primaryOwnsOperation = true)
             RoutineCombatAllowed: routineCombatAllowed,
             ActiveChestInteraction: chestInteractionAllowed,
             SuppressCombat: suppressCombat,
-            RequiredChestWork: (_ctx?.RunOptions.Current.HarvestChestsRequired == true || PassageFirst || PreservePassageSupplies(dd) || _extraChestWork) &&
+            RequiredChestWork: (HohWorkEnabled && _hohActualChestWork || _ctx?.RunOptions.Current.HarvestChestsRequired == true || PassageFirst || PreservePassageSupplies(dd) || _extraChestWork ||
+                DungeonId == 2 && _ctx?.HohPetrification.StopAttackingAfterClear == true) &&
                 PendingExplorationWork,
-            PassageFirst: PassageFirst || _ctx?.WisdomConfirmed == true);
+            // Reuse the arbiter's existing finish-combat priority without pruning
+            // the pending HoH exploration work or changing PT's passage policy.
+            PassageFirst: PassageFirst || HohPassagePreparation || _ctx?.WisdomConfirmed == true || finishHohCombatBeforeExploration || HohWorkEnabled && passageOpen && combatInProgress,
+            RecoverActiveChest: HasPendingHohRelief && !HohPassagePreparation);
+        snapshot = HohHighFloorPolicy.ApplyFinalFloorPassagePolicy(_ctx?.FarmingPlan?.Mode, DungeonId, Floor, snapshot);
         if (!this.Objectives.RefreshObjectiveDecision(
                 snapshot,
                 objectEvidence?.Version ?? 0,
@@ -1232,14 +1288,16 @@ bool primaryOwnsOperation = true)
             this.DungeonId != dd->DeepDungeonId)
             return;
 
-        int roomIndex = RoomGraph.GetLocalPlayerRoomIndex(dd);
+        int roomIndex = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
         if (roomIndex < 0)
             return;
 
         this.Survey.EvidenceSession?.ObserveRoomVisit(roomIndex);
+        if (DungeonId == 2) _hohVisitedCombatRooms.Add(roomIndex);
         if (roomIndex == this.LastObservedRoomIndex)
             return;
 
+        if (DungeonId == 2) _hohPreviousCombatRoom = this.LastObservedRoomIndex;
         this.LastObservedRoomIndex = roomIndex;
         if (this.ActiveRoomNavigationTarget == roomIndex)
         {
@@ -1270,9 +1328,16 @@ bool primaryOwnsOperation = true)
             _status = $"Can't resolve room {targetRoom} center";
             return NavDriveResult.Failed;
         }
-        int playerRoom = GameState.RoomGraph.GetLocalPlayerRoomIndex(dd);
+        int playerRoom = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
 
         var result = _navDriver!.Drive(target, player.Position, 1.2f, dd, playerRoom, targetRoom);
+        if (dd->DeepDungeonId == 2 && result is NavDriveResult.Moving or NavDriveResult.Staging or NavDriveResult.StuckRetrying &&
+            _hohRoomProgress.Stalled(targetRoom, player.Position, DateTime.UtcNow))
+        {
+            RecordReplayEvent("hoh-room-navigation-no-progress", new { floor = dd->Floor, targetRoom, playerRoom,
+                player = player.Position, target, result = result.ToString(), seconds = 20 });
+            result = NavDriveResult.Failed;
+        }
 
         switch (result)
         {
@@ -1312,6 +1377,8 @@ bool primaryOwnsOperation = true)
                 break;
             case NavDriveResult.Arrived:
                 this.ActiveRoomNavigationTarget = null;
+                if (dd->DeepDungeonId == 2 && HohRoomArrivalPolicy.CanBeginSearch(2, true, targetRoom, targetRoom, player.Position, target))
+                { _hohWorldArrivedRoom = targetRoom; _hohRoomProgress.Reset(); }
                 break;
             case NavDriveResult.StuckRetrying:
                 this.RunTelemetry?.ObserveNavigationIssue();
@@ -1322,6 +1389,7 @@ bool primaryOwnsOperation = true)
                 this.ActiveRoomNavigationTarget = null;
                 Service.Log.Warning($"[FloorPhase] Room {targetRoom} navigation failed");
                 _navDriver.Cancel();
+                if (dd->DeepDungeonId == 2) HandleHohRoomFailure(dd, targetRoom);
                 break;
         }
         return result;
@@ -1512,14 +1580,22 @@ bool primaryOwnsOperation = true)
         var targetRoom = _executor.CurrentTargetRoomIndex;
         if (targetRoom.HasValue)
         {
-            int playerRoom = RoomGraph.GetLocalPlayerRoomIndex(dd);
+            int playerRoom = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
             if (playerRoom == targetRoom.Value)
             {
                 BeginPlannedRoomSearch(dd, player);
             }
             else
             {
-                NavigateToRoom(dd, targetRoom.Value, player);
+                var result = NavigateToRoom(dd, targetRoom.Value, player);
+                if (dd->DeepDungeonId == 2 && MapPos.TryGetRoomCenter(dd, targetRoom.Value, out var destination) &&
+                    HohRoomArrivalPolicy.CanBeginSearch(dd->DeepDungeonId, result == NavDriveResult.Arrived,
+                        targetRoom.Value, _executor.CurrentTargetRoomIndex, player.Position, destination))
+                {
+                    RecordReplayEvent("hoh-room-world-arrival-search-started", new { floor = dd->Floor,
+                        playerRoom, targetRoom, player = player.Position, destination, floorGeneration = Generation });
+                    BeginPlannedRoomSearch(dd, player);
+                }
             }
         }
 
@@ -1527,7 +1603,7 @@ bool primaryOwnsOperation = true)
 
     private unsafe bool TryApplyPassageWorkPolicy(InstanceContentDeepDungeon* dd, IPlayerCharacter player)
     {
-        if (PassageFirst || _ctx?.RunOptions.Current.HarvestChestsRequired == true || PreservePassageSupplies(dd) || _extraChestWork ||
+        if (HohWorkEnabled && _hohActualChestWork || PassageFirst || _ctx?.RunOptions.Current.HarvestChestsRequired == true || PreservePassageSupplies(dd) || _extraChestWork ||
             _ctx?.Duty.PassageOpen != true || _executor == null)
         {
             return false;
@@ -1683,7 +1759,7 @@ bool primaryOwnsOperation = true)
         long requestId = _nextRoomSearchRequestId();
         var objectEvidence = this.ObjectEvidence.Current!;
         int observedRoomIndex = this.LastObservedRoomIndex;
-        int currentPlayerRoomIndex = RoomGraph.GetLocalPlayerRoomIndex(dd);
+        int currentPlayerRoomIndex = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
         bool started = _executor.StartCurrentPlanRoomSearch(
             dd,
             objectEvidence,
@@ -2070,8 +2146,8 @@ bool primaryOwnsOperation = true)
         if (roomContext == null)
             return;
 
-        int playerRoom = RoomGraph.GetLocalPlayerRoomIndex(dd);
-        if (playerRoom != roomContext.RoomIndex)
+        int playerRoom = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
+        if (playerRoom != roomContext.RoomIndex && !WithinHohWorldSearchArea(player))
         {
             NavigateToRoom(dd, roomContext.RoomIndex, player);
             _status = $"Re-entering room {roomContext.RoomIndex}";
@@ -2104,10 +2180,11 @@ bool primaryOwnsOperation = true)
 
     private unsafe void UpdateActiveTask(InstanceContentDeepDungeon* dd, IPlayerCharacter player)
     {
+        if (TryFinishHohMissingChest(dd, player)) return;
         if (_executor!.RoomContext != null)
         {
-            int playerRoom = RoomGraph.GetLocalPlayerRoomIndex(dd);
-            if (playerRoom != _executor.RoomContext.RoomIndex)
+            int playerRoom = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
+            if (playerRoom != _executor.RoomContext.RoomIndex && !WithinHohWorldSearchArea(player))
             {
                 _taskRunner!.Reset();
                 _activeWaypoint = null;
@@ -2118,6 +2195,8 @@ bool primaryOwnsOperation = true)
         }
 
         if (TryHandleGoldChestOvercap(dd, player))
+            return;
+        if (TryHandleHohMagiciteOvercap(dd, player))
             return;
         if (TryHandleSilverChestOvercap(dd, player))
             return;
@@ -2291,6 +2370,14 @@ bool primaryOwnsOperation = true)
             return false;
         }
         uint slotIndex = chestAttempt.PendingGoldOvercapSlotIndex.Value;
+        if (dd->DeepDungeonId == 2 && Items.Session.Pending == null && _pomanderManager.GetCount(slotIndex) < 3)
+        {
+            chestAttempt.HohRelief.ConfirmConsumption(_pomanderManager.GetCount(slotIndex));
+            chestAttempt.HohRelievedPomander = slotIndex;
+            chestAttempt.PendingGoldOvercapSlotIndex = null;
+            chestAttempt.NextInteractAt = DateTime.MinValue;
+            return false;
+        }
         // Safety (咒印解除) is not useful to this burrow route. Never consume it for space.
         bool skipSafety = _ctx.FarmingPlan?.IsProgression == true && slotIndex == 0;
         if (this.ItemUse.Pending is
@@ -2311,7 +2398,8 @@ bool primaryOwnsOperation = true)
             FloorInitPlanner.SteelPomanderSlotIndex or FloorInitPlanner.HastePomanderSlotIndex;
         bool nextFloorAllowed = !ProgressionItemPolicy.AffectsNextFloor(slotIndex) ||
             ProgressionItemPolicy.CanBenefitNextFloor(dd->DeepDungeonId, dd->Floor, _ctx.FarmingPlan?.StopAfterFloor);
-        bool policyAllows = !skipSafety && nextFloorAllowed && DeepDungeonFloorItemUsePolicy.CanUsePomanders(dd->DeepDungeonBanId) &&
+        bool hohReliefAllowed = dd->DeepDungeonId != 2 || !chestAttempt.HohRelief.Consumed && _pomanderManager.GetCount(slotIndex) == 3;
+        bool policyAllows = hohReliefAllowed && !skipSafety && nextFloorAllowed && DeepDungeonFloorItemUsePolicy.CanUsePomanders(dd->DeepDungeonBanId) &&
             (buff ? ItemPolicy.AllowsCombatBuff(_pomanderManager.GetCount(slotIndex), false, overcapRelief: true) &&
                 (slotIndex != FloorInitPlanner.HastePomanderSlotIndex || dd->DeepDungeonId == 4)
                 : ShouldUseGoldChestOvercapPomander(slotIndex));
@@ -2319,7 +2407,7 @@ bool primaryOwnsOperation = true)
         {
             // Casting/animation lock/combat are temporary gates, not policy rejection.
             // Keep the original chest until count confirmation unlocks the retry.
-            if (Items.CanAttemptPomanderUse(allowCombat: buff))
+            if (Items.CanAttemptPomanderUse(allowCombat: buff || dd->DeepDungeonId == 2 && slotIndex is HohItemPolicy.Frailty or HohItemPolicy.Petrification or FloorInitPlanner.FlightPomanderSlotIndex))
                 TryUsePomander(slotIndex, dd, $"gold overcap relief ({DescribePomanderSlot(slotIndex)})",
                     FloorItemUsePurpose.GoldChestOvercap);
             return true;
@@ -2353,6 +2441,8 @@ bool primaryOwnsOperation = true)
             return;
         }
 
+        if (DungeonId == 2 && (attempt.HohRelief.Consumed || _taskRunner?.Phase != TaskPhase.WaitingPost ||
+            DateTime.UtcNow - attempt.InteractionStartedAtUtc > TimeSpan.FromSeconds(5) || _pomanderManager.GetCount(slotIndex.Value) != 3)) return;
         if (attempt.PendingGoldOvercapSlotIndex == null)
             attempt.OvercapReliefDeadline = DateTime.UtcNow.AddSeconds(15);
         attempt.PendingGoldOvercapSlotIndex = slotIndex.Value;
@@ -2607,6 +2697,7 @@ bool primaryOwnsOperation = true)
             return;
         }
 
+        if (!explicitOutcome.HasValue && WaitForHohNativeChestEvidence(dd, roomIndex, DateTime.UtcNow)) return;
         var completedEntry = _executor!.CurrentPlanEntry;
         if (_searchExecutionKind == SearchExecutionKind.BandedReentry)
         {
@@ -2632,6 +2723,7 @@ bool primaryOwnsOperation = true)
             objectiveOutcome,
             completedEntry?.HoardEvidenceState == HoardEvidenceState.IntuitionDirect,
             authoritativeHoardResolved);
+        if (!explicitOutcome.HasValue) objectiveOutcome = ProtectHohChestOutcome(roomIndex, objectiveOutcome);
         objectiveOutcome = ApplyRoomObjectiveRetryPolicy(roomIndex, completedEntry, objectiveOutcome);
         string outcomeReason = finalizeReason == "RoomExecutionFinished" && !string.IsNullOrEmpty(roomContext?.LastOutcomeReason)
             ? roomContext.LastOutcomeReason
@@ -3146,7 +3238,7 @@ bool primaryOwnsOperation = true)
                 float? distanceToPlayer = player != null
                     ? Vector3.Distance(player.Position, after.Value)
                     : null;
-                int playerRoom = dd != null ? RoomGraph.GetLocalPlayerRoomIndex(dd) : -1;
+                int playerRoom = dd != null ? _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms) : -1;
                 var activeWaypoint = _activeWaypoint;
                 var lastTrapTriggered = SearchState.LastTrapTriggered;
                 var lastTrapCompleted = SearchState.LastTrapCompleted;
@@ -3496,6 +3588,7 @@ bool primaryOwnsOperation = true)
         if (_ctx?.ControlledPtSurvey != null)
             return;
 
+        TryMaintainHohItems(dd);
         var snapshot = BuildFloorInitSnapshot(dd, HasHarmfulFloorEffect(dd));
         if (DungeonCatalog.SupportsNaturalPtStones(dd->DeepDungeonId) &&
             ShouldUseNaturalMazerootForHoardExploration(snapshot) &&
@@ -3530,7 +3623,7 @@ bool primaryOwnsOperation = true)
     {
         if (_ctx?.ControlledPtSurvey != null)
             return;
-        if (ActiveChestAttempt is { PendingGoldOvercapSlotIndex: not null } or { PendingSilverOvercapDemicloneRowId: not null })
+        if (HasPendingHohRelief || ActiveChestAttempt is { PendingGoldOvercapSlotIndex: not null } or { PendingSilverOvercapDemicloneRowId: not null })
             return;
 
         var decision = GeneralAutoPomanderPlanner.Decide(BuildGeneralAutoPomanderSnapshot(allowStatusOverlap: false, HasHarmfulFloorEffect(dd)));
@@ -3633,6 +3726,9 @@ bool primaryOwnsOperation = true)
 
     private unsafe bool ShouldUseGoldChestOvercapPomander(uint slotIndex)
     {
+        if (DungeonId == 2 && slotIndex is HohItemPolicy.Frailty or HohItemPolicy.Petrification)
+            return Items.IsPomanderAvailableForFloorUse(slotIndex, FloorItemUsePurpose.GoldChestOvercap);
+
         if (_chatWatchers == null || _executor == null)
         {
             return false;
@@ -3780,6 +3876,11 @@ bool primaryOwnsOperation = true)
             if (pending.Purpose == FloorItemUsePurpose.GoldChestOvercap &&
                 ActiveChestAttempt?.PendingGoldOvercapSlotIndex == slotIndex)
             {
+                if (dd->DeepDungeonId == 2)
+                {
+                    ActiveChestAttempt.HohRelief.ConfirmConsumption(currentCount);
+                    ActiveChestAttempt.HohRelievedPomander = slotIndex;
+                }
                 ActiveChestAttempt.PendingGoldOvercapSlotIndex = null;
                 ActiveChestAttempt.NextInteractAt = DateTime.MinValue;
                 Service.Log.Info(
@@ -3802,9 +3903,16 @@ bool primaryOwnsOperation = true)
         else
         {
             byte stoneId = (byte)pending.Key.ItemId;
-            if (stoneId == 2 && Kind == FloorRuntimeKind.Normal) ConfirmWisdom();
-            if (stoneId is 1 or 2) this.FarmingPassageItemConfirmed = true;
-            if (stoneId == 1 && _pomanderManager.IsActive(FloorInitPlanner.FortunePomanderSlotIndex))
+            if (pending.Purpose == FloorItemUsePurpose.HohMagiciteOvercap &&
+                ActiveChestAttempt is { PendingHohMagiciteOvercap: true } hohChest)
+            {
+                hohChest.HohRelief.ConfirmConsumption(HohMagiciteStock);
+                hohChest.PendingHohMagiciteOvercap = false;
+                hohChest.NextInteractAt = DateTime.MinValue;
+            }
+            if (dd->DeepDungeonId == 4 && stoneId == 2 && Kind == FloorRuntimeKind.Normal) ConfirmWisdom();
+            if (dd->DeepDungeonId == 4 && stoneId is 1 or 2) this.FarmingPassageItemConfirmed = true;
+            if (dd->DeepDungeonId == 4 && stoneId == 1 && _pomanderManager.IsActive(FloorInitPlanner.FortunePomanderSlotIndex))
                 FortuneFateSupply = true;
             if (pending.Purpose == FloorItemUsePurpose.SilverChestOvercap &&
                 ActiveChestAttempt is { PendingSilverOvercapDemicloneRowId: not null } chestAttempt)
@@ -3843,9 +3951,9 @@ bool primaryOwnsOperation = true)
                 FloorItemUsePurpose.ControlledReveal or
                 FloorItemUsePurpose.ControlledPoisonfruit
                     ? "controlled-incense-used"
-                    : "incense-used";
+                    : dd->DeepDungeonId == 2 ? "hoh-magicite-used" : "incense-used";
             Service.Log.Info(
-                $"[FloorPhase] Confirmed PT incense {stoneId} use ({pending.Reason}) on floor {dd->Floor}");
+                $"[FloorPhase] Confirmed {(dd->DeepDungeonId == 2 ? "HOH magicite" : "PT incense")} {stoneId} use ({pending.Reason}) on floor {dd->Floor}");
             RecordReplayEvent(eventType, new
             {
                 floor = dd->Floor,
@@ -4045,19 +4153,47 @@ bool primaryOwnsOperation = true)
                 primaryOwnsOperation: ClearingMovementOwnedByCurrentObjective()))
             return;
 
+        if (HohWorkEnabled)
+        {
+            _ctx.SyncHohCombatScope();
+            _ctx.HohApproachProgress.Tick(_ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms), DateTime.UtcNow);
+            if (_ctx.HohApproachProgress.Exhausted && !_ctx.HohCombatInProgress)
+            {
+                _navDriver.Cancel();
+                _status = "天宫：接近计划被否决后巡查60秒仍无新房间或有效输出；暂停探索，保留存档。";
+                _ctx.StopExplorationRecoverably(_status);
+                RecordReplayEvent("hoh-approach-patrol-stopped", new { floor = Floor,
+                    reason = "no-patrol-or-output-progress", failureCharged = false });
+                return;
+            }
+        }
+        ulong preferredCombatTarget = _ctx.CombatAssist.HohStoneskinTargetId != 0
+            ? _ctx.CombatAssist.HohStoneskinTargetId : _ctx.MobCombat.OutputTarget?.GameObjectId ?? 0;
+        if (_ctx.HohTargetingEnabled)
+        {
+            var chosen = _ctx.ResolveHohCombatTarget(preferredCombatTarget, !_ctx.PassageOpenForCombat);
+            preferredCombatTarget = chosen?.GameObjectId ?? 0;
+            if (chosen == null && _ctx.HohCombatTargets.HasEngagement)
+            { _navHelper.Cancel(); _status = "保留旧接战目标，等待重新取得目标实体"; return; }
+        }
+        var (acquisitionRoom, acquisitionPosition) = ResolveClearingSearchOrigin(dd, player);
         var target = _chaseHelper.GetClearingTarget(
             dd,
             this.NormalGraph,
-            this.LastObservedRoomIndex,
-            player.Position,
+            acquisitionRoom,
+            acquisitionPosition,
             out var acquisitionFailure,
             allowNewTargets: !_ctx.PassageOpenForCombat,
-            preferredTargetId: _ctx.MobCombat.OutputTarget?.GameObjectId ?? 0);
+            preferredTargetId: preferredCombatTarget);
         if (target != null)
         {
             _noClearingTargetAt = null;
             ClearChaseAcquisitionFailure();
             RecordChaseTargetEvent("clearing-target-selected", target.Value);
+            if (HohWorkEnabled && (_hohEntryTo >= 0 || _currentPatrolRoom >= 0))
+            {
+                _navDriver.Cancel(); _hohEntryFrom = _hohEntryTo = -1;
+            }
             DriveCombatTarget(dd, target.Value, player, PatrolExecution.Recovery);
 
             ResetPatrolPlan();
@@ -4080,9 +4216,16 @@ bool primaryOwnsOperation = true)
             RecordReplayEvent("clearing-no-target-candidates", new { floor = Floor,
                 elapsed = (DateTime.UtcNow - _noClearingTargetAt.Value).TotalSeconds,
                 acquisitionFailure = acquisitionFailure.ToString(),
+                acquisitionRoom, nativeRoom = RoomGraph.GetLocalPlayerRoomIndex(dd),
+                player = new { player.Position.X, player.Position.Y, player.Position.Z },
+                _ctx.ControlledCombatEngagedCount, centaurFight = _ctx.HohCentaurFightActive,
+                petrificationClear = _ctx.HohPetrification.Clearing,
                 candidates = _ctx.MobCombat.Engaged.Concat(_ctx.MobCombat.Unengaged).Select(e => new {
                     id = e.GameObjectId, nameId = e.NameId, name = e.Name.TextValue,
                     allowed = _ctx.IsNewCombatTargetAllowed(e),
+                    room = RoomGraph.GetRoomIndexForPosition(dd, e.Position, NormalGraph?.ReachableRooms, -1),
+                    position = new { e.Position.X, e.Position.Y, e.Position.Z },
+                    engaged = _ctx.IsEngagedCombatTarget(e),
                     suppressed = _ctx.IsCombatTargetSuppressed(e.GameObjectId),
                     solo = MobPullPolicy.RequiresSolo(_ctx.FarmingPlan?.Mode, DungeonId, Floor, e.NameId) }).ToArray() });
         }
@@ -4103,6 +4246,7 @@ bool primaryOwnsOperation = true)
             // Continue through the reachable-room patrol below for bounded reacquisition.
         }
 
+        if (TryUpdateHohAdjacentRoomPatrol(dd, player)) return;
         EnsurePatrolPlan(dd);
         if (_patrolRooms.Count == 0)
         {
@@ -4111,7 +4255,7 @@ bool primaryOwnsOperation = true)
             return;
         }
 
-        int playerRoom = RoomGraph.GetLocalPlayerRoomIndex(dd);
+        int playerRoom = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
         if (playerRoom >= 0 && playerRoom == _currentPatrolRoom)
             AdvancePatrol();
 
@@ -4122,6 +4266,13 @@ bool primaryOwnsOperation = true)
 
             if (CombatPositionRecoveryController.TryResolveRoomDestination(dd, targetRoom, out var dest))
             {
+                if (HohWorkEnabled)
+                {
+                    var result = _navDriver.Drive(dest, player.Position, 1.5f, dd, playerRoom, targetRoom);
+                    if (result == NavDriveResult.Arrived || result == NavDriveResult.Failed) AdvancePatrol();
+                    _status = result == NavDriveResult.Failed ? $"天宫：巡查区域 {targetRoom} 路径失败，检查下一可达区域" : $"天宫：按完整路径寻找开门目标（区域 {targetRoom}）";
+                    return;
+                }
                 var state = _navHelper!.Navigate(dest, player.Position, arrivalRadius: 1.5f);
                 if (state == NavigationState.Arrived)
                 {
@@ -4170,26 +4321,60 @@ bool primaryOwnsOperation = true)
     private unsafe void DriveCombatTarget(InstanceContentDeepDungeon* dd, EnemyChaseTarget target,
         IPlayerCharacter player, CombatPositionRecoveryController recovery)
     {
+        if (_ctx.HohTargetingEnabled)
+        {
+            var chosen = _ctx.ResolveHohCombatTarget(target.GameObjectId, !_ctx.PassageOpenForCombat);
+            if (chosen == null)
+            { recovery.SuspendForTargetSelection(); _navHelper.Cancel(); _status = "等待有效战斗目标"; return; }
+            if (chosen.GameObjectId != target.GameObjectId)
+                target = new EnemyChaseTarget(chosen.Position, chosen.Position, chosen.HitboxRadius,
+                    chosen.GameObjectId, _ctx.IsEngagedCombatTarget(chosen)
+                        ? EnemyChaseTargetReason.Aggro : EnemyChaseTargetReason.Sticky, -1, -1, -1);
+        }
         _ctx.SetPreferredAggroTarget(target.GameObjectId, target.Position);
 
         var currentTarget = CombatTargetingHelpers.GetBattleCharaByGameObjectId(target.GameObjectId);
-        bool targetSpecificAggro =
-            target.Reason == EnemyChaseTargetReason.Aggro ||
-            EnemyChaseHelper.IsAggroedToPlayer(target.GameObjectId);
+        bool selected = !_ctx.HohTargetingEnabled || currentTarget != null && _ctx.EnsureHohCombatTarget(currentTarget);
+        bool targetSpecificAggro = target.Reason == EnemyChaseTargetReason.Petrified
+            ? currentTarget != null && _ctx.IsEngagedCombatTarget(currentTarget)
+            : target.Reason == EnemyChaseTargetReason.Aggro ||
+                (currentTarget != null && _ctx.HohTargetingEnabled ? _ctx.IsEngagedCombatTarget(currentTarget)
+                    : EnemyChaseHelper.IsAggroedToPlayer(target.GameObjectId));
         bool casting = Service.Condition[ConditionFlag.Casting];
         bool withinLiveTargetHoldRange = IsWithinLiveTargetHoldRange(target, player.Position);
-        if (recovery.Update(dd, target, currentTarget, player, targetSpecificAggro,
-                casting || withinLiveTargetHoldRange))
+        float attackRange = _ctx.CombatEngageRange;
+        bool attackOpportunity = casting || withinLiveTargetHoldRange;
+        if (_ctx.HohTargetingEnabled)
+            attackOpportunity = HohCombatTargetState.HasAttackOpportunity(selected, _ctx.NormalCombatOutputSuppressed,
+                currentTarget != null && CombatPositionPolicy.WithinRange(player.Position, currentTarget.Position,
+                    attackRange, player.HitboxRadius, currentTarget.HitboxRadius, 0, 0),
+                player.IsCasting, player.CastTargetObjectId, target.GameObjectId);
+        if (!selected)
+        {
+            recovery.SuspendForTargetSelection();
+            if (HohWorkEnabled && target.Reason != EnemyChaseTargetReason.Petrified)
+            {
+                _navHelper.Cancel();
+                _status = "等待实际选中原目标，保留读条与已接战义务";
+                return;
+            }
+        }
+        if (selected && recovery.Update(dd, target, currentTarget, player, targetSpecificAggro,
+                attackOpportunity))
             return;
 
+        bool hohCanOutputHere = HohWorkEnabled && selected && currentTarget != null &&
+            recovery.CanHoldCurrentOutput(player.Position, currentTarget.Position, DateTime.UtcNow);
+
         bool engaged = targetSpecificAggro;
-        float attackRange = _ctx.CombatAssist.GetCachedEngageRange(_ctx.Configuration);
         var targetDelta = new Vector2(target.LivePosition.X - player.Position.X,
             target.LivePosition.Z - player.Position.Z);
         bool engagedInRange = engaged && targetDelta.LengthSquared() <= attackRange * attackRange;
-        if ((_ctx.MobCombat.OutputTarget?.GameObjectId == target.GameObjectId && _ctx.MobCombat.OutputTargetHittable) ||
+        bool holdAtTarget = (_ctx.MobCombat.OutputTarget?.GameObjectId == target.GameObjectId && _ctx.MobCombat.OutputTargetHittable) ||
             (engagedInRange && _ctx.MobCombat.OutputTarget == null) || casting ||
-            (withinLiveTargetHoldRange && _ctx.MobCombat.OutputTarget == null) || recovery.IsAttackHolding(DateTime.UtcNow))
+            (withinLiveTargetHoldRange && _ctx.MobCombat.OutputTarget == null) || recovery.IsAttackHolding(DateTime.UtcNow);
+        // Distance through a wall is not a firing position. Legacy dungeons retain their existing hold rules.
+        if (HohWorkEnabled ? hohCanOutputHere || recovery.HoldsProtectedCast : holdAtTarget)
         {
             _chaseHelper.CompleteCurrentLeg();
             _status = engaged
@@ -4202,7 +4387,8 @@ bool primaryOwnsOperation = true)
         }
         else
         {
-            if (targetSpecificAggro && (PassageFirst || _ctx.WisdomConfirmed))
+            if (targetSpecificAggro && target.Reason != EnemyChaseTargetReason.Petrified &&
+                (PassageFirst || _ctx.WisdomConfirmed || HohHighFloorPolicy.Enabled(_ctx.FarmingPlan?.Mode, DungeonId, Floor)))
             {
                 // Let distant old hate approach; blocked/fixed enemies enter the
                 // existing bounded local recovery above rather than cross-room chasing.
@@ -4227,6 +4413,9 @@ bool primaryOwnsOperation = true)
             }
             else
             {
+                if (target.Reason == EnemyChaseTargetReason.Petrified && currentTarget != null &&
+                    state is NavigationState.StuckGiveUp or NavigationState.Failed)
+                { _navHelper.Cancel(); recovery.DeferPetrifiedApproach(currentTarget); return; }
                 HandleDirectNavState(state, "chasing hostile");
                 if (state == NavigationState.StuckGiveUp || state == NavigationState.Failed)
                     _chaseHelper.Reset();
@@ -4259,12 +4448,15 @@ bool primaryOwnsOperation = true)
         if (dd == null || _patrolRooms.Count > 0)
             return;
 
-        int startRoom = RoomGraph.GetLocalPlayerRoomIndex(dd);
+        int startRoom = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
         if (startRoom < 0)
             startRoom = RoomGraph.GetHomeRoomIndex(dd);
         if (startRoom < 0)
             startRoom = 0;
 
+        // Reuse the reachable-room patrol; anchor it to the known passage only in HoH.
+        if (HohWorkEnabled && RoomGraph.GetPassageRoomIndex(dd) is >= 0 and var passageRoom)
+            startRoom = passageRoom;
         var order = RoomGraph.BuildReachableRoomOrder(dd, startRoom);
         if (order.Count == 0 && startRoom >= 0)
             order.Add(startRoom);
@@ -4290,6 +4482,8 @@ bool primaryOwnsOperation = true)
     internal void ResetEngagedTargetProgress() => this.ActiveExecution?.Recovery.ResetEngagedTargetProgress();
     internal void ResumeExplorationAfterError()
     {
+        SuspendHohOptionalChestClock(DateTime.UtcNow);
+        ResetHohNavigationAfterManualContinue();
         _navHelper.Cancel();
         ActiveExecution?.Recovery.ResetEngagedTargetProgress();
         _heldRecovery?.ResetEngagedTargetProgress();
@@ -4332,6 +4526,7 @@ bool primaryOwnsOperation = true)
 
     private unsafe void NavigateToPassage(InstanceContentDeepDungeon* dd, IPlayerCharacter player)
     {
+        if (dd->DeepDungeonId == 2) { NavigateToHohPassage(dd, player); return; }
         var objectEvidence = this.ObjectEvidence.Current;
         if (objectEvidence?.Available != true ||
             !PassageLocator.TryResolvePassageDestination(dd, objectEvidence, out var dest, out bool usedActor, out var passageRoomIndex))
@@ -4339,7 +4534,7 @@ bool primaryOwnsOperation = true)
             _status = "Passage position unknown";
             _passageRecovery?.Suspend();
             _passageUnknownAt ??= DateTime.UtcNow;
-            RecordPassageNavigationEvent("passage-navigation", "Unknown", usedActor: false, passageRoomIndex: -1, playerRoom: RoomGraph.GetLocalPlayerRoomIndex(dd));
+            RecordPassageNavigationEvent("passage-navigation", "Unknown", usedActor: false, passageRoomIndex: -1, playerRoom: _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms));
             _navDriver!.Cancel();
             if ((DateTime.UtcNow - _passageUnknownAt.Value).TotalSeconds >= 30) FailPassageRecovery("passage-destination-unknown-for-30-seconds");
             return;
@@ -4347,7 +4542,7 @@ bool primaryOwnsOperation = true)
 
         _passageUnknownAt = null;
         if (usedActor) _passageActorWaitAt = null;
-        int playerRoom = RoomGraph.GetLocalPlayerRoomIndex(dd);
+        int playerRoom = _ctx.ResolveHohCombatRoom(dd, NormalGraph?.ReachableRooms);
         // Knowing the actor does not make a failing cross-room path reachable.
         // Keep the room graph fallback until inside its room, then approach the exact walking point.
         int? targetRoom = PassageNavigationPolicy.RoutingRoom(usedActor, passageRoomIndex, playerRoom);

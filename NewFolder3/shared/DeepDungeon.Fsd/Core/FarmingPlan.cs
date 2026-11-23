@@ -18,6 +18,7 @@ public sealed record FarmingPlan(
         _ => "死靈術士挑戰"
     };
     // Optional run-only diagnostic boundary; normal progression still climbs to 100.
+    public uint DungeonId { get; init; } = 4;
     public int? StopAfterFloor { get; init; }
     // Explicit checkpoint tests from UI/API; normal challenge runs still start/restart at floor one.
     public bool UsesDiagnosticCheckpoints { get; init; }
@@ -31,10 +32,13 @@ public sealed record FarmingPlan(
 
     public static bool TryCreate(FarmingMode mode, SaveUse saveUse, int startFloor,
         int cycles, bool infinite, bool hoard, bool gold, bool silver, bool bronze,
-        out FarmingPlan? plan, out string error)
+        out FarmingPlan? plan, out string error, uint dungeonId = 4)
     {
         plan = null;
         error = !Enum.IsDefined(mode) || !Enum.IsDefined(saveUse) ? "未知玩法或存檔用途。"
+            : dungeonId is not (2 or 4) ? "此本地版只支援妖宮與天宮。"
+            : dungeonId == 2 && (mode != FarmingMode.FreeExploration || hoard) ? "天宮首版使用自由探索，暫不啟用挖寶。"
+            : dungeonId == 2 && !HohLocalPolicy.IsNewSaveStart(startFloor) ? "天宮只能從1或21層新建；高層請選擇已有存檔。"
             : cycles < 1 ? "循環次數必須至少為 1。"
             : mode == FarmingMode.FinalBoss && (saveUse != SaveUse.None || startFloor != 99)
                 ? "尾王模式只使用獨立99層練習挑戰，不使用存檔。"
@@ -57,7 +61,7 @@ public sealed record FarmingPlan(
             : string.Empty;
         if (error.Length != 0) return false;
         plan = new(mode, saveUse, saveUse == SaveUse.Prepared ? 0 : startFloor,
-            cycles, infinite, hoard, gold, silver, bronze);
+            cycles, infinite, hoard, gold, silver, bronze) { DungeonId = dungeonId };
         return true;
     }
 }

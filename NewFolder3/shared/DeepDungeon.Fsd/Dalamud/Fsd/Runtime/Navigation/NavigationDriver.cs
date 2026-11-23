@@ -31,6 +31,29 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Navigation
 		private bool _lastConfiguredHadDeepDungeon;
 		private bool _configured;
 		private bool _fallbackActive;
+        private HohValidatedNavigation? _hoh;
+        private int _hohFloor = -1;
+        private readonly ProgressiveRoomNavigator _hohRoomNav = new();
+        private bool _hohConfigured;
+        private int? _hohTargetRoom;
+        private Vector3 _hohDestination;
+        private Vector3? _hohRetreat;
+        private int _hohRetreats;
+
+        public void ResetHohBudget() => _hoh?.ResetBudget();
+        public void RecheckHohPathAfterMapRefresh() => _hoh?.RecheckAfterMapRefresh();
+
+        private HohValidatedNavigation HohNavigation
+        {
+            get
+            {
+                if (_hoh != null) return _hoh;
+                var geometry = new CombatPositionNavigation();
+                return _hoh = new(() => geometry.Ready, p => geometry.GroundPoint(p, .4f, 1.6f),
+                    geometry.FindPath, geometry.Move, moveHelper.VNav.Path.Stop, s => Service.Log.Info(s),
+                    simpleMovePending: moveHelper.VNav.SimpleMove.PathfindInProgress);
+            }
+        }
 
 		public NavigationDriver(NavigationHelper navHelper)
 		{
@@ -54,6 +77,13 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Navigation
 			int playerRoom,
 			int? targetRoom)
 		{
+
+            if (dd != null && dd->DeepDungeonId == 2)
+            {
+                if (_hohFloor != dd->Floor) { _hohFloor = dd->Floor; HohNavigation.ResetBudget(); _navHelper.Cancel(); }
+                return DriveHoh(destination, playerPos, arrivalRadius, dd, playerRoom, targetRoom);
+            }
+			// All other dungeons retain their existing navigation and staging behavior.
 			bool targetChanged = !_configured ||
 								 targetRoom != _lastTargetRoom ||
 								 Vector3.DistanceSquared(destination, _lastDestination) > 1.0f;
@@ -125,8 +155,55 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Navigation
 			}
 		}
 
+        private unsafe NavDriveResult DriveHoh(Vector3 destination, Vector3 player, float radius,
+            InstanceContentDeepDungeon* dd, int playerRoom, int? targetRoom)
+        {
+            if (!_hohConfigured || targetRoom != _hohTargetRoom || Vector3.DistanceSquared(destination, _hohDestination) > 1)
+            {
+                _hohConfigured = true; _hohTargetRoom = targetRoom; _hohDestination = destination;
+                _hohRetreat = null; _hohRetreats = 0;
+                _hohRoomNav.Configure(dd, playerRoom, targetRoom, destination);
+            }
+            if (_hohRetreat is { } retreat)
+            {
+                var retreatResult = HohNavigation.Tick(retreat, player, 1.2f);
+                if (retreatResult == NavDriveResult.Arrived)
+                {
+                    _hohRetreat = null;
+                    _hohRoomNav.Configure(dd, playerRoom, targetRoom, destination);
+                    return NavDriveResult.Staging;
+                }
+                if (retreatResult == NavDriveResult.Failed) { _hohRetreat = null; return NavDriveResult.Failed; }
+                return retreatResult;
+            }
+            var active = _hohRoomNav.IsActive ? _hohRoomNav.CurrentDestination : destination;
+            var result = HohNavigation.Tick(active, player, radius);
+            if (result == NavDriveResult.Failed && _hohRoomNav.IsActive && _hohRoomNav.TryHandleFailure(dd, playerRoom, out _))
+            { HohNavigation.Cancel(); return NavDriveResult.Staging; }
+            if (result == NavDriveResult.Failed && _hohRetreats == 0 && playerRoom >= 0 &&
+                Map.MapPos.TryGetRoomCenter(dd, playerRoom, out var roomCenter) &&
+                Vector3.DistanceSquared(player, roomCenter) > 2 * 2 && Vector3.DistanceSquared(active, roomCenter) > 2 * 2)
+            {
+                _hohRetreats++; _hohRetreat = roomCenter; HohNavigation.Cancel();
+                Service.Log.Info($"[HOH navigation] Checking a bounded retreat to current room {playerRoom}: {roomCenter}");
+                return NavDriveResult.Staging;
+            }
+            if (result == NavDriveResult.Arrived)
+            {
+                // HoH large floors may retain a virtual room index briefly at a boundary.
+                // Reaching the exact final world point must not restart the same stage.
+                if (Vector3.DistanceSquared(player, destination) <= radius * radius)
+                { _hohRoomNav.Reset(); return NavDriveResult.Arrived; }
+                if (_hohRoomNav.IsActive && !_hohRoomNav.TryHandleArrival(dd, playerRoom, out _)) return NavDriveResult.Staging;
+                _hohRoomNav.Reset();
+            }
+            return result;
+        }
 		public void Cancel()
 		{
+            _hoh?.Cancel();
+            _hohRoomNav.Reset(); _hohConfigured = false;
+            _hohRetreat = null;
 			_navHelper.Cancel();
 			_roomNav.Reset();
 			_configured = false;
@@ -137,6 +214,9 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Navigation
 
 		public void Reset()
 		{
+            _hoh?.Cancel();
+            _hohRoomNav.Reset(); _hohConfigured = false;
+            _hohRetreat = null;
 			_navHelper.Reset();
 			_roomNav.Reset();
 			_configured = false;

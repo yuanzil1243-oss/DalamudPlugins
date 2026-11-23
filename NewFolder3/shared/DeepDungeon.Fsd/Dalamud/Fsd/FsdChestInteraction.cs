@@ -31,6 +31,11 @@ namespace DeepDungeon.Fsd.Dalamud
 		internal uint? PendingGoldOvercapSlotIndex;
         internal DateTime OvercapReliefDeadline;
 		internal uint? PendingSilverOvercapDemicloneRowId;
+        internal bool PendingHohMagiciteOvercap;
+        internal readonly HohChestReliefState HohRelief = new();
+        internal uint? HohRelievedPomander;
+        internal readonly HohMimicChestState HohMimic = new();
+        internal DateTime? HohMissingSince;
 	}
 
 	internal readonly record struct ChestLifecycleSnapshot(

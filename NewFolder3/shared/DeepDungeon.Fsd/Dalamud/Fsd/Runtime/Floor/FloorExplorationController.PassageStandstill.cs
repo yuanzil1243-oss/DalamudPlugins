@@ -24,8 +24,15 @@ internal sealed partial class FloorExplorationController
             CurrentObjectiveDecision.Channels.Movement != CommandChannelPermission.Blocked &&
             _ctx.Duty.PassageOpen && !Service.Condition[ConditionFlag.InCombat] &&
             !Service.Condition[ConditionFlag.BetweenAreas] && !Service.Condition[ConditionFlag.BetweenAreas51];
-        if (!eligible || evidence?.Available != true ||
-            !PassageLocator.TryResolvePassageDestination(dd, evidence, out var actor, out bool exact, out _) || !exact)
+        if (!eligible || evidence?.Available != true)
+        { if (DungeonId == 2) _hohPassages.Suspend(); ReleasePassageStandstill(); return false; }
+        Vector3 actor;
+        if (dd->DeepDungeonId == 2)
+        {
+            if (!TryResolveHohPassageActor(dd, evidence, player!.Position, out actor))
+            { ReleasePassageStandstill(); return false; }
+        }
+        else if (!PassageLocator.TryResolvePassageDestination(dd, evidence, out actor, out bool exact, out _) || !exact)
         { ReleasePassageStandstill(); return false; }
         var destination = ResolvePassageWalkingPosition(actor);
         var delta = player!.Position - destination;

@@ -4,7 +4,11 @@ namespace DeepDungeon.Fsd.Runtime;
 
 public sealed class FarmingSettings
 {
+    public uint DungeonId { get; set; } = 4;
     public FarmingMode Mode { get; set; }
+    public CheckpointEntrySettings HeavenOnHighEntry { get; set; } = new() { StartFloor = 21, StopAfterFloor = 30 };
+    [System.Text.Json.Serialization.JsonIgnore]
+    public CheckpointEntrySettings ActiveCheckpointEntry => DungeonId == 2 ? HeavenOnHighEntry : CheckpointEntry;
     public CheckpointEntrySettings CheckpointEntry { get; set; } = new();
     public Dictionary<string, FarmingPreferences> Preferences { get; set; } = new();
 
@@ -19,6 +23,7 @@ public sealed class FarmingSettings
             FarmingMode.FinalBoss => "FinalBoss:None",
             _ => "DeepProgression:Create"
         };
+        if (DungeonId == 2) key = "Hoh:" + key;
         if (!Preferences.TryGetValue(key, out var value))
         {
             value = new FarmingPreferences
@@ -31,6 +36,7 @@ public sealed class FarmingSettings
             };
             Preferences.Add(key, value);
         }
+        if (DungeonId == 2) value.BandedEnabled = false;
         value.BandedEnabled ??= Mode == FarmingMode.Hoard && legacy.NecromancerAutoBandedFarmEnabled;
         var targets = FarmingTargetPolicy.Constrain(Mode, new(value.BandedEnabled.Value,
             value.OpenGold, value.OpenSilver, value.OpenBronze));

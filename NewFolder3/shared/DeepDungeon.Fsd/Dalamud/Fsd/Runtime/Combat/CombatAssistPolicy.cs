@@ -13,11 +13,22 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Combat
 /// Encapsulates target selection and out-of-combat attract casting based on configuration.
 /// Run-scoped state is maintained between calls.
 /// </summary>
-internal sealed class CombatAssistPolicy
+internal sealed partial class CombatAssistPolicy
 	{
         private readonly Pt99CombatController _pt99 = new();
+        private readonly HohStoneskinPriority _hohStoneskin = new();
+        internal ulong HohStoneskinTargetId { get; private set; }
+        private ulong _lastHohStoneskinTargetId;
         internal DeepDungeon.Fsd.Core.Pt99TargetDecision Pt99Decision => _pt99.Decision;
-        internal void Reset(RunContext? context) => _pt99.Reset(context);
+        internal void Reset(RunContext? context)
+        {
+            _pt99.Reset(context);
+            _hohStoneskin.BeginFloor(null, 0, 0);
+            HohStoneskinTargetId = _lastHohStoneskinTargetId = 0;
+            context?.HohCombatTargets.ResetSelection();
+            ResetHohStoneskinControl();
+            context?.HohShieldBreak.Reset();
+        }
 		private DateTime _nextAttractCastAt = DateTime.MinValue;
 		private bool _prevInCombat = false;
 		private uint _cachedEngageRangeSkillId = uint.MaxValue;
@@ -31,6 +42,8 @@ internal sealed class CombatAssistPolicy
         out string status, out string selectStatus, out string attractStatus)
     {
         TickCore(configuration, context, isBossFloor, passageOpen, out status, out selectStatus, out attractStatus);
+        UpdateHohStoneskinControl(configuration, context);
+        UpdateHohShieldBreak(configuration, context);
         if (context?.RecordDiagnostic == null) return;
         var now = DateTime.UtcNow;
         if (now - _lastDiagnosticAt < TimeSpan.FromSeconds(1)) return;
@@ -50,6 +63,9 @@ internal sealed class CombatAssistPolicy
             playerAvailable = player != null, playerDead = player?.IsDead, casting = player?.IsCasting,
             currentTargetId = targetId, preferredTargetId = context.TryGetPreferredAggroTarget(out var preferred) ? preferred : 0,
             targetHp = target?.CurrentHp, targetMaxHp = target?.MaxHp, targetable = target?.IsTargetable,
+            targetCastActionId = target?.IsCasting == true ? target.CastActionId : 0,
+            targetStatusIds = target?.StatusList.Where(s => s.StatusId != 0).Select(s => s.StatusId).ToArray(),
+            hohStoneskinTargetId = HohStoneskinTargetId,
             playerPosition = player == null ? null : new { player.Position.X, player.Position.Y, player.Position.Z },
             targetPosition = target == null ? null : new { target.Position.X, target.Position.Y, target.Position.Z },
             nextAttemptUtc = _nextAttractCastAt.ToUniversalTime() });
@@ -75,6 +91,8 @@ internal sealed class CombatAssistPolicy
 		try
 		{
 			var player = Service.LocalPlayer;
+            _hohStoneskin.BeginFloor(context?.FarmingPlan?.Mode, context?.Duty.DungeonId ?? 0, context?.Duty.Floor ?? 0);
+            HohStoneskinTargetId = 0;
 			if (player == null || player.IsDead)
 			{ _pt99.Reset(context); return; }
 
@@ -87,10 +105,22 @@ internal sealed class CombatAssistPolicy
                 return;
             }
             _pt99.Reset(context);
+            if (context?.Duty.DungeonId == 2 && context.HohPetrification.Clearing)
+            {
+                var stoneTarget = context.SelectHohPetrifiedTarget(Service.GameObjects.OfType<IBattleChara>()
+                    .Where(e => e.ObjectKind == global::Dalamud.Game.ClientState.Objects.Enums.ObjectKind.BattleNpc &&
+                        (global::Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind)e.SubKind == global::Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind.Combatant &&
+                        e.IsTargetable && !e.IsDead && e.CurrentHp > 0 && RunContext.IsHohPetrified(e)), player.Position);
+                bool ready = context.PrepareHohPetrifiedOutput(stoneTarget, player.Position);
+                status = ready ? "Assist: attacking petrified enemy while approaching" : stoneTarget != null
+                    ? "Assist: selecting petrified enemy while approaching" : "Assist: waiting for petrification targets";
+                selectStatus = status; attractStatus = "Petrification clear";
+                return;
+            }
 
-			bool inCombat = Service.Condition[ConditionFlag.InCombat];
+			bool inCombat = Service.Condition[ConditionFlag.InCombat] || context?.HohCombatInProgress == true;
             if (!inCombat) _stickyPt10Add = 0;
-			float engageRange = GetCachedEngageRange(configuration);
+			float engageRange = context?.CombatEngageRange ?? GetCachedEngageRange(configuration);
 			if (engageRange <= 0f)
 			{
 				status = "Assist: configured attract action has no valid cast range";
@@ -101,6 +131,7 @@ internal sealed class CombatAssistPolicy
 			ulong preferredAggroId = 0;
 			bool hasPreferredAggro = context?.TryGetPreferredAggroTarget(out preferredAggroId) ?? false;
 			bool IsAllowedCombatTarget(IBattleChara target) => context?.IsCombatTargetSuppressed(target.GameObjectId) != true &&
+                context?.IsHohPetrificationTargetAllowed(target) != false &&
                 (context?.WisdomConfirmed != true || context.IsEngagedCombatTarget(target));
 			bool IsAllowedNewTarget(IBattleChara target) => IsAllowedCombatTarget(target) && context?.IsNewCombatTargetAllowed(target) != false;
 			IBattleChara? preferredOocTarget = null;
@@ -139,8 +170,27 @@ internal sealed class CombatAssistPolicy
 
 			IBattleChara? PickMobCombatTarget()
 			{
+                if (context?.HohTargetingEnabled == true)
+                {
+                    var chosen = context.ResolveHohCombatTarget(hasPreferredAggro ? preferredAggroId : 0, !passageOpen);
+                    HohStoneskinTargetId = chosen != null && HohStoneskinPriority.IsCaster(chosen.BaseId, chosen.NameId)
+                        ? chosen.GameObjectId : 0;
+                    if (HohStoneskinTargetId != 0 && _lastHohStoneskinTargetId != HohStoneskinTargetId)
+                    {
+                        _lastHohStoneskinTargetId = HohStoneskinTargetId;
+                        context.RecordDiagnostic?.Invoke("hoh-stoneskin-target-changed", new {
+                            floor = context.Duty.Floor, targetId = HohStoneskinTargetId, source = "shared-hoh-target-arbitration" });
+                    }
+                    if (chosen != null) context.EnsureHohCombatTarget(chosen);
+                    return chosen;
+                }
                 if (context?.Duty.DungeonId == 4 && DeepDungeon.Fsd.Core.ProgressionModePolicy.IsProgression(context.FarmingPlan?.Mode))
                     return context.MobCombat.OutputTarget is { IsDead: false, IsTargetable: true } chosen ? chosen : null;
+                var stoneskin = PickHohStoneskinTarget(context, float.MaxValue, IsAllowedCombatTarget);
+                if (stoneskin != null) return stoneskin;
+                if (context?.Duty.DungeonId == 2 && hasPreferredAggro &&
+                    CombatTargetingHelpers.GetBattleCharaByGameObjectId(preferredAggroId) is { IsDead: false, IsTargetable: true } preferred &&
+                    IsAllowedCombatTarget(preferred) && context.IsEngagedCombatTarget(preferred)) return preferred;
 				// Keep reachable targets first, but retain a distant aggro target for BMR to approach.
 				// Stationary/ranged enemies do not necessarily follow us into spell range.
 				var target = CombatTargetingHelpers.PickHostileHighestHP(engageRange, onlyInRange: true,
@@ -168,7 +218,8 @@ internal sealed class CombatAssistPolicy
 					string tname = target?.Name?.TextValue ?? "無目標";
 					status = isBossFloor 
 						? "Assist: Passage open - finishing combat (lowest max HP, central)"
-						: "Assist: Passage open - finishing combat (highest HP)";
+						: HohStoneskinTargetId != 0 ? "Assist: Passage open - finishing combat (石肤优先)"
+                            : "Assist: Passage open - finishing combat (highest HP)";
 						selectStatus = target != null
 							? $"Finishing combat →{tname}"
 							: "Finishing combat →no target";
@@ -241,16 +292,22 @@ internal sealed class CombatAssistPolicy
 				}
 				else
 				{
-					status = "Assist: In combat (最高HP目標)";
+					status = HohStoneskinTargetId != 0 ? "Assist: In combat (石肤优先)" : "Assist: In combat (最高HP目標)";
 					selectStatus = target != null
-						? $"In combat (highest HP) →{tname}"
+						? $"In combat ({(HohStoneskinTargetId != 0 ? "Stoneskin priority" : "highest HP")}) →{tname}"
 						: "In combat (highest HP) →no target";
 				}
 					}
 					else
 					{
 					bool withinRange;
-					var target = preferredOocTarget;
+					var target = context?.HohTargetingEnabled == true
+                        ? context.ResolveHohCombatTarget(preferredAggroId, !passageOpen) : preferredOocTarget;
+                    if (context?.HohTargetingEnabled == true && target != null)
+                    {
+                        var delta = target.Position - player.Position;
+                        preferredOocTargetWithinRange = delta.X * delta.X + delta.Z * delta.Z <= engageRange * engageRange;
+                    }
 					if (target != null)
 					{
 						withinRange = preferredOocTargetWithinRange;
@@ -261,7 +318,8 @@ internal sealed class CombatAssistPolicy
 					}
 					if (target != null)
 					{
-						try { Service.TargetManager.Target = target; } catch { }
+						if (context?.HohTargetingEnabled == true) context.EnsureHohCombatTarget(target);
+                        else try { Service.TargetManager.Target = target; } catch { }
 
 				string tname = target.Name?.TextValue ?? "無名";
 				status = withinRange
@@ -372,6 +430,45 @@ internal sealed class CombatAssistPolicy
 	/// <summary>
 	/// Computes the cast range of the configured attract skill.
 	/// </summary>
+    private IBattleChara? PickHohStoneskinTarget(RunContext? context, float range, Func<IBattleChara, bool> allowed)
+    {
+        if (!HohStoneskinPriority.Enabled(context?.FarmingPlan?.Mode, context?.Duty.DungeonId ?? 0,
+                context?.Duty.Floor ?? 0) || Service.LocalPlayer is not { } player) return null;
+        var pool = new List<(IBattleChara Target, HohStoneskinCandidate Candidate)>();
+        foreach (var obj in Service.GameObjects)
+        {
+            if (obj is not IBattleNpc enemy || !enemy.IsTargetable || enemy.IsDead || enemy.CurrentHp == 0 ||
+                (global::Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind)enemy.SubKind !=
+                    global::Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind.Combatant || !allowed(enemy)) continue;
+            bool engaged = enemy.TargetObjectId == player.GameObjectId ||
+                DeepDungeon.Fsd.Dalamud.Runtime.Floor.EnemyChaseHelper.IsAggroedToPlayer(enemy.GameObjectId);
+            if (!engaged) continue;
+            int priority = _hohStoneskin.Observe(enemy.BaseId, enemy.NameId, enemy.IsCasting, enemy.CastActionId);
+            if (priority == 0) continue;
+            float distance = Vector2.DistanceSquared(new(player.Position.X, player.Position.Z),
+                new(enemy.Position.X, enemy.Position.Z));
+            pool.Add((enemy, new(enemy.GameObjectId, enemy.CurrentHp, distance, priority, true)));
+        }
+        ulong id = HohStoneskinPriority.Select(pool.Select(p => p.Candidate), range);
+        var selected = pool.FirstOrDefault(p => p.Candidate.Id == id).Target;
+        if (selected == null) return null;
+        HohStoneskinTargetId = id;
+        if (_lastHohStoneskinTargetId != id)
+        {
+            _lastHohStoneskinTargetId = id;
+            context?.RecordDiagnostic?.Invoke("hoh-stoneskin-target-changed", new
+            {
+                floor = context.Duty.Floor, targetId = id, name = selected.Name.TextValue,
+                baseId = (selected as IBattleNpc)?.BaseId, nameId = (selected as IBattleNpc)?.NameId,
+                hp = selected.CurrentHp, priority = pool.First(p => p.Candidate.Id == id).Candidate.Priority,
+                castActionId = selected.IsCasting ? selected.CastActionId : 0,
+                statuses = selected.StatusList.Where(s => s.StatusId != 0).Select(s => s.StatusId).ToArray(),
+                reason = "known-stoneskin-species-before-first-cast"
+            });
+        }
+        return selected;
+    }
+
 	internal float GetCachedEngageRange(FsdSettings configuration)
 	{
 		uint sid = configuration.NecromancerBandedAttractSkillId;

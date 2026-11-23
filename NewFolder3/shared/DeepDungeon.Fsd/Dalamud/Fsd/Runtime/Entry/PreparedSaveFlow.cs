@@ -12,6 +12,7 @@ internal sealed class PreparedSaveFlow
 {
     private static readonly TimeSpan RetryInterval = TimeSpan.FromMilliseconds(350);
     private readonly PreparedSaveBinding _session;
+    private readonly DungeonData _dungeon;
     private RunContext? _context;
     private NavigationHelper? _navigation;
     private DateTime _nextActionAt;
@@ -25,9 +26,10 @@ internal sealed class PreparedSaveFlow
     private bool _clickedOccupiedSlot;
     private bool _waitingForNavigation;
 
-    public PreparedSaveFlow(PreparedSaveBinding session, bool verifyOnly = false)
+    public PreparedSaveFlow(PreparedSaveBinding session, bool verifyOnly = false, DungeonData? dungeon = null)
     {
         _session = session;
+        _dungeon = dungeon ?? DungeonCatalog.PilgrimsTraverse;
         _verifyOnly = verifyOnly;
     }
 
@@ -173,7 +175,7 @@ internal sealed class PreparedSaveFlow
             return false;
         }
 
-        var npc = NpcInteractionGuard.FindByBaseId(DungeonCatalog.PilgrimsTraverse.NpcDataId);
+        var npc = NpcInteractionGuard.FindByBaseId(_dungeon.NpcDataId);
         var player = Service.LocalPlayer;
         if (npc == null || player == null)
         {
@@ -218,8 +220,8 @@ internal sealed class PreparedSaveFlow
             return false;
         }
         if (!NpcInteractionGuard.TryInteract(
-                DungeonCatalog.PilgrimsTraverse.NpcDataId,
-                DungeonCatalog.PilgrimsTraverse.Name,
+                _dungeon.NpcDataId,
+                _dungeon.Name,
                 out string status))
         {
             SetStatus("interact-npc", status);

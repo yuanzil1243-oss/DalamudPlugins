@@ -12,6 +12,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 	{
 		private ulong _currentTargetId;
 		public Func<IBattleChara, bool>? CanSelectNewTarget;
+        public Func<IBattleChara, bool>? HasExistingEngagement;
 		public Func<ulong, bool>? IsTargetBlocked;
 		private readonly HashSet<uint> _reportedAvoidedNames = new();
 		private Vector3 _legEndpoint;
@@ -46,9 +47,9 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 			PruneDeprioritizedTargets();
 
             if (preferredTargetId != 0 && CombatTargetingHelpers.GetBattleCharaByGameObjectId(preferredTargetId) is { IsDead: false, IsTargetable: true } preferred &&
-                (IsAggroedToPlayer(preferredTargetId) || allowNewTargets && IsNewTargetAllowed(preferred)))
+                (ExistingEngagement(preferred) || allowNewTargets && IsNewTargetAllowed(preferred)))
                 return TrackAndReturn(preferredTargetId, preferred.Position, preferred.HitboxRadius,
-                    IsAggroedToPlayer(preferredTargetId) ? EnemyChaseTargetReason.Aggro : EnemyChaseTargetReason.Sticky);
+                    ExistingEngagement(preferred) ? EnemyChaseTargetReason.Aggro : EnemyChaseTargetReason.Sticky);
 
 			// 1. Prefer aggroed hostile (from hate list)
 			var aggroed = PickAggroedHostileAnyRange(playerPosition);
@@ -204,7 +205,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 					continue;
 				}
 
-				if (!IsAggroedToPlayer(bnpc.GameObjectId))
+				if (!ExistingEngagement(bnpc))
 					continue;
 
 				if (IsDeprioritized(bnpc.GameObjectId))
@@ -361,6 +362,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 			return false;
 		}
 
+        private bool ExistingEngagement(IBattleChara target) =>
+            HasExistingEngagement?.Invoke(target) ?? IsAggroedToPlayer(target.GameObjectId);
 		public static unsafe bool IsAggroedToPlayer(ulong targetId)
 		{
 			if (targetId == 0)
@@ -502,7 +505,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 		Aggro,
 		Sticky,
 		Nearest,
-		CloserAfterRoomChange
+		CloserAfterRoomChange,
+		Petrified
 	}
 
 	internal enum EnemyChaseAcquisitionFailure

@@ -95,6 +95,8 @@ public sealed unsafe class NativeDeepDungeonLogMessageSource : IDisposable
     {
         switch (item.LogMessageId)
         {
+            case 9209: // Confirmed native magicite use, including manual use.
+            case 9208: // HoH: native magicite could not fit and was returned to this chest.
             case 7222:
             case 7256:
             case 7272:

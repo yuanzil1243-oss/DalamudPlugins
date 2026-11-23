@@ -31,7 +31,7 @@ public static class FarmingSessionPolicy
             return new(false, plan.StartFloor, ownsSave && !plan.PreserveExternalSave, false, "本次入本已中止，未計完成次數。");
         if (result.DutyFailed)
             return plan.IsProgression
-                ? new(false, plan.Mode == FarmingMode.FreeExploration ? NearestCheckpoint(result.EntryFloor) : 1,
+                ? new(false, plan.Mode == FarmingMode.FreeExploration ? plan.DungeonId == 2 ? HohLocalPolicy.RestartFloor(result.EntryFloor) : NearestCheckpoint(result.EntryFloor) : 1,
                     ownsSave && (!plan.PreserveExternalSave || plan.DeleteExternalSaveOnFailure), true, string.Empty)
                 : new(false, plan.StartFloor, ownsSave, false, "本次攻略失敗，未計完成次數。");
         if (plan.ReusesSave)

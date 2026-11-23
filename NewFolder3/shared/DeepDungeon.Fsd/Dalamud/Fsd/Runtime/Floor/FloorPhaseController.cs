@@ -292,9 +292,11 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 				var activeRuntime = _floorRuntime;
 				if (activeRuntime == null || activeRuntime.IsDisposed)
 					return;
+                _ctx.HohPetrification.BeginFloor(dd->DeepDungeonId, dd->Floor);
                 _ctx.MobCombat.Tick(_ctx);
 				activeRuntime.RunTelemetry?.SampleStable(DateTime.UtcNow);
 				activeRuntime.ResolvePendingFloorItemUse(dd);
+                activeRuntime.TryUseHohCurseRecovery(dd);
 				if (activeRuntime.Kind == FloorRuntimeKind.Normal && !RefreshFloorObjectEvidence(dd, activeRuntime))
 					return;
 				activeRuntime.Survey.ResolveInheritedIntuition();
@@ -427,6 +429,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 			if (context == null)
 				return false;
 			context.DeathRecorder.Tick(context);
+            context.ObserveHohCombatTargets();
             // Observation must run even when the arbiter prohibits attacking.
             context.MobCombat.Tick(context);
 			context.EnforceWisdomTargetGate();
@@ -895,6 +898,12 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 
 			switch (info.Reason)
 			{
+                case "HohMagiciteUseConfirmed":
+                    if (_floorRuntime?.DungeonId == 2) _floorRuntime.Items.HohBudget.RecordMagiciteConfirmed();
+                    break;
+                case "HohMagiciteOvercapObserved":
+                    _floorRuntime?.HandleHohMagiciteOvercapObserved();
+                    break;
 				case "GoldChestOvercapObserved":
 					_floorRuntime?.HandleGoldChestOvercapObserved(info.GoldChestOvercapSlotIndex);
 					break;
@@ -1119,6 +1128,9 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor
 			var player = Service.LocalPlayer;
 			if (player == null || !player.IsDead)
 				return false;
+            if (_ctx != null && DeepDungeon.Fsd.Runtime.HohRunContinuity.Applies(_ctx.FarmingPlan?.Mode, dd->DeepDungeonId) &&
+                _ctx.HohContinuity.Phase != DeepDungeon.Fsd.Runtime.HohContinuityPhase.ConfirmedDeath)
+            { CancelActiveMovement(); return true; }
 
             if (_ctx?.FarmingPlan?.IsProgression == true)
             {

@@ -29,6 +29,11 @@ internal static class Run39RegressionTests
                 Check(b.IsTargetExhausted(1) && !b.IsTargetExhausted(1, true), "fresh engaged obligation");
                 b.RecordFailure(1, true); Check(!b.IsTargetExhausted(1, true), "one engaged failure permits one more attempt");
                 b.RecordFailure(1, true); Check(b.IsTargetExhausted(1, true), "engaged attempt remains bounded"); }),
+            ("hoh60-four-attempt-override-does-not-change-default-two-attempt-budget", () => {
+                var b = new CombatRecoveryBudget(); b.RecordFailure(7, true); b.RecordFailure(7, true);
+                Check(b.IsTargetExhausted(7, true) && !b.IsTargetExhausted(7, true, 4), "PT/default threshold remains two while HoH may opt into four");
+                b.RecordFailure(7, true); Check(!b.IsTargetExhausted(7, true, 4), "third HoH attempt remains available");
+                b.RecordFailure(7, true); Check(b.IsTargetExhausted(7, true, 4), "four attempts are still bounded"); }),
             ("recovery-target-switches-cannot-reset-phase-budgets", () => {
                 var b = new CombatRecoveryBudget(); b.RecordFailure(1, true); b.RecordFailure(2, true); b.RecordFailure(1, true);
                 Check(b.IsTargetExhausted(1, true) && !b.IsTargetExhausted(2, true) && b.ConsecutiveFailures == 3, "retain target identity"); }),

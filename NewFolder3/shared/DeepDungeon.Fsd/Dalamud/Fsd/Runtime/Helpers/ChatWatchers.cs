@@ -183,6 +183,12 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Helpers
 		{
 			switch (message.Id)
 			{
+                case 9209:
+                    NotifyStateChanged("HohMagiciteUseConfirmed");
+                    break;
+				case 9208:
+                    NotifyStateChanged("HohMagiciteOvercapObserved");
+                    break;
 				case 7222:
 					if (message.ParameterCount > 0 && TryMapGoldChestOvercapSlot(message.Value1, out var slotIndex))
 						NotifyStateChanged("GoldChestOvercapObserved", goldChestOvercapSlotIndex: slotIndex);

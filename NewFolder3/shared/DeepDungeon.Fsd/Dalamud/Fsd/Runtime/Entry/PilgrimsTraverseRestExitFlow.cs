@@ -16,7 +16,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 	/// </summary>
 	public sealed class PilgrimsTraverseRestExitFlow : IDisposable
 	{
-		private const uint RestExitEventObjDataId = 2014757;
+		private uint RestExitEventObjDataId => _dungeon.DungeonId == 2 ? 2009523u : 2014757u;
+        private readonly DungeonData _dungeon;
 
 		private RunContext? _ctx;
 		private DateTime _nextTry = DateTime.MinValue;
@@ -31,10 +32,11 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 		private readonly PtRestExitConfirmationState _confirmation = new();
 		private DateTime _flowStartedAtUtc;
 		private DateTime _exitMissingSinceUtc = DateTime.MinValue;
-		private const uint RestExitWarpRowId = 131612;
+		private uint RestExitWarpRowId => _dungeon.DungeonId == 2 ? 131298u : 131612u;
 
-		public PilgrimsTraverseRestExitFlow(bool requireValidatedConfirmation = false)
+		public PilgrimsTraverseRestExitFlow(bool requireValidatedConfirmation = false, DungeonData? dungeon = null)
 		{
+			_dungeon = dungeon ?? DungeonCatalog.PilgrimsTraverse;
 			_requireValidatedConfirmation = requireValidatedConfirmation;
 		}
 
@@ -75,7 +77,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			var hasYesno = DeepDungeonUi.TryGetSelectYesNo(out var yesno);
 
 			if (!hasYesno &&
-			    NpcInteractionGuard.FindByBaseId(DungeonCatalog.PilgrimsTraverse.NpcDataId) is { IsTargetable: true })
+			    NpcInteractionGuard.FindByBaseId(_dungeon.NpcDataId) is { IsTargetable: true })
 			{
 				SetFinished("PT: rest exit complete at entry NPC");
 				return true;
@@ -285,7 +287,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			RecordDiagnostic("rest-exit-completed", new { status, recoveryCount = _confirmation.RecoveryCount });
 		}
 
-		private static string ReadExpectedPrompt()
+		private string ReadExpectedPrompt()
 		{
 			try
 			{

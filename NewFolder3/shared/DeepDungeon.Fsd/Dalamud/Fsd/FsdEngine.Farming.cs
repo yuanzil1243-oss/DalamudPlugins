@@ -15,22 +15,37 @@ internal partial class FsdEngine
     private static readonly string[] FarmingModeWithSurveyLabels =
         ["挖寶藏", "強化／陶片", "寶藏發現成就", "死靈術士挑戰", "自由探索", "尾王模式", "受控採集（研究）"];
     private static readonly string[] HoardFloorsetLabels = ["21–30 層", "31–40 層"];
-    private static readonly string[] FarmingDungeonLabels = ["朝聖交錯路"];
+    private static readonly string[] FarmingDungeonLabels = ["朝聖交錯路", "天之御柱"];
 
-    private bool IsFixedFloorsetHoard => _fsfScenarioIndex != 2 &&
+    private bool IsFixedFloorsetHoard => _configuration.Farming.DungeonId == 4 && _fsfScenarioIndex != 2 &&
         _configuration.Farming.Mode == FarmingMode.Hoard &&
         _configuration.Farming.GetPreferences(_configuration).BandedEnabled == true;
 
-    private string? GetSelectedDetailedMapScenarioKey() => IsFixedFloorsetHoard || _fsfScenarioIndex == 2
+    private string? GetSelectedDetailedMapScenarioKey() => _configuration.Farming.DungeonId == 4 && (IsFixedFloorsetHoard || _fsfScenarioIndex == 2)
         ? DetailedMapCatalogManager.GetScenarioKey(_fsfScenarioIndex) : null;
 
     private void DrawFarmingSelection(bool running)
     {
         ImGui.BeginDisabled(running);
-        int dungeon = 0;
-        ImGui.SetNextItemWidth(260);
-        ImGui.Combo("地宮##fsdDungeon", ref dungeon, FarmingDungeonLabels, FarmingDungeonLabels.Length);
         var settings = _configuration.Farming;
+        int dungeon = settings.DungeonId == 2 ? 1 : 0;
+        ImGui.SetNextItemWidth(260);
+        if (ImGui.Combo("地宮##fsdDungeon", ref dungeon, FarmingDungeonLabels, FarmingDungeonLabels.Length))
+        {
+            settings.DungeonId = dungeon == 1 ? 2u : 4u;
+            if (settings.DungeonId == 2) { settings.Mode = FarmingMode.FreeExploration; _fsfScenarioIndex = 1; }
+            _configuration.NecromancerFsdScenarioIndex = _fsfScenarioIndex;
+            _configuration.Save(); _farmingError = null;
+        }
+        if (settings.DungeonId == 2)
+        {
+            settings.Mode = FarmingMode.FreeExploration;
+            _fsfScenarioIndex = 1;
+            ImGui.TextWrapped("天宮本地版：自由探索；新建1／21層、接續已有存檔、每十層接續。Boss先交由現有BMR機制，實戰後再校準。");
+            DrawCheckpointEntrySelection();
+            ImGui.EndDisabled();
+            return;
+        }
         int surveyMode = FarmingModeLabels.Length;
         int mode = _fsfScenarioIndex == 2 ? surveyMode : (int)settings.Mode;
         var labels = _detailedMapHostOptions.SupportsControlledPtSurvey ? FarmingModeWithSurveyLabels : FarmingModeLabels;
@@ -41,8 +56,8 @@ internal partial class FsdEngine
             else
             {
                 settings.Mode = (FarmingMode)mode;
-                if (settings.Mode == FarmingMode.FreeExploration && !settings.CheckpointEntry.Enabled)
-                    settings.CheckpointEntry.Enabled = true;
+                if (settings.Mode == FarmingMode.FreeExploration && !settings.ActiveCheckpointEntry.Enabled)
+                    settings.ActiveCheckpointEntry.Enabled = true;
                 if (_fsfScenarioIndex == 2) _fsfScenarioIndex = 1;
             }
             _configuration.NecromancerFsdScenarioIndex = _fsfScenarioIndex;
@@ -76,9 +91,11 @@ internal partial class FsdEngine
 
     private void DrawCheckpointEntrySelection()
     {
-        var entry = _configuration.Farming.CheckpointEntry;
-        bool enabled = entry.Enabled;
-        bool changed = ImGui.Checkbox("指定存檔起點／停止層數（測試）##fsd_checkpoint", ref enabled);
+        var entry = _configuration.Farming.ActiveCheckpointEntry;
+        bool hoh = _configuration.Farming.DungeonId == 2;
+        bool enabled = hoh || entry.Enabled;
+        bool changed = false;
+        if (!hoh) changed = ImGui.Checkbox("指定存檔起點／停止層數（測試）##fsd_checkpoint", ref enabled);
         entry.Enabled = enabled;
         if (enabled)
         {
@@ -89,8 +106,8 @@ internal partial class FsdEngine
             if (ImGui.Combo("存檔方式##fsd_checkpoint_source", ref sourceMode, sourceModes, sourceModes.Length))
             {
                 entry.ResumeSlot = sourceMode == 1 ? 0 : null;
-                if (sourceMode == 0 && !PilgrimsTraverseCheckpointPolicy.IsNewSaveStart(entry.StartFloor))
-                    entry.StartFloor = 31;
+                if (sourceMode == 0 && !(hoh ? HohLocalPolicy.IsNewSaveStart(entry.StartFloor) : PilgrimsTraverseCheckpointPolicy.IsNewSaveStart(entry.StartFloor)))
+                    entry.StartFloor = hoh ? 21 : 31;
                 changed = true;
             }
 
@@ -108,7 +125,7 @@ internal partial class FsdEngine
 
             if (!entry.ResumeSlot.HasValue)
             {
-            int[] starts = PilgrimsTraverseCheckpointPolicy.NewSaveStarts.ToArray();
+            int[] starts = hoh ? [1, 21] : PilgrimsTraverseCheckpointPolicy.NewSaveStarts.ToArray();
             string[] startLabels = starts.Select(f => $"第 {f} 層").ToArray();
             int startIndex = Array.IndexOf(starts, entry.StartFloor);
             if (startIndex < 0) { startIndex = Array.IndexOf(starts, 31); if (startIndex < 0) startIndex = 0; entry.StartFloor = starts[startIndex]; changed = true; }
@@ -132,8 +149,9 @@ internal partial class FsdEngine
                 : $"新建第 {entry.StartFloor} 层存档";
             ImGui.TextWrapped($"目前設定：{sourceDescription}，通關第 {entry.StopAfterFloor} 層後停止。請點擊上方「啟動 FSD」開始。");
             if (entry.ResumeSlot.HasValue)
-                ImGui.TextWrapped("续用时自动读取所选槽位的存档起点；攻略失败后自动删除该槽存档并从失败层组起点重试。");
-            ImGui.TextWrapped("自由探索使用指定起點與停止層，適合測試高層；死靈術士挑戰固定從第 1 層開始，失敗後重開，不使用測試起點。");
+                ImGui.TextWrapped(hoh ? "天宮續用所選槽位；失敗後刪除該槽，從1或21層重開，不能直接從高層新建。" : "续用时自动读取所选槽位的存档起点；攻略失败后自动删除该槽存档并从失败层组起点重试。");
+            ImGui.TextWrapped(hoh ? "天宮新建僅支援1／21層，高層須續用已有存檔。首輪建議21–30層驗收入場、戰鬥與退場。"
+                : "自由探索使用指定起點與停止層，適合測試高層；死靈術士挑戰固定從第 1 層開始，失敗後重開，不使用測試起點。");
         }
         var preferences = _configuration.Farming.GetPreferences(_configuration);
         bool preserveSave = preferences.PreserveSaveOnCompletion;
@@ -160,10 +178,10 @@ internal partial class FsdEngine
         bool silver = options?.OpenSilver ?? preferences?.OpenSilver ?? false;
         bool bronze = options?.OpenBronze ?? preferences?.OpenBronze ?? false;
         bool changed;
-        ImGui.BeginDisabled(running || research || FarmingTargetPolicy.LocksHoard(mode));
+        ImGui.BeginDisabled(running || research || _configuration.Farming.DungeonId == 2 || FarmingTargetPolicy.LocksHoard(mode));
         changed = ImGui.Checkbox("探索埋藏的寶藏", ref hoard);
         ImGui.EndDisabled();
-        if (!research && mode == FarmingMode.FreeExploration)
+        if (!research && _configuration.Farming.DungeonId == 4 && mode == FarmingMode.FreeExploration)
             ImGui.TextWrapped("挖寶預設關閉：優先使用感知系統提示，有寶藏後尋找指示點，無寶藏則正常開門前進；無感知時使用歷史候選點。普通層組第8、9層不新用感知，91–98層可用且時間充裕時允許為寶藏繞路。普通補給箱仍沿去門路線。");
         ImGui.BeginDisabled(research || FarmingTargetPolicy.LocksGold(mode));
         changed |= ImGui.Checkbox("開啟金寶箱", ref gold);
@@ -220,7 +238,7 @@ internal partial class FsdEngine
             else if (pauseAfterClear)
                 ImGui.TextWrapped("本次生效：通關退本並完成本輪必要收尾後暫停；需要重開的一輪先刪檔，中途接續則保留原檔。手動繼續後不會每組自動暫停。");
         }
-        if (!research && mode is (FarmingMode.DeepProgression or FarmingMode.FreeExploration))
+        if (!research && _configuration.Farming.DungeonId == 4 && mode is (FarmingMode.DeepProgression or FarmingMode.FreeExploration))
         {
             int enemyLimit = _configuration.Combat.HighFloorEnemyLimit;
             ImGui.SetNextItemWidth(110);
@@ -229,6 +247,11 @@ internal partial class FsdEngine
                 _configuration.Combat.HighFloorEnemyLimit = Math.Clamp(enemyLimit, 1, 6);
                 _configuration.Save();
             }
+        }
+        if (!research && _configuration.Farming.DungeonId == 2 && mode == FarmingMode.FreeExploration)
+        {
+            ImGui.TextDisabled("天宮81–89、91–99層主動多拉，固定上限6隻，不等待湊滿；91–99不帶怪跨房。");
+            ImGui.TextDisabled("94–97優先使用清圖道具開門；需要拉怪時避開人馬及附近目標，誤拉人馬後停止補拉並優先處理。");
         }
         if (running)
         {
@@ -276,6 +299,8 @@ internal partial class FsdEngine
     {
         var scenario = request.Scenario ?? (_configuration.NecromancerFsdScenarioIndex == 2
             ? FsdStartScenario.ControlledSurvey : FsdStartScenario.Farming);
+        if (scenario == FsdStartScenario.ControlledSurvey && _configuration.Farming.DungeonId != 4)
+            return new(false, "受控採集只支援妖宮。");
         if (scenario == FsdStartScenario.ControlledSurvey)
         {
             if (request.DiagnosticStartFloor.HasValue || request.ResumeSlot.HasValue)
@@ -285,20 +310,21 @@ internal partial class FsdEngine
                 "start-controlled-pt-capture");
         }
         var settings = _configuration.Farming;
+        if (settings.DungeonId == 2) settings.Mode = FarmingMode.FreeExploration;
         var p = settings.GetPreferences(_configuration);
         bool prepared = settings.Mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery;
         int defaultStartFloor = settings.Mode switch
         {
             FarmingMode.DeepProgression => 1,
             FarmingMode.FinalBoss => 99,
-            FarmingMode.FreeExploration => settings.CheckpointEntry.ResumeSlot.HasValue ? 1 : settings.CheckpointEntry.StartFloor,
+            FarmingMode.FreeExploration => settings.ActiveCheckpointEntry.ResumeSlot.HasValue ? 1 : settings.ActiveCheckpointEntry.StartFloor,
             FarmingMode.Hoard when _fsfScenarioIndex == 0 => 21,
             _ => 31
         };
         var farming = new FsdFarmingRequest(settings.Mode, settings.Mode == FarmingMode.FinalBoss ? SaveUse.None : prepared ? SaveUse.Prepared : SaveUse.Create,
             defaultStartFloor,
             p.Cycles, p.Infinite, new FarmingTargets(p.BandedEnabled == true, p.OpenGold, p.OpenSilver, p.OpenBronze), request)
-            { PreserveSaveOnCompletion = p.PreserveSaveOnCompletion };
+            { PreserveSaveOnCompletion = p.PreserveSaveOnCompletion, DungeonId = settings.DungeonId };
         bool started = TryStartFarming(farming, out string error);
         return new FsdControlResult(started, error);
     }
@@ -315,7 +341,7 @@ internal partial class FsdEngine
             return false;
         }
         if (!FarmingPlan.TryCreate(mode, saveUse, startFloor, cycles, infinite, hoard, gold, silver, bronze,
-                out var plan, out error)) return false;
+                out var plan, out error, request.DungeonId)) return false;
         if (mode == FarmingMode.FinalBoss && !_configuration.BossMechanics.UsesBmrBossHandling())
         {
             error = "尾王模式需要選擇 Bossmod Reborn，以協調99層機制避讓與主動取色。";
@@ -328,7 +354,7 @@ internal partial class FsdEngine
             return false;
         }
         if (diagnosticStartFloor is { } checkpoint && (mode != FarmingMode.FreeExploration ||
-            resumeSlot.HasValue || !PilgrimsTraverseCheckpointPolicy.IsNewSaveStart(checkpoint) ||
+            resumeSlot.HasValue || !(request.DungeonId == 2 ? HohLocalPolicy.IsNewSaveStart(checkpoint) : PilgrimsTraverseCheckpointPolicy.IsNewSaveStart(checkpoint)) ||
             !stopAfterFloor.HasValue || stopAfterFloor.Value < checkpoint + 9))
         {
             error = "自由探索新建测试支持1／21／31／51／71层，结束层须在新建起点组末或之后。";
@@ -342,8 +368,17 @@ internal partial class FsdEngine
         bool resumeCurrentDuty = _dutyState?.IsInDuty == true;
         if (resumeCurrentDuty && mode != FarmingMode.FinalBoss)
         {
-            error = "普通存檔任務請在副本外啟動；已有存檔可選擇槽位後續跑。";
-            return false;
+            var duty = _dutyState!;
+            if (!HohCurrentDutyResumePolicy.Allows(plan, resumeSlot, duty.DungeonId, duty.Floor,
+                duty.IsTransitioning, duty.StateReadFailed, Service.LocalPlayer is { IsDead: false, CurrentHp: > 0 },
+                duty.TimerRemainingSeconds))
+            {
+                error = "副本内接续仅支持状态稳定的天宫自由探索；请选择原存档槽位和有效结束层。";
+                return false;
+            }
+            // Bind to this floorset rather than treating a mid-floor restart as a new floor-one entry.
+            // The selected external save is preserved on failure; recovery must never delete an unverified slot.
+            plan = plan with { StartFloor = (duty.Floor - 1) / 10 * 10 + 1, DeleteExternalSaveOnFailure = false };
         }
         if (mode == FarmingMode.FinalBoss &&
             (resumeCurrentDuty || Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BoundByDuty]) &&
@@ -354,7 +389,7 @@ internal partial class FsdEngine
         }
         var session = new FarmingSession(plan, resumeSlot ?? -1, resumeCurrentDuty);
         session.SetPauseAfterFloorsetClear(_pauseAfterFloorsetClear);
-        string? key = plan!.ShowsDetailedMap ? startFloor == 21
+        string? key = request.DungeonId == 4 && plan!.ShowsDetailedMap ? startFloor == 21
             ? DetailedMapScenarioCatalog.PilgrimsTraverse21To30.Key
             : DetailedMapScenarioCatalog.PilgrimsTraverse31To40.Key : null;
         bool started = TryStartOutsideDutyFsd(() => mode == FarmingMode.FinalBoss
@@ -363,6 +398,7 @@ internal partial class FsdEngine
         {
             _pauseAfterFloorsetClear = false;
             _farmingError = null;
+            _configuration.Farming.DungeonId = request.DungeonId;
             _configuration.Farming.Mode = mode;
             _fsfScenarioIndex = mode == FarmingMode.Hoard && startFloor == 21 ? 0 : 1;
             _configuration.NecromancerFsdScenarioIndex = _fsfScenarioIndex;

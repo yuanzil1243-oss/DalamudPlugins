@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using global::Dalamud.Plugin.Services;
@@ -227,15 +227,28 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 						return false;
 					}
 				}
-				else if (_dungeon.DutyDungeonId != 4 && _dungeon.FloorsetNeedleByStartFloor != null &&
-					_dungeon.FloorsetNeedleByStartFloor.TryGetValue(_startFloor, out var needle) &&
-					!string.IsNullOrWhiteSpace(needle) &&
-					DeepDungeonUi.TryFindSelectStringIndexContaining(needle, out int index) && index >= 0)
-				{
-					if (IsOnCooldown("floorset")) return false;
-					SelectFloorset(index);
-					return false;
-				}
+				else if (_dungeon.DutyDungeonId == 2)
+                {
+                    if (!DeepDungeonUi.TryReadSelectStringOptions(out var options)) return false;
+                    var result = HohLocalPolicy.SelectStartOption(options, _startFloor, out int index);
+                    if (result != CheckpointMenuResult.NotFloorset)
+                    {
+                        if (result != CheckpointMenuResult.Selected)
+                        { _ctx.StatusIsError = true; _noEmptySlotError = true; SetStatus("天宮起始樓層尚未解鎖或不唯一；停止入場。"); return false; }
+                        if (!IsOnCooldown("floorset"))
+                        {
+                            RecordEntry("hoh-entry-start-selected", new { startFloor = _startFloor, index, options });
+                            SelectFloorset(index);
+                        }
+                        return false;
+                    }
+                    if (_awaitingFloorset)
+                    {
+                        _ctx.StatusIsError = true; _noEmptySlotError = true;
+                        RecordEntry("hoh-entry-start-unrecognized", new { startFloor = _startFloor, options });
+                        SetStatus("天宮起點選單無法識別；停止入場。" ); return false;
+                    }
+                }
 			}
 
 			// 4) Other SelectString �?advance/close with 0

@@ -93,6 +93,38 @@ internal static class Run41CombatRepositionTests
                 using var f = new Fixture(94); f.Fail();
                 Check(f.Budget.TotalFailures == 1 && f.Budget.ConsecutiveFailures == 1, "real failures remain counted");
                 Check(f.State.Retry(Stuck, Target, 0, DateTime.UtcNow) == CombatRepositionRetry.Waiting, "no immediate duplicate attempt"); }),
+            ("hoh56-recovery-remembers-bmr-handoff", () => {
+                using var f = new Fixture(56, 2); f.Controller.YieldMovement();
+                Check(f.State.ResumeAfterMechanics(Now), "HoH normal floors retain avoidance handoff"); }),
+            ("hoh56-rejected-post-dodge-route-waits-without-failure", () => {
+                using var f = new Fixture(56, 2); var now = DateTime.UtcNow;
+                f.Controller.YieldMovement(); f.State.ResumeAfterMechanics(now); f.Fail();
+                Check(f.Budget.TotalFailures == 0 && f.Events.Contains("post-dodge-recovery-waiting"), "no two immediate failures");
+                Check(f.State.Retry(Stuck, Target, 0, now.AddSeconds(13)) == CombatRepositionRetry.TimedOut, "HoH wait remains bounded"); }),
+            ("hoh56-normal-failure-retains-budget-and-waits", () => {
+                using var f = new Fixture(56, 2); f.Fail();
+                Check(f.Budget.TotalFailures == 1 && f.State.Retry(Stuck, Target, 0, DateTime.UtcNow) == CombatRepositionRetry.Waiting, "real failures count"); }),
+            ("hoh59-approaching-target-does-not-cancel-validated-ground-leg", () => {
+                using var f = new Fixture(59, 2);
+                Check(!f.ReplansMovingTarget(new(-286.59372f, .0051316665f, 296.71915f),
+                    new(-272.32782f, 1.3097237f, 305.2262f)),
+                    "recorded closing golem must not prevent the validated 6.7m relocation from starting"); }),
+            ("hoh-ground-leg-retention-requires-current-path-ownership", () => {
+                using var f = new Fixture(59, 2);
+                Check(f.ReplansMovingTarget(Target, Target + Vector3.UnitX * 4, false),
+                    "a lost path is not retained");
+                Check(!f.ReplansMovingTarget(Target, Target + Vector3.UnitX * .2f),
+                    "stationary target does not request a replan"); }),
+            ("hoh-ground-leg-retention-does-not-change-pt-or-boss-replanning", () => {
+                foreach (var (floor, dungeon) in new (byte, uint)[] { (59, 4), (94, 4), (70, 2) })
+                {
+                    using var f = new Fixture(floor, dungeon);
+                    Check(f.ReplansMovingTarget(Target, Target + Vector3.UnitX * 4),
+                        "other dungeons and boss floors retain existing target-movement replanning");
+                } }),
+            ("hoh-boss-floor-keeps-existing-recovery-policy", () => {
+                using var f = new Fixture(70, 2); f.Controller.YieldMovement();
+                Check(!f.State.ResumeAfterMechanics(Now), "boss mechanics not changed"); }),
             ("recovery-other-floors-do-not-enable-new-handoff-policy", () => {
                 using var f = new Fixture(90); f.Controller.YieldMovement();
                 Check(!f.State.ResumeAfterMechanics(Now), "scope is 91-98 only");
@@ -109,15 +141,26 @@ internal static class Run41CombatRepositionTests
         internal readonly CombatPositionRecoveryController Controller;
         internal CombatRepositionState State => (CombatRepositionState)Field("_reposition")!;
         private object? Field(string name) => typeof(CombatPositionRecoveryController).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(Controller);
-        internal Fixture(byte floor)
+        internal Fixture(byte floor, uint dungeonId = 4)
         {
             Context.FarmingPlan = new(FarmingMode.FreeExploration, SaveUse.Create, 91, 1, false, false, true, true, false);
             typeof(DutyState).GetProperty(nameof(DutyState.Floor))!.SetValue(Context.Duty, floor);
-            typeof(DutyState).GetProperty(nameof(DutyState.DungeonId))!.SetValue(Context.Duty, (uint)4);
+            typeof(DutyState).GetProperty(nameof(DutyState.DungeonId))!.SetValue(Context.Duty, dungeonId);
             Controller = new(Context, null!, null!, null, Budget, null, _ => { }, (name, _) => Events.Add(name));
             Set("_targetId", 42UL); Set("_targetEngaged", true); Set("_lastPlayerPosition", Stuck);
         }
         private void Set(string name, object value) => typeof(CombatPositionRecoveryController).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(Controller, value);
+        internal bool ReplansMovingTarget(Vector3 plannedTarget, Vector3 currentTarget, bool ownsPath = true)
+        {
+            Set("_phase", Enum.Parse(typeof(CombatPositionRecoveryController).GetNestedType("Phase", BindingFlags.NonPublic)!, "Moving"));
+            Set("_ownsPath", ownsPath); Set("_targetAtPlan", plannedTarget);
+            try
+            {
+                return (bool)typeof(CombatPositionRecoveryController).GetMethod("ShouldReplanForTargetMovement",
+                    BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(Controller, [currentTarget])!;
+            }
+            finally { Set("_ownsPath", false); }
+        }
         internal void Fail()
         {
             var target = DispatchProxy.Create<IBattleChara, TargetProxy>();

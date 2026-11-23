@@ -12,6 +12,12 @@ public readonly record struct CombatEnemy(ulong Id, uint NameId, uint Hp, float 
 /// <summary>Only enemies already on the player's hate list participate in focus decisions.</summary>
 public static class MobCombatPolicy
 {
+    // Track priority fights on every ordinary HoH floor; gathering/consolidation
+    // remains separately gated by UsesControlledHighFloor.
+    public static bool TrackingEnabled(FarmingMode? mode, uint dungeon, int floor) =>
+        ProgressionModePolicy.IsProgression(mode) &&
+        (dungeon == 4 || Hoh70FloorPolicy.Enabled(mode, dungeon, floor));
+
     public static int Priority(uint dungeon, int floor, uint nameId) => dungeon != 4 ? 0 :
         nameId is 14264 or 14265 or 14266 ? 2 :
         floor is >= 71 and <= 79 && nameId == 14194 ||
@@ -31,6 +37,9 @@ public static class MobCombatPolicy
 
     public static bool HighFloorEnabled(FarmingMode? mode, uint dungeon, int floor) =>
         ProgressionModePolicy.IsProgression(mode) && dungeon == 4 && floor is >= 91 and <= 98;
+
+    public static bool UsesControlledHighFloor(FarmingMode? mode, uint dungeon, int floor) =>
+        HighFloorEnabled(mode, dungeon, floor) || HohHighFloorPolicy.ControlsCombat(mode, dungeon, floor);
 
     // Grounded room centers must have a buffer to every unengaged visible enemy.
     public static bool ClearOfNewEnemies(Vector2 point, IEnumerable<Vector2> unengaged, float radius = 16) =>

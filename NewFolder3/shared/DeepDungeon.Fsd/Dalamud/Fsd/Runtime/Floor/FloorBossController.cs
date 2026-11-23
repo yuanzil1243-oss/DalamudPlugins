@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Numerics;
 using DeepDungeon.Fsd.Core;
+using DeepDungeon.Fsd.Runtime;
 using DeepDungeon.Fsd.Dalamud.Runtime.Helpers;
 using DeepDungeon.Fsd.Dalamud.Runtime.Navigation;
 using global::Dalamud.Game.ClientState.Conditions;
@@ -35,6 +36,8 @@ internal sealed class FloorBossController
     private bool BossNavigationResolved { get; set; }
     public bool BossSerenityAwaitingBuff { get; private set; }
     private bool _bossFateConfirmed;
+    private DateTime? _revivalRebuffStarted;
+    private readonly HashSet<uint> _revivalUnavailableReported = new();
     private string Status { set => _setStatus(value); }
     private FarmingItemPolicy ItemPolicy => FarmingItemPolicy.For(_ctx.FarmingPlan?.Mode);
 
@@ -92,6 +95,7 @@ internal sealed class FloorBossController
             return;
         }
         if (_terminalRooms.TryUpdatePt99ResultTransfer(dd)) return;
+        if (dd->DeepDungeonId == 2 && TryRebuffAfterRevival(dd)) return;
         if (!_requireMovementPermission("boss objective", FloorObjectiveKind.DefeatBoss))
         {
             _pt30DivineFavorFlashHelper?.Reset();
@@ -241,6 +245,48 @@ internal sealed class FloorBossController
         _items.IsPomanderAvailableForFloorUse(slot) && ItemPolicy.AllowsCombatBuff(
             _pomanderManager.GetCount(slot), _ctx?.Duty.IsBossFloor == true, overcapRelief);
 
+    private unsafe bool TryRebuffAfterRevival(InstanceContentDeepDungeon* dd)
+    {
+        if (!_ctx.HohContinuity.BossRebuffPending)
+        { _revivalRebuffStarted = null; _revivalUnavailableReported.Clear(); return false; }
+        _navHelper.Cancel(); BossNavigationResolved = false;
+        var now = DateTime.UtcNow;
+        _revivalRebuffStarted ??= now;
+        HohRebuffItemState State(uint slot, uint status)
+        {
+            var state = HohRevivalBuffPolicy.ObserveItem(LocalStatusRemaining(status) > 0,
+                _items.Session.Pending?.Key == new FloorItemUseKey(FloorItemUseKind.Pomander, slot) ||
+                _items.RecentlyConfirmed(FloorItemUseKind.Pomander, slot), _pomanderManager.GetCount(slot),
+                DeepDungeonFloorItemUsePolicy.CanUsePomanders(dd->DeepDungeonBanId) && _items.AllowsHohBossHp(slot), _items.IsPomanderBlockedForFloor(slot),
+                _items.CanAttemptPomanderUse(allowCombat: true), CombatBuffUsable(slot));
+            if (state is HohRebuffItemState.NoStock or HohRebuffItemState.Forbidden &&
+                _revivalUnavailableReported.Add(slot))
+                _recordReplayEvent("hoh-revival-buff-unavailable", new { floor = dd->Floor, slot, reason = state.ToString() });
+            return state;
+        }
+        var steel = State(FloorInitPlanner.SteelPomanderSlotIndex, SteelStatusId);
+        var strength = State(FloorInitPlanner.StrengthPomanderSlotIndex, StrengthStatusId);
+        var next = HohRevivalBuffPolicy.Next(steel, strength);
+        if (next == HohRebuffStep.Complete)
+        {
+            _ctx.HohContinuity.CompleteBossRebuff();
+            _recordReplayEvent("hoh-revival-rebuff-complete", new { floor = dd->Floor, steel = steel.ToString(), strength = strength.ToString(),
+                _ctx.HohContinuity.ResumeSequence });
+            Status = "天宫：重生后Buff检查完成，恢复Boss接战";
+            return true;
+        }
+        Status = $"天宫：重生后先补Buff（防御：{steel}，自身：{strength}），暂缓接战";
+        if (now - _revivalRebuffStarted > TimeSpan.FromSeconds(20))
+        {
+            _ctx.StopExplorationRecoverably("天宫：重生后补Buff超过20秒仍未确认，已保留现场并停止自动接战。");
+            return true;
+        }
+        if (next is HohRebuffStep.Steel or HohRebuffStep.Strength)
+            _items.TryUsePomander(next == HohRebuffStep.Steel ? FloorInitPlanner.SteelPomanderSlotIndex : FloorInitPlanner.StrengthPomanderSlotIndex,
+                dd, "HOH revival rebuff before engage");
+        return true;
+    }
+
     private static float LocalStatusRemaining(uint statusId, bool zeroMeansPermanent = false)
     {
         var player = Service.LocalPlayer;
@@ -261,14 +307,21 @@ internal sealed class FloorBossController
         }
         // Defence first. Refresh shortly before expiry rather than repeatedly overwriting active buffs.
         if (CombatBuffUsable(FloorInitPlanner.SteelPomanderSlotIndex) &&
+            (dd->DeepDungeonId != 2 || !_items.RecentlyConfirmed(FloorItemUseKind.Pomander, FloorInitPlanner.SteelPomanderSlotIndex)) &&
             FarmingItemPolicy.NeedsBossRefresh(LocalStatusRemaining(SteelStatusId)) &&
             _items.TryUsePomander(FloorInitPlanner.SteelPomanderSlotIndex, dd, "boss steel refresh")) return;
         if (CombatBuffUsable(FloorInitPlanner.StrengthPomanderSlotIndex) &&
+            (dd->DeepDungeonId != 2 || !_items.RecentlyConfirmed(FloorItemUseKind.Pomander, FloorInitPlanner.StrengthPomanderSlotIndex)) &&
             FarmingItemPolicy.NeedsBossRefresh(LocalStatusRemaining(StrengthStatusId)))
             if (_items.TryUsePomander(FloorInitPlanner.StrengthPomanderSlotIndex, dd, "boss strength refresh")) return;
         if (dd->DeepDungeonId == 4 && CombatBuffUsable(FloorInitPlanner.HastePomanderSlotIndex) &&
             FarmingItemPolicy.NeedsBossRefresh(LocalStatusRemaining(PtHasteStatusId)))
             if (_items.TryUsePomander(FloorInitPlanner.HastePomanderSlotIndex, dd, "boss haste refresh")) return;
+        // HoH's third boss item replaces PT haste in this flow. Native active state,
+        // the shared confirmed request channel and HoH's duration gate prevent repeated consumption.
+        if (dd->DeepDungeonId == 2 && _items.IsPomanderAvailableForFloorUse(HohItemPolicy.Frailty) &&
+            !_pomanderManager.IsActive(HohItemPolicy.Frailty) && !_items.RecentlyConfirmed(FloorItemUseKind.Pomander, HohItemPolicy.Frailty))
+            if (_items.TryUsePomander(HohItemPolicy.Frailty, dd, "HOH boss frailty refresh", FloorItemUsePurpose.HohEmergency)) return;
         if (dd->DeepDungeonId == 4)
         {
             // Demiclone row 5/native stone 3, not the floor-effect removal pomander.

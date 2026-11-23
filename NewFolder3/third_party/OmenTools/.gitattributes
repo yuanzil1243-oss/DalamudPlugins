@@ -1,2 +1,2 @@
-# Preserve exact source bytes for published SHA256 verification.
-* -text
+# Auto detect text files and perform LF normalization
+* text=auto

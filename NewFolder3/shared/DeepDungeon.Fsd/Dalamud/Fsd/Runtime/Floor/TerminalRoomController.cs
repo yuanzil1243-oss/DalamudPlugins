@@ -76,6 +76,8 @@ internal sealed partial class TerminalRoomController
         }
         if (Service.Condition[ConditionFlag.InCombat] || player.IsCasting) return;
 
+        if (context.Duty.DungeonId == 2 && context.Duty.Floor == 100)
+        { UpdateHoh100Shrine(now); return; }
         if (context.Duty.DungeonId == 4 && context.Duty.Floor == 100)
         {
             UpdatePt100Altar(now);
@@ -155,6 +157,7 @@ internal sealed partial class TerminalRoomController
         _resultAltarInteractedId = 0;
         _resultAltarCompletionBefore = 0;
         _resultAltarComplete = false;
+        _hohExitBefore = 0;
         _resultNextTick = _resultStarted = _resultChestStarted = _resultNextInteract = _resultInteractedAt = default;
     }
 

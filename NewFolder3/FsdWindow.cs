@@ -38,6 +38,7 @@ internal sealed class FsdWindow : Window
             _localSpeed.DrawSettings();
             _antiKick.DrawSettings();
             _application.DrawTerminalRewardSettings();
+            _application.DrawGcdProtectionSettings();
             ImGui.EndTabItem();
         }
 

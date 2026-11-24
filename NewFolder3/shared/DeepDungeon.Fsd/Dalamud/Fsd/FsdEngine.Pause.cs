@@ -16,7 +16,7 @@ internal partial class FsdEngine
     private ProgressionCheckpoint? _checkpoint;
     private (string Message, bool CanReplace)? _checkpointIssue;
 
-    private bool ProgressionPauseLocked => _checkpoint != null ||
+    private bool ProgressionPauseLocked => LocalFloorsetPauseLocked || _checkpoint != null ||
         _ddHost?.ActiveFarming?.Session.PersistPause != null;
 
     private bool CanRequestProgressionPause => !ProgressionPauseLocked &&
@@ -116,6 +116,7 @@ internal partial class FsdEngine
 
     private FsdControlResult ResumeProgression()
     {
+        if (_localPauseFilePresent) return ResumeLocalFloorsetPause();
         if (_checkpoint is not { } checkpoint)
             return new(false, _checkpointIssue?.Message ?? "沒有暫停中的死靈術士任務。");
         if (_currentInDeepDungeon || _dutyState?.IsInDuty == true || DutyState.IsClientTransitioning)

@@ -24,10 +24,12 @@ HOOKS = {
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.Farming.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.Rotation.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.Ui.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.Pause.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/GameState/DetailedMapCatalogManager.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/FloorWorkPolicy.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/RunHost.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Scenarios/FarmingScenario.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/DungeonEntryController.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/DungeonExitController.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/EntranceWindowCleanup.cs',
@@ -72,6 +74,7 @@ def additions(root):
         files.append(root/name)
     files.append(root/'tests/NewFolder3.ContractTests/LegacyConfigTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/TerminalRewardExitTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/RecoveryAndPauseTests.cs')
     files.append(root/'tests/Test-VersionSwitch.ps1')
     return sorted(set(files))
 

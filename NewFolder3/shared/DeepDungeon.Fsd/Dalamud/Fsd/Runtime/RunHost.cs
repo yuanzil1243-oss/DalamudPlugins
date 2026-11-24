@@ -245,7 +245,9 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
                 else
                     _floorController.SuspendBossMovement();
 
-				if (_context.TerminalStayRequested && !TerminalRewardAutoExit.TryContinue(_context))
+				if (_context.TerminalStayRequested && !TerminalRewardAutoExit.TryContinue(_context,
+                    ActiveFarming?.Session.LocalPause != null ||
+                    _attachedScenario is Scenarios.CurrentDutyResumeScenario { PauseAfterGroup: true }))
 				{
 					_lastStatus = _context.StatusLine ?? string.Empty;
 					_lastStatusIsError = false;

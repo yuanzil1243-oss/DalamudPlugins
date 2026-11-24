@@ -2,22 +2,22 @@
   {
     "Author": "John Smith / Yuzi",
     "Name": "NewFolder3",
-    "Punchline": "基于官方 .21：移速、防踢、下底领奖后退本删档循环、继续探索及妖宫离线详细地图。",
+    "Punchline": "基于官方 .21：GCD 停滞保护、各模式本组后暂停与保档解锁，保留现有扩展及离线地图。",
     "InternalName": "NewFolder3",
     "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-    "AssemblyVersion": "0.7.55.2102",
+    "AssemblyVersion": "0.7.55.2103",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-    "Description": "基于原作者 0.7.55.21 的修改版 0.7.55.2102。沿用 .2101 扩展壳，新增默认关闭的下底领奖后自动退本删档循环，位于说明页移速、防踢下方。仅在原版确认终局奖励已领取后接回正常退本；本任务新建存档经核验后删除，再按已有循环设置重开。已有存档及继续探索只退本、保档停止。保留内置移速、AEAssist、最高起点、自由探索、防踢和进退本界面提速。官方副本内战斗、探索、道具策略、奖励领取及 .21 日志导出实现不变。随包内置妖宫 21–30、31–40 签名离线详细地图。已通过构建及离线检查，新增终局收尾流程和防踢服务端效果待游戏内实战验证。",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2102/NewFolder3.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2102/NewFolder3.zip",
-    "LastUpdate": 1795514546,
+    "Description": "基于原作者 0.7.55.21 的修改版 0.7.55.2103。新增默认关闭的 GCD 停滞保护：FSD 批准同一目标且连续满足输出条件 6 秒没有 GCD 进展时，尝试一次基础单体 GCD；仅支持可读回开启状态的 RSR、Wrath、Prome，AE／自定义／INH3 不补打，机制禁攻及 Boss 初始化故障时不强制开怪。扩展本组十层后暂停，覆盖普通下底、自由探索、挖宝和准备档模式；完成原定出本收尾后暂停，可继续原任务或在副本外解除续跑锁定并保留游戏存档。保留内置移速、AEAssist、继续探索、最高起点、防踢、下底领奖后退本删档循环、界面提速及妖宫 21–30、31–40 签名离线详细地图。战斗、探索、道具、奖励和机制实现沿用官方，仅新增受控调度及可选补打；新增流程尚待游戏内实战验证。",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2103/NewFolder3.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2103/NewFolder3.zip",
+    "LastUpdate": 1795520282,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "Changelog": "0.7.55.2102：基于官方 .21 套用扩展壳；新增默认关闭的“下底领奖后自动退本删档循环”，位于说明页移速、防踢下方。确认终局奖励后退本，仅清理本任务新建且校验匹配的存档，再按已有循环设置重开；已有档及继续探索保档停止。保留官方战斗、探索、道具、领奖和 .21 日志导出逻辑。181项契约、96项移速离线检查通过，新增流程待实战验证。"
+    "Changelog": "0.7.55.2103：新增默认关闭的 GCD 停滞保护，连续满足输出条件 6 秒后仅尝试一次基础 GCD；仅支持状态可读的 RSR/Wrath/Prome。补全各模式本组出本后暂停；新增副本外解除续跑锁定、保留游戏存档，可另选存档。保留官方战斗、探索、道具、机制和奖励实现及现有扩展、两套签名地图。226项契约、96项移速离线检查及重套后构建通过；新增流程待实战。Boss 初始化根因未修复，Faulted 时不强制开怪。"
   }
 ]

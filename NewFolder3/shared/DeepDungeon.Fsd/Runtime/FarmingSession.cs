@@ -2,7 +2,7 @@ using DeepDungeon.Fsd.Core;
 
 namespace DeepDungeon.Fsd.Runtime;
 
-internal sealed class FarmingSession(FarmingPlan plan, int ownedSlot = -1)
+internal sealed partial class FarmingSession(FarmingPlan plan, int ownedSlot = -1)
 {
     public FarmingPlan Plan { get; } = plan;
     public PreparedSaveBinding Source { get; private set; } = new(maxFloor: plan.MaxFloor);

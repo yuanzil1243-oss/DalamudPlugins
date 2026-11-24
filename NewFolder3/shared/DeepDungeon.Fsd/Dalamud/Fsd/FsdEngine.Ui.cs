@@ -343,11 +343,7 @@ namespace DeepDungeon.Fsd.Dalamud
 						StopFullSelfDelving();
 					}
 					ImGui.EndDisabled();
-                    if (CanRequestProgressionPause)
-                    {
-                        ImGui.SameLine();
-                        if (ImGui.Button("本組出本後暫停")) RequestProgressionPause();
-                    }
+                    DrawLocalFloorsetPauseControls(fsdRunning, inDD);
 					ImGui.SameLine();
 					if (ImGui.Button("導出日誌##fsf_export_logs_top"))
 					{
@@ -395,6 +391,7 @@ namespace DeepDungeon.Fsd.Dalamud
 						ImGui.TextColored(new Vector4(1f, 0.55f, 0.55f, 1f), startDenialNotice);
 				}
 
+                DrawLocalPauseStatus();
                 if (_checkpoint is { } checkpoint)
                 {
                     var dungeonName = checkpoint.Plan.DungeonId switch { 1 => "死者宮殿", 2 => "天之御柱", _ => "朝聖交錯路" };

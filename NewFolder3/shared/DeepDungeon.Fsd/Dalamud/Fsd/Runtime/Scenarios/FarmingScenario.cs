@@ -6,7 +6,7 @@ using DeepDungeon.Fsd.Dalamud.Runtime.Entry;
 namespace DeepDungeon.Fsd.Dalamud.Runtime.Scenarios;
 
 /// <summary>One entry/exit attempt. Session owns continuation, prepared source and climb progress.</summary>
-internal sealed class FarmingScenario(FarmingSession session) : IScenario
+internal sealed partial class FarmingScenario(FarmingSession session) : IScenario
 {
     private readonly DungeonData _dungeon = DungeonCatalog.TryGetByDungeonId(session.Plan.DungeonId, out var d)
         ? d
@@ -137,6 +137,7 @@ internal sealed class FarmingScenario(FarmingSession session) : IScenario
             return;
         }
         var decision = FarmingSessionPolicy.Decide(session.Plan, result);
+        if (TryPauseBeforeCleanup(ctx, result, decision)) return;
         if (session.PersistPause is { } persistPause)
         {
             if (!result.DutyCompleted || result.DutyFailed || result.Aborted || decision.Error.Length > 0)
@@ -179,6 +180,7 @@ internal sealed class FarmingScenario(FarmingSession session) : IScenario
         CountsAsCycle = decision.CountCycle;
         _recoverFailure = decision.RecoverFailure;
         session.CompleteAttempt(decision, ctx.HoardDiscoveries);
+        if (TryPauseAfterCleanup(ctx)) return;
         if (session.PersistPause != null)
         {
             FinishPause(ctx, "已完成最終層與收尾，任務已停止。");

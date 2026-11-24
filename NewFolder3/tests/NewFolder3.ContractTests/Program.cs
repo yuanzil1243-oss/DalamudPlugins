@@ -31,6 +31,7 @@ internal static class Program
         passed += OfflineMapTests.Run();
         passed += LegacyConfigTests.Run();
         passed += TerminalRewardExitTests.Run();
+        passed += RecoveryAndPauseTests.Run();
         Console.WriteLine($"NewFolder3 contract tests: {passed} passed");
         return 0;
     }

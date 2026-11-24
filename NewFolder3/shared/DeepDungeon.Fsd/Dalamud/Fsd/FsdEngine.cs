@@ -103,6 +103,7 @@ namespace DeepDungeon.Fsd.Dalamud
             _configuration = configuration;
             _checkpointPath = Path.Combine(pluginConfigDirectory, "FsdProgressionPause.json");
             LoadProgressionCheckpoint();
+            LoadLocalFloorsetPause(pluginConfigDirectory);
             Map.FloorMapSource.Live?.Initialize(pluginConfigDirectory);
             Map.FloorMapSource.Select(_configuration.UseBuiltInFloorMaps);
             _rotationControl = new(ReadRotationState, SetRotationEnabled, RecordRotationControl);
@@ -322,6 +323,8 @@ namespace DeepDungeon.Fsd.Dalamud
             {
                 _detailedMapCatalogManager.ReleaseRunSnapshot();
             }
+            UpdateLocalPauseLifecycle();
+            UpdateGcdStallProtection();
             if (_executionLease.IsHeld && _ddHost?.FsdActive != true)
                 _executionLease.Release();
             UpdateBridgeLeaveDuty(framework);

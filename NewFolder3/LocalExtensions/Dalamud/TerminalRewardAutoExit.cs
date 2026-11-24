@@ -7,12 +7,13 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime;
 /// <summary>Opt-in handoff after the original reward controller confirms every reward.</summary>
 internal static class TerminalRewardAutoExit
 {
-    internal static bool TryContinue(RunContext context)
+    internal static bool TryContinue(RunContext context, bool pauseRequested = false)
     {
-        if (!context.Configuration.Farming.AutoExitAfterTerminalReward) return false;
+        bool enabled = context.Configuration.Farming.AutoExitAfterTerminalReward || pauseRequested;
+        if (!enabled) return false;
         var facts = new TerminalRewardExitFacts
         {
-            Enabled = context.Configuration.Farming.AutoExitAfterTerminalReward,
+            Enabled = enabled,
             StayRequested = context.TerminalStayRequested,
             RoomObserved = context.TerminalRoomObserved,
             RewardsPending = context.TerminalRewardsRequired,

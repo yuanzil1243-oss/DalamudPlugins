@@ -12,6 +12,7 @@ internal sealed class CurrentDutyResumeScenario(FarmingPlan plan, int groupStart
     private RunContext? _context;
     private DungeonExitController? _exit;
     private bool _complete;
+    internal bool PauseAfterGroup { get; set; }
     public string Name => $"繼續探索（第 {groupStart}–{groupStart + 9} 層）";
     public bool IsComplete => _complete;
     public bool ShouldLoop => false;

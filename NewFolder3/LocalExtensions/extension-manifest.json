@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "upstreamVersion": "0.7.55.21",
   "upstreamCommit": "a71af60a01682eb76cd6d1ec46ac971b88f75d5a",
-  "localRevision": 2,
+  "localRevision": 3,
   "versionRule": "upstream fourth component * 100 + local revision (01..99)",
-  "localVersion": "0.7.55.2102",
+  "localVersion": "0.7.55.2103",
   "features": [
     "builtin-speed",
     "ae-output",
@@ -16,7 +16,10 @@
     "legacy-config-upgrade",
     "data-preserving-version-switch",
     "anti-kick-position-update",
-    "terminal-reward-auto-exit"
+    "terminal-reward-auto-exit",
+    "gcd-stall-protection",
+    "all-mode-floorset-pause",
+    "release-resume-lock-preserve-save"
   ],
   "mapScenarios": [
     "pt-21-30",

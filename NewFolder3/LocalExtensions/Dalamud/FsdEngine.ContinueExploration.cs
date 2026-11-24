@@ -36,8 +36,10 @@ internal partial class FsdEngine
             DungeonId = facts.DungeonId, ExternalSave = true, CurrentDutyOnly = true,
             ExternalSaveCharacter = facts.Character, ExternalSaveJob = facts.Job
         };
-        bool started = TryStartOutsideDutyFsd(() => new CurrentDutyResumeScenario(plan, groupStart),
+        var scenario = new CurrentDutyResumeScenario(plan, groupStart);
+        bool started = TryStartOutsideDutyFsd(() => scenario,
             1, false, null, out error);
+        if (started) _localCurrentDutyResume = scenario;
         if (started) _farmingError = null;
         return new(started, started ? null : error);
     }

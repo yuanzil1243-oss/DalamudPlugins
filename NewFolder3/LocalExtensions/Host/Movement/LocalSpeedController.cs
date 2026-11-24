@@ -91,7 +91,7 @@ internal sealed class LocalSpeedController : IDisposable
             configuration.Save(configuration.Fsd);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(session.Error ?? "僅在 FSD 運行中的普通層生效；Boss／副本外／停止時撤銷。使用前關閉獨立移速實驗室及其他移速修正。接口故障須處理後重新載入插件。");
+            ImGui.SetTooltip(session.Error ?? "僅在 FSD 運行中的普通層及最終獎勵層生效；Boss／副本外／停止時撤銷。使用前關閉獨立移速實驗室及其他移速修正。接口故障須處理後重新載入插件。");
         float multiplier = configuration.LocalSpeedMultiplier;
         ImGui.SetNextItemWidth(180);
         if (ImGui.InputFloat("移速調整##localSpeedMultiplier", ref multiplier, 0.1f, 0.5f, "%.2f"))

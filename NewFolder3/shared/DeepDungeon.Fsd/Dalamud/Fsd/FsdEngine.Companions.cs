@@ -1,4 +1,5 @@
 using global::Dalamud.Bindings.ImGui;
+using DeepDungeon.Fsd.Core;
 using System.Numerics;
 using DeepDungeon.Fsd.Dalamud.GameState;
 using DeepDungeon.Fsd.Dalamud.Items;
@@ -32,7 +33,7 @@ internal partial class FsdEngine
                 _rsrInstalled |= Matches(plugin.InternalName, "RotationSolver") || Matches(plugin.InternalName, "RotationSolverReborn");
                 _promeInstalled |= Matches(plugin.InternalName, "PromeRotation");
                 _inh3Installed |= Matches(plugin.InternalName, "InsertNameHere3");
-                _aeInstalled |= Matches(plugin.InternalName, "AEAssist");
+                _aeInstalled |= AePluginIdentity.Matches(plugin.InternalName);
             }
             for (int i = 0; i < DungeonCatalog.All.Length; i++)
             {

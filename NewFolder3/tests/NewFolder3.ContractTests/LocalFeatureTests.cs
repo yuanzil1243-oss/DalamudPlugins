@@ -99,6 +99,14 @@ internal static class LocalFeatureTests
                 Assert(EntryUiPolicy.Decide(facts, 1, 51, creating).Action == EntryAction.Wait);
             }
         });
+        Check("ae-v3-installed-plugin-recognized", () => Assert(AePluginIdentity.Matches("AEAssistV3")));
+        Check("ae-legacy-installed-plugin-recognized", () => Assert(AePluginIdentity.Matches("AEAssist")));
+        Check("ae-identities-ignore-case", () => Assert(AePluginIdentity.Matches("aeassistv3") && AePluginIdentity.Matches("aeassist")));
+        Check("ae-loader-and-lookalike-not-runtime", () =>
+        {
+            foreach (string? name in new[] { null, "", "AE", "AEAssistLoader", "AEAssistV30", "OtherAEAssist" })
+                Assert(!AePluginIdentity.Matches(name));
+        });
         foreach (bool initialRunning in new[] { false, true })
             foreach (bool initialPull in new[] { false, true })
                 Check($"ae-start-suppress-resume-restore-{initialRunning}-{initialPull}", () =>

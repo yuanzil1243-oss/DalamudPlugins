@@ -27,11 +27,11 @@ public static class SpeedPolicy
     public static bool ValidMultiplier(float value) => float.IsFinite(value) &&
         value >= MinimumMultiplier && value <= MaximumMultiplier;
 
-    public static bool IsNormalFloor(in SpeedContext context) => context.Ready && context.CanWalk &&
-        context.InDeepDungeon && context.InDuty && context.Kind == FloorKind.Normal &&
+    public static bool IsEligibleFloor(in SpeedContext context) => context.Ready && context.CanWalk &&
+        context.InDeepDungeon && context.InDuty && context.Kind is FloorKind.Normal or FloorKind.Result &&
         DeepDungeonFloors.TryRange(context.Identity.Territory, out uint expected, out int first, out int last) &&
         context.Identity.Dungeon == expected && context.Identity.Floor >= first && context.Identity.Floor <= last &&
-        DeepDungeonFloors.Classify(expected, context.Identity.Floor) == FloorKind.Normal;
+        DeepDungeonFloors.Classify(expected, context.Identity.Floor) == context.Kind;
 
     public static SpeedDecision Decide(in SpeedRequest request, in SpeedContext context,
         bool contextStable)
@@ -41,8 +41,8 @@ public static class SpeedPolicy
         if (!request.ExternalModifiersAcknowledged) return new(false, 1, "请先确认已关闭其他移速修正");
         if (!ValidMultiplier(request.Multiplier)) return new(false, 1, "倍率无效，修正已撤销");
         if (!context.Ready || !context.CanWalk) return new(false, 1, context.Reason);
-        if (!IsNormalFloor(context))
-            return new(false, 1, "Boss／结算／副本外／未知层：已撤销，等待普通层");
+        if (!IsEligibleFloor(context))
+            return new(false, 1, "Boss／副本外／未知层：已撤销，等待普通层或最终奖励层");
         if (!contextStable) return new(false, 1, "等待区域／楼层状态稳定 500ms");
         return new(request.Multiplier != 1, request.Multiplier,
             request.Multiplier != 1 ? "已授权实验修正；实际效果请看行走观测" : "1.00 倍：直接返回原生计算值");
@@ -162,10 +162,10 @@ public sealed record SpeedLease(bool Apply, float Multiplier, FloorIdentity Iden
     public static SpeedLease Released { get; } = new(false, 1, default, 0);
     public static SpeedLease Create(in SpeedDecision decision, in SpeedContext context, long now) =>
         decision.Apply && decision.Multiplier != 1 && SpeedPolicy.ValidMultiplier(decision.Multiplier) &&
-        SpeedPolicy.IsNormalFloor(context)
+        SpeedPolicy.IsEligibleFloor(context)
             ? new(true, decision.Multiplier, context.Identity, now + SpeedPolicy.LeaseMilliseconds) : Released;
     public bool Allows(in SpeedContext live, long now) => Apply && now < ExpiresAt &&
-        SpeedPolicy.ValidMultiplier(Multiplier) && live.Identity == Identity && SpeedPolicy.IsNormalFloor(live);
+        SpeedPolicy.ValidMultiplier(Multiplier) && live.Identity == Identity && SpeedPolicy.IsEligibleFloor(live);
 }
 
 public readonly record struct SpeedObservation(long At, float OriginalTarget, float ReturnedTarget,

@@ -1,4 +1,5 @@
 using global::Dalamud.Plugin.Ipc;
+using DeepDungeon.Fsd.Core;
 using global::Dalamud.Game.ClientState.Conditions;
 
 namespace DeepDungeon.Fsd.Dalamud;
@@ -58,7 +59,7 @@ internal partial class FsdEngine
             FsdRotationProvider.WrathCombo => plugin.InternalName == "WrathCombo",
             FsdRotationProvider.PromeRotation => plugin.InternalName == "PromeRotation",
             FsdRotationProvider.InsertNameHere3 => plugin.InternalName == "InsertNameHere3",
-            FsdRotationProvider.AEAssist => plugin.InternalName == "AEAssist",
+            FsdRotationProvider.AEAssist => AePluginIdentity.Matches(plugin.InternalName),
             _ => false
         });
         _ddHost?.FloorController.RecordReplayEvent("rotation-control", new {

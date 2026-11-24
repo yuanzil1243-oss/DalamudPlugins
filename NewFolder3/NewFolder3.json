@@ -1,15 +1,15 @@
 {
   "Author": "John Smith / Yuzi",
   "Name": "NewFolder3",
-  "Punchline": "基于官方 .21：GCD 停滞保护、各模式本组后暂停与保档解锁，保留现有扩展及离线地图。",
+  "Punchline": "基于官方 .22 新道具策略：修复 AE V3 识别，最终奖励层支持内置移速，保留现有扩展。",
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-  "AssemblyVersion": "0.7.55.2103",
+  "AssemblyVersion": "0.7.55.2201",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-  "Description": "基于原作者 0.7.55.21 的修改版 0.7.55.2103。新增默认关闭的 GCD 停滞保护：FSD 批准同一目标且连续满足输出条件 6 秒没有 GCD 进展时，尝试一次基础单体 GCD；仅支持可读回开启状态的 RSR、Wrath、Prome，AE／自定义／INH3 不补打，机制禁攻及 Boss 初始化故障时不强制开怪。扩展本组十层后暂停，覆盖普通下底、自由探索、挖宝和准备档模式；完成原定出本收尾后暂停，可继续原任务或在副本外解除续跑锁定并保留游戏存档。保留内置移速、AEAssist、继续探索、最高起点、防踢、下底领奖后退本删档循环、界面提速及妖宫 21–30、31–40 签名离线详细地图。战斗、探索、道具、奖励和机制实现沿用官方，仅新增受控调度及可选补打；新增流程尚待游戏内实战验证。"
+  "Description": "基于原作者 0.7.55.22 的修改版 0.7.55.2201。完整保留官方新深层攻略道具策略：按攻略阶段、楼层效果、剩余普通层与库存决定使用道具。修复 AEAssistV3 被误报未安装，兼容旧 AEAssist；沿用原四个 AEAssist.CombatRoutine IPC 接口及开关恢复，不改 /aestop。内置移速支持普通层和最终奖励层，仍须 FSD 运行、有效副本与角色可步行；Boss、过场、停止及副本外撤销。保留 GCD 停滞保护、全模式本组后暂停、保档解除锁定、继续探索、自由探索、最高起点、防踢、终局领奖后退本删档循环和两套签名离线详细地图。AE 仍不参与 GCD 自动补打。官方战斗、探索、道具、机制和奖励实现保留，扩展只作受控接入。已做构建及离线验证，按用户要求不等待游戏内测试直接发布；不代表实战验证通过。"
 }

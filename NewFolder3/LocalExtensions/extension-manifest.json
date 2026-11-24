@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "upstreamVersion": "0.7.55.21",
-  "upstreamCommit": "a71af60a01682eb76cd6d1ec46ac971b88f75d5a",
-  "localRevision": 3,
+  "upstreamVersion": "0.7.55.22",
+  "upstreamCommit": "e578aaec1b58945a8bf6868a5c8ec2baae8bc50b",
+  "localRevision": 1,
   "versionRule": "upstream fourth component * 100 + local revision (01..99)",
-  "localVersion": "0.7.55.2103",
+  "localVersion": "0.7.55.2201",
   "features": [
     "builtin-speed",
     "ae-output",
@@ -19,7 +19,9 @@
     "terminal-reward-auto-exit",
     "gcd-stall-protection",
     "all-mode-floorset-pause",
-    "release-resume-lock-preserve-save"
+    "release-resume-lock-preserve-save",
+    "ae-v3-identity-compatibility",
+    "final-reward-floor-speed"
   ],
   "mapScenarios": [
     "pt-21-30",

@@ -30,7 +30,24 @@ Check("boss-killed-but-same-floor-stays-released", () =>
 {
     for (int i = 0; i < 100; i++) Assert(!Decide(context: Normal(10) with { Kind = FloorKind.Boss }).Apply);
 });
-Check("result-floor-revokes", () => Assert(!Decide(context: Normal(100) with { Kind = FloorKind.Result }).Apply));
+Check("result-floor-authorized", () => Assert(Decide(context: Normal(100) with { Kind = FloorKind.Result }).Apply));
+foreach (var (territory, dungeon, floor) in new[] { (607u, 1u, 200), (785u, 2u, 100), (1108u, 3u, 100), (1290u, 4u, 100) })
+    Check("final-reward-layer-" + dungeon, () =>
+    {
+        var context = new SpeedContext(new(territory, dungeon, floor), true, true, true, true, FloorKind.Result, "reward-room");
+        Assert(Decide(context: context).Apply);
+        var lease = SpeedLease.Create(Decide(context: context), context, 1000);
+        Assert(lease.Apply && lease.Allows(context, 1001));
+        Assert(!lease.Allows(context with { InDuty = false }, 1001));
+        Assert(!lease.Allows(context with { CanWalk = false }, 1001));
+        Assert(!lease.Allows(context with { Ready = false }, 1001));
+        Assert(!Decide(Request() with { RunActive = false }, context).Apply);
+        Assert(!Decide(Request() with { Paused = true }, context).Apply);
+    });
+Check("fake-result-kind-on-boss-stays-revoked", () =>
+    Assert(!Decide(context: Normal(90) with { Kind = FloorKind.Result }).Apply));
+Check("result-territory-mismatch-stays-revoked", () =>
+    Assert(!Decide(context: Normal(100) with { Kind = FloorKind.Result, Identity = new(770, 2, 100) }).Apply));
 Check("unknown-floor-revokes", () => Assert(!Decide(context: Normal() with { Kind = FloorKind.Unknown }).Apply));
 Check("invalid-observation-revokes", () => Assert(!Decide(context: Normal() with { Ready = false }).Apply));
 Check("cutscene-or-transition-revokes", () => Assert(!Decide(context: Normal() with { Ready = false, CanWalk = false }).Apply));
@@ -186,6 +203,7 @@ Check("unknown-transition-never-disarms", () =>
 Check("result-outside-reenter-normal", () =>
 {
     var session = Armed(); Assert(!Step(session, Normal(100) with { Kind = FloorKind.Result }, 600).Apply);
+    Assert(Step(session, Normal(100) with { Kind = FloorKind.Result }, 1100).Apply);
     Assert(!Step(session, Outside(), 6000).Apply); AssertArmed(session);
     Assert(!Step(session, Normal(), 7000).Apply); Assert(Step(session, Normal(), 7500).Apply);
 });

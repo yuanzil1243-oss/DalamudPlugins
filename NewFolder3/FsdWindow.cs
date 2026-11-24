@@ -37,6 +37,7 @@ internal sealed class FsdWindow : Window
             ImGui.TextWrapped("死靈術士需要強強PC, 請勿制限低幀");
             _localSpeed.DrawSettings();
             _antiKick.DrawSettings();
+            _application.DrawTerminalRewardSettings();
             ImGui.EndTabItem();
         }
 

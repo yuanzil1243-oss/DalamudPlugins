@@ -12,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from local_version import ROOT, check, make_version
 
 HOOKS = {
@@ -42,6 +43,19 @@ HOOKS = {
 def git(root,*args):
     return subprocess.check_output(['git','-C',str(root),*args],stderr=subprocess.PIPE)
 
+def patch_for_upstream(patch, source_version, target_version):
+    """Adapt only unchanged manifest/project version context, never executable code."""
+    name=None
+    lines=[]
+    for line in patch.splitlines(True):
+        if line.startswith('+++ b/'):
+            name=line[6:].strip()
+        if line.startswith(' ') and name in ('NewFolder3.csproj','NewFolder3.json'):
+            if re.match(r'^\s*"AssemblyVersion"\s*:',line) or re.match(r'^\s*<(Version|AssemblyVersion|FileVersion)>',line):
+                line=line.replace(source_version,target_version)
+        lines.append(line)
+    return ''.join(lines)
+
 def relative_files(root,folder):
     return [p for p in (root/folder).rglob('*') if p.is_file() and
         not any(part in ('bin','obj','artifacts','__pycache__') for part in p.relative_to(root).parts)]
@@ -57,6 +71,7 @@ def additions(root):
         'tests/NewFolder3.ContractTests/OfflineMapTests.cs'):
         files.append(root/name)
     files.append(root/'tests/NewFolder3.ContractTests/LegacyConfigTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/TerminalRewardExitTests.cs')
     files.append(root/'tests/Test-VersionSwitch.ps1')
     return sorted(set(files))
 
@@ -106,23 +121,41 @@ def apply(overlay,upstream,output,revision,ref):
     version=make_version(official,revision)
     if output.exists(): raise ValueError('Output already exists; source and prior builds must remain untouched')
     subprocess.run(['git','clone','-c','core.longpaths=true','--no-hardlinks','--no-checkout',str(upstream),str(output)],check=True)
-    subprocess.run(['git','-C',str(output),'checkout','-b','codex/local-extensions-'+version,commit],check=True)
+    branch='codex/local-extensions-'+version
+    existing=set(git(output,'for-each-ref','--format=%(refname:short)','refs/heads/').decode().splitlines())
+    suffix=2
+    while branch in existing:
+        branch='codex/local-extensions-'+version+'-'+str(suffix);suffix+=1
+    subprocess.run(['git','-C',str(output),'checkout','-b',branch,commit],check=True)
     if git(output,'status','--porcelain','--untracked-files=no').strip():
         raise ValueError('Official checkout is incomplete or dirty; refusing to apply extensions')
-    # This check happens before any extension is applied. Git fails closed on changed context.
-    subprocess.run(['git','-C',str(output),'apply','--check','--whitespace=nowarn',str(overlay/'hooks.patch')],check=True)
-    for name in manifest['files']:
-        if (output/name).exists(): raise ValueError('New upstream path collides with extension: '+name)
-    subprocess.run(['git','-C',str(output),'apply','--whitespace=nowarn',str(overlay/'hooks.patch')],check=True)
+    # Version-only context naturally changes on each official release. Keep all
+    # other context strict, and check every patch before writing any extension.
+    patch=patch_for_upstream((overlay/'hooks.patch').read_text(encoding='utf-8'),
+        manifest['upstreamVersion'],official)
+    with tempfile.TemporaryDirectory(prefix='nf3-overlay-context-') as temporary:
+        patch_path=Path(temporary)/'hooks.patch'
+        patch_path.write_text(patch,encoding='utf-8',newline='\n')
+        subprocess.run(['git','-C',str(output),'apply','--check','--whitespace=nowarn',str(patch_path)],check=True)
+        for name in manifest['files']:
+            if (output/name).exists(): raise ValueError('New upstream path collides with extension: '+name)
+        subprocess.run(['git','-C',str(output),'apply','--whitespace=nowarn',str(patch_path)],check=True)
     for name in manifest['files']:
         target=output/name;target.parent.mkdir(parents=True,exist_ok=True)
         shutil.copy2(overlay/'additions'/name,target)
-    for name in ('NewFolder3.csproj','NewFolder3.json'):
-        path=output/name;text=path.read_text(encoding='utf-8-sig').replace(official,version)
-        if name == 'NewFolder3.csproj':
-            extra=''.join(f'\n    <{tag}>{version}</{tag}>' for tag in ('AssemblyVersion','FileVersion') if f'<{tag}>' not in text)
-            text=text.replace(f'<Version>{version}</Version>',f'<Version>{version}</Version>'+extra)
-        path.write_text(text,encoding='utf-8')
+    path=output/'NewFolder3.csproj';text=path.read_text(encoding='utf-8-sig')
+    for tag in ('Version','AssemblyVersion','FileVersion'):
+        text=re.sub(rf'<{tag}>[^<]+</{tag}>',f'<{tag}>{version}</{tag}>',text)
+    extra=''.join(f'\n    <{tag}>{version}</{tag}>' for tag in ('AssemblyVersion','FileVersion') if f'<{tag}>' not in text)
+    text=text.replace(f'<Version>{version}</Version>',f'<Version>{version}</Version>'+extra)
+    path.write_text(text,encoding='utf-8')
+    path=output/'NewFolder3.json';plugin=json.loads(path.read_text(encoding='utf-8-sig'))
+    plugin['AssemblyVersion']=version
+    plugin['Name']='NewFolder3'
+    plugin['Punchline']=re.sub(r'基于官方 \.\d+',f'基于官方 .{official.split(".")[-1]}',plugin.get('Punchline',''))
+    plugin['Description']=re.sub(r'^基于原作者 [\d.]+ 的[^。]+。',
+        f'基于原作者 {official} 的本地修改版 {version}。',plugin.get('Description',''))
+    path.write_text(json.dumps(plugin,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     path=output/'LocalExtensions/extension-manifest.json';meta=json.loads(path.read_text(encoding='utf-8'))
     meta.update(upstreamVersion=official,upstreamCommit=commit,localRevision=revision,localVersion=version)
     path.write_text(json.dumps(meta,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')

@@ -1,15 +1,15 @@
 {
   "Author": "John Smith / Yuzi",
   "Name": "NewFolder3",
-  "Punchline": "基于官方 .20：内置移速、防踢开关、继续探索、自由层数循环和妖宫离线详细地图。",
+  "Punchline": "基于官方 .21：移速、防踢、下底领奖后退本删档循环、继续探索及妖宫离线详细地图。",
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-  "AssemblyVersion": "0.7.55.2002",
+  "AssemblyVersion": "0.7.55.2102",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-  "Description": "基于原作者 0.7.55.20 的第二个修改版 0.7.55.2002。沿用 .2001 的移速、输出控制、存档、继续探索、最高起点和自由探索功能；新增默认关闭的深宫静止位置包防踢开关，并加快退本、删档与重新进本的界面操作节奏。防踢只在 FSD 运行、位于深宫、非战斗且原地静止 4 分钟后发送当前位置包，不改变角色坐标。原作者战斗、探索与奖励逻辑保持原有实现。随包内置妖宫 21–30、31–40 离线详细地图。"
+  "Description": "基于原作者 0.7.55.21 的修改版 0.7.55.2102。沿用 .2101 扩展壳，新增默认关闭的下底领奖后自动退本删档循环，位于说明页移速、防踢下方。仅在原版确认终局奖励已领取后接回正常退本；本任务新建存档经核验后删除，再按已有循环设置重开。已有存档及继续探索只退本、保档停止。保留内置移速、AEAssist、最高起点、自由探索、防踢和进退本界面提速。官方副本内战斗、探索、道具策略、奖励领取及 .21 日志导出实现不变。随包内置妖宫 21–30、31–40 签名离线详细地图。已通过构建及离线检查，新增终局收尾流程和防踢服务端效果待游戏内实战验证。"
 }

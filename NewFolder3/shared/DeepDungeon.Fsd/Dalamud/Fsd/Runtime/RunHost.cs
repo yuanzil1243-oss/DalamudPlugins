@@ -245,7 +245,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
                 else
                     _floorController.SuspendBossMovement();
 
-				if (_context.TerminalStayRequested)
+				if (_context.TerminalStayRequested && !TerminalRewardAutoExit.TryContinue(_context))
 				{
 					_lastStatus = _context.StatusLine ?? string.Empty;
 					_lastStatusIsError = false;

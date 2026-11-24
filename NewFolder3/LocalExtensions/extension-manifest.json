@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "upstreamVersion": "0.7.55.20",
-  "upstreamCommit": "ac90ff5e958c2eb236d5afa380d244d8217ac215",
+  "upstreamVersion": "0.7.55.21",
+  "upstreamCommit": "a71af60a01682eb76cd6d1ec46ac971b88f75d5a",
   "localRevision": 2,
   "versionRule": "upstream fourth component * 100 + local revision (01..99)",
-  "localVersion": "0.7.55.2002",
+  "localVersion": "0.7.55.2102",
   "features": [
     "builtin-speed",
     "ae-output",
@@ -15,7 +15,8 @@
     "signed-offline-maps",
     "legacy-config-upgrade",
     "data-preserving-version-switch",
-    "anti-kick-position-update"
+    "anti-kick-position-update",
+    "terminal-reward-auto-exit"
   ],
   "mapScenarios": [
     "pt-21-30",

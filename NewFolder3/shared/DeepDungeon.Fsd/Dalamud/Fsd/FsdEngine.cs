@@ -324,7 +324,6 @@ namespace DeepDungeon.Fsd.Dalamud
                 _detailedMapCatalogManager.ReleaseRunSnapshot();
             }
             UpdateLocalPauseLifecycle();
-            UpdateGcdStallProtection();
             if (_executionLease.IsHeld && _ddHost?.FsdActive != true)
                 _executionLease.Release();
             UpdateBridgeLeaveDuty(framework);

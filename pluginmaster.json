@@ -2,22 +2,22 @@
   {
     "Author": "John Smith / Yuzi",
     "Name": "NewFolder3",
-    "Punchline": "基于官方 .22：AE 控制不读取版本，隔离输出诊断异常，保留续接宝箱设置与现有扩展。",
+    "Punchline": "基于官方 .22：GCD 等待秒数可设，改进防踢输入，核验失败重试与成功轮数。",
     "InternalName": "NewFolder3",
     "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-    "AssemblyVersion": "0.7.55.2203",
+    "AssemblyVersion": "0.7.55.2204",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-    "Description": "基于原作者 0.7.55.22 的本地修改版 0.7.55.2203。AE 继续使用原接口控制，不要求在线安装或读取版本号；AE 与自定义指令的控制记录跳过插件清单，可选输出诊断异常不再影响主循环移速。真实控制失败和移速安全条件保留。继续探索的金银铜箱可独立选择、即时更新后续选箱，并按实际深宫保存。保留官方 .22 新道具策略、AEAssistV3 识别、普通层及最终奖励层移速、GCD 停滞保护、全模式本组后暂停、保档解锁、自由探索、最高起点、防踢、领奖后收尾及妖宫21–30与31–40两套签名地图。原战斗、探索、寻路、机制、道具及奖励逻辑保留。按本次指令直接发布原库链，实际 AE 进战与移速待游戏验证。",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2203/NewFolder3.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2203/NewFolder3.zip",
-    "LastUpdate": 1795528587,
+    "Description": "基于原作者 0.7.55.22 的本地修改版 0.7.55.2204。GCD 停滞保护默认关闭，提供开关和等待秒数（1–300 秒，默认 6 秒）；选中同一可攻击敌人后长时间无 GCD，技能实际可用时尝试一次基础单体 GCD，不限场景、FSD 状态或输出插件，AE 与自定义指令同样适用。暂停探索、手动停手及机制故障不自动关闭此保护，完全停手须关闭开关。不切目标、不移动；请求不等于命中，不修复 Boss 模块初始化根因。保留官方 .22 道具策略、AE 无版本控制诊断、续接宝箱独立设置、普通及最终奖励层移速、全模式本组后暂停、保档解锁、自由探索、最高起点、防踢、领奖后收尾，以及妖宫21–30与31–40两套签名地图。防踢改用原生输入计时器超时后向本游戏窗口短按 Ctrl，战斗和移动不再重置防踢等待；记录客户端计时器前后值，服务端效果待实测。死灵术士、普通下底和自由探索自建档明确败北后，复用原校验删档并从设定起点重试，失败不计成功轮数；已有档、手动暂停／停止及异常保护保留。按用户要求直接发布原库链，实际补打、防踢与完整循环待游戏验证。",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2204/NewFolder3.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2204/NewFolder3.zip",
+    "LastUpdate": 1795537857,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "Changelog": "0.7.55.2203：AE 控制不再读取加载器版本或安装清单，本地安装同样可用；隔离输出诊断异常，避免日志故障触发主循环移速关闭。保留原接口、手动优先与停止恢复，真实控制失败和 Boss／出本等移速限制不变。保留 .2202 续接宝箱配置、官方新道具及全部扩展与两套签名地图。259 项契约、102 项移速及重套构建通过；实际 AE 进战与移速待实战。"
+    "Changelog": "0.7.55.2204：GCD 停滞补打可设置等待秒数（1–300，默认6），不限场景、FSD 或输出插件，AE／Custom 同样适用；修正武器动态射程校验。防踢改用原生输入计时器及当前游戏窗口短暂 Ctrl 输入，并回读客户端计时器。核验三种自建档模式失败重试、成功次数计数，保留已有档／暂停／异常保护。323 项契约、102 项移速及干净重套构建通过；服务端防踢和完整循环待实战。"
   }
 ]

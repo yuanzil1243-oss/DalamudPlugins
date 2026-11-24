@@ -34,10 +34,10 @@ internal static class RecoveryAndPauseTests
             Assert(!guard.Update(6100, 42, false, true) && !guard.Attempted);
             Assert(!guard.Update(10000, 42, false, true));
             Assert(!guard.Update(11000, 42, true, false));
-            Assert(!guard.Update(16999, 42, true, false));
-            Assert(guard.Update(17000, 42, true, false));
+            Assert(!guard.Update(15999, 42, true, false));
+            Assert(guard.Update(16000, 42, true, false));
         });
-        Check("hold-cast-cooldown-and-range-restart-timer", () =>
+        Check("invalid-player-target-or-observation-restarts-timer", () =>
         {
             var guard = new GcdStallWatchdog(); guard.Update(1000, 42, true, false);
             guard.Update(6500, 42, false, false);

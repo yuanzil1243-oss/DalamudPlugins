@@ -32,7 +32,7 @@ refused=False
 try:apply(overlay,upstream,work/'conflict-refused',1,'HEAD')
 except subprocess.CalledProcessError:refused=True
 assert refused and not (work/'conflict-refused/LocalExtensions').exists()
-result={'currentVersion':meta['localVersion'],'currentReapplied':True,'simulatedNextVersion':next_local,
+result={'currentVersion':meta['localVersion'],'currentReapplied':True,'currentSource':str(work/'current-revision'),'simulatedNextVersion':next_local,
  'nextReapplied':True,'versionAdaptationLimitedToMetadata':True,
  'contextConflictRefusedBeforeAdditions':True,'originalSourceUntouched':True}
 (ROOT/'artifacts/overlay-rehearsals.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8');print(json.dumps(result))

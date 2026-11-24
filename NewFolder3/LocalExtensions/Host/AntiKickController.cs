@@ -1,84 +1,126 @@
-using System.Numerics;
 using System.Runtime.InteropServices;
+using DeepDungeon.Fsd.Core;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
-using OmenTools.Info.Game.Packets.Abstractions;
-using OmenTools.Info.Game.Packets.Upstream;
-using OmenTools.OmenService;
+using FFXIVClientStructs.FFXIV.Client.System.Framework;
+using FFXIVClientStructs.FFXIV.Client.UI;
 
 namespace NewFolder3;
 
-/// <summary>
-/// Sends an ordinary position-update packet only after the player has remained
-/// still and out of combat in an active deep-dungeon run for several minutes.
-/// </summary>
+/// <summary>Short window-local input pulse based on actual client inactivity timers.</summary>
 internal sealed class AntiKickController
 {
-    private static readonly long StationaryDelayMs = (long)TimeSpan.FromMinutes(4).TotalMilliseconds;
-    private static readonly long RepeatDelayMs = (long)TimeSpan.FromMinutes(4).TotalMilliseconds;
     private readonly Configuration configuration;
     private readonly Func<bool> runActive;
     private readonly ICondition conditions;
     private readonly IObjectTable objects;
     private readonly IPluginLog log;
-    private Vector3 lastPosition;
-    private long stationarySince;
-    private long lastPacketAt;
-    private bool hasPosition;
+    private readonly AntiKickPulseScheduler scheduler = new();
+    private static readonly int[] ModifierKeys = [0x10, 0x11, 0x12, 0x5B, 0x5C];
+    private nint pressedWindow;
+    private long verifyAt, nextFailureLog, nextObservation;
+    private AntiKickInputTimers before;
 
     public AntiKickController(Configuration configuration, Func<bool> runActive,
         ICondition conditions, IObjectTable objects, IPluginLog log)
     {
-        this.configuration = configuration;
-        this.runActive = runActive;
-        this.conditions = conditions;
-        this.objects = objects;
-        this.log = log;
+        this.configuration = configuration; this.runActive = runActive;
+        this.conditions = conditions; this.objects = objects; this.log = log;
     }
 
-    public void Update()
+    public unsafe void Update()
     {
-        if (!configuration.AntiKickEnabled || !runActive() ||
-            !conditions[ConditionFlag.InDeepDungeon] || conditions[ConditionFlag.InCombat] ||
-            objects.LocalPlayer is not { } player)
-        {
-            Reset();
-            return;
-        }
-
         long now = Environment.TickCount64;
-        Vector3 position = player.Position;
-        if (!hasPosition || Vector3.DistanceSquared(position, lastPosition) >= 0.04f)
-        {
-            hasPosition = true;
-            lastPosition = position;
-            stationarySince = now;
-            return;
-        }
-
-        if (now - stationarySince < StationaryDelayMs || now - lastPacketAt < RepeatDelayMs)
-            return;
-
-        int opcode = UpstreamOpcode.PositionUpdateInstanceOpcode;
-        if (opcode <= 0)
-        {
-            log.Warning("[NewFolder3.AntiKick] Instance position-update opcode unavailable; no keepalive packet sent.");
-            lastPacketAt = now;
-            return;
-        }
-
+        if (!scheduler.Holding && now < nextObservation) return;
+        nextObservation = now + 1000;
         try
         {
-            var packet = new StationaryPositionUpdatePacket(opcode, player.Rotation, position);
-            GamePacketManager.Instance().SendPackt(packet);
-            lastPacketAt = now;
-            log.Info("[NewFolder3.AntiKick] Sent stationary deep-dungeon position update.");
+            bool eligible = configuration.AntiKickEnabled && runActive() &&
+                conditions[ConditionFlag.InDeepDungeon] &&
+                !conditions[ConditionFlag.BetweenAreas] && !conditions[ConditionFlag.BetweenAreas51] &&
+                !conditions[ConditionFlag.WatchingCutscene] && !conditions[ConditionFlag.WatchingCutscene78] &&
+                !conditions[ConditionFlag.OccupiedInCutSceneEvent] &&
+                objects.LocalPlayer is { IsDead: false };
+            var timers = eligible ? ReadTimers() : new AntiKickInputTimers(float.NaN, float.NaN, float.NaN);
+            if (verifyAt != 0 && now >= verifyAt)
+            {
+                verifyAt = 0;
+                if (eligible)
+                {
+                    bool reset = timers.ObservedResetSince(before);
+                    Log($"[NewFolder3.AntiKick] input-timer-check before={before} after={timers} clientResetObserved={reset}; server kick prevention is not confirmed.", !reset);
+                }
+            }
+            switch (scheduler.Update(now, eligible, timers, eligible && !scheduler.Holding && ModifierHeld()))
+            {
+                case AntiKickPulseCommand.Press:
+                    var framework = Framework.Instance();
+                    var window = framework == null || framework->GameWindow == null ? 0 : framework->GameWindow->WindowHandle;
+                    before = timers;
+                    // Record ownership before dispatch: even a timeout may have delivered key-down.
+                    pressedWindow = window;
+                    if (window == 0 || !SendKey(window, down: true))
+                    {
+                        ReleaseKey(); scheduler.CancelPulse();
+                        Log("[NewFolder3.AntiKick] Game window/input unavailable; no confirmed input pulse. Retry is rate-limited.", true);
+                    }
+                    else Log($"[NewFolder3.AntiKick] input-pulse-down timers={before}; awaiting release and timer observation.");
+                    break;
+                case AntiKickPulseCommand.Release:
+                    ReleaseKey();
+                    verifyAt = eligible ? now + 2000 : 0;
+                    break;
+            }
+            if (!eligible) verifyAt = 0;
         }
         catch (Exception error)
         {
-            lastPacketAt = now;
-            log.Warning($"[NewFolder3.AntiKick] Keepalive packet failed: {error.Message}");
+            ReleaseKey(); scheduler.CancelPulse(); verifyAt = 0;
+            if (now >= nextFailureLog)
+            {
+                nextFailureLog = now + 60_000;
+                Log($"[NewFolder3.AntiKick] Input observation/pulse failed: {error.Message}", true);
+            }
+        }
+    }
+
+    private static unsafe AntiKickInputTimers ReadTimers()
+    {
+        var ui = UIModule.Instance();
+        var timers = ui == null ? null : ui->GetInputTimerModule();
+        return timers == null ? new(float.NaN, float.NaN, float.NaN) :
+            new(timers->AfkTimer, timers->ContentInputTimer, timers->InputTimer);
+    }
+
+    private static bool ModifierHeld() => ModifierKeys
+        .Any(key => (GetAsyncKeyState(key) & 0x8000) != 0);
+
+    private static bool SendKey(nint window, bool down)
+    {
+        // Window-local Ctrl only: no global SendInput, movement, action, or window search.
+        // The key remains down across framework frames; same-frame down/up can be missed.
+        const uint keyDown = 0x100, keyUp = 0x101, abortIfHung = 0x2;
+        nint keyBits = down ? 1 : unchecked((nint)0xC0000001);
+        return SendMessageTimeout(window, down ? keyDown : keyUp, 0xA2, keyBits,
+            abortIfHung, 100, out _) != 0;
+    }
+
+    private void ReleaseKey()
+    {
+        nint window = pressedWindow;
+        if (window == 0) return;
+        pressedWindow = 0;
+        try
+        {
+            if (!SendKey(window, down: false))
+                Log("[NewFolder3.AntiKick] Synchronous key-up timed out; posting key-up to the same game window.", true);
+        }
+        catch { }
+        finally
+        {
+            // Redundant release is harmless and covers synchronous delivery failure.
+            try { PostMessage(window, 0x101, 0xA2, unchecked((nint)0xC0000001)); } catch { }
         }
     }
 
@@ -88,46 +130,25 @@ internal sealed class AntiKickController
         if (ImGui.Checkbox("防止深宫无操作踢出##antiKick", ref enabled))
         {
             configuration.AntiKickEnabled = enabled;
-            Reset();
+            nextObservation = 0;
+            if (!enabled) { ReleaseKey(); scheduler.Reset(); verifyAt = 0; }
             configuration.Save(configuration.Fsd);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("仅在 FSD 运行、位于深宫、非战斗且原地静止 4 分钟后发送一次当前位置包；不改变坐标。默认关闭。");
+            ImGui.SetTooltip("默认关闭。仅 FSD 运行且深宫内有效角色时，根据游戏原生无操作计时器，超过 60 秒向本游戏窗口短按 Ctrl 约 200ms；最多每分钟一次。不改变坐标、不使用全局键盘输入，战斗与自动移动不再重置防踢等待。按住修饰键、切场景或过场时跳过。日志核对输入前后客户端计时器；服务端防踢效果仍需实测。");
     }
 
-    private void Reset()
-    {
-        hasPosition = false;
-        stationarySince = 0;
-        lastPacketAt = 0;
-    }
+    private void Log(string message, bool warning = false)
+    { try { if (warning) log.Warning(message); else log.Info(message); } catch { } }
 
-    public void Dispose() => Reset();
+    public void Dispose() { ReleaseKey(); scheduler.Reset(); verifyAt = 0; }
 
-    [StructLayout(LayoutKind.Explicit, Size = 68)]
-    private struct StationaryPositionUpdatePacket : IUpstreamPacket
-    {
-        public StationaryPositionUpdatePacket(int opcode, float rotation, Vector3 position)
-        {
-            this = default;
-            Opcode = opcode;
-            Length = 56;
-            Rotation = rotation;
-            RotationNew = rotation;
-            Move = 0;
-            Position = position;
-            PositionNew = position;
-        }
-
-        [FieldOffset(0)] public int Opcode;
-        [FieldOffset(8)] public uint Length;
-        [FieldOffset(32)] public float Rotation;
-        [FieldOffset(36)] public float RotationNew;
-        [FieldOffset(40)] public uint Move;
-        [FieldOffset(44)] public Vector3 Position;
-        [FieldOffset(56)] public Vector3 PositionNew;
-
-        public string Log() => "Stationary deep-dungeon position update";
-        public void Send() => GamePacketManager.Instance().SendPackt(this);
-    }
+    [DllImport("user32.dll", EntryPoint = "SendMessageTimeoutW", SetLastError = true)]
+    private static extern nint SendMessageTimeout(nint window, uint message, nuint wParam,
+        nint lParam, uint flags, uint timeoutMs, out nuint result);
+    [DllImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PostMessage(nint window, uint message, nuint wParam, nint lParam);
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int key);
 }

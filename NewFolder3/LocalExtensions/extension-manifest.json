@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "upstreamVersion": "0.7.55.22",
   "upstreamCommit": "e578aaec1b58945a8bf6868a5c8ec2baae8bc50b",
-  "localRevision": 3,
+  "localRevision": 4,
   "versionRule": "upstream fourth component * 100 + local revision (01..99)",
-  "localVersion": "0.7.55.2203",
+  "localVersion": "0.7.55.2204",
   "features": [
     "builtin-speed",
     "ae-output",
@@ -23,7 +23,10 @@
     "ae-v3-identity-compatibility",
     "final-reward-floor-speed",
     "current-duty-chest-controls-and-profiles",
-    "ae-control-without-version-and-isolated-diagnostics"
+    "ae-control-without-version-and-isolated-diagnostics",
+    "selected-target-gcd-watchdog-configurable-wait",
+    "native-input-timer-anti-kick-pulse",
+    "failure-restart-success-count-regression"
   ],
   "mapScenarios": [
     "pt-21-30",

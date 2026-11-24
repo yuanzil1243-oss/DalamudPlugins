@@ -1,4 +1,5 @@
 using global::Dalamud.Bindings.ImGui;
+using DeepDungeon.Fsd.Core;
 
 namespace DeepDungeon.Fsd.Dalamud;
 
@@ -13,6 +14,16 @@ public sealed partial class FsdApplication
             _settings.Save();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("預設關閉。FSD 選定同一可攻擊目標，在射程／視線內且連續 6 秒允許輸出、沒有 GCD 進展時，只嘗試一次本職基礎單體 GCD。讀條、冷卻、排隊、動畫鎖、停手及機制故障不強攻。僅支援能讀回 On 狀態的 RSR、Wrath、Prome；AE 的 /aestop 無可靠讀回，AE／自訂／INH3 不補打。請在日誌核對請求與後續 GCD，不能據此視為 Boss 模組已修復。");
+            ImGui.SetTooltip("預設關閉。選中同一可攻擊敵人後，超過設定秒數沒有 GCD，就嘗試一次本職基礎單體 GCD。不限場景、FSD 運行狀態或輸出插件，AE／自訂指令也適用；暫停探索、停手或機制故障不會關閉此保護，完全停手請關閉本開關。仍須角色、技能、射程及視線實際可用；不切目標、不移動。同次停滯只嘗試一次，觀察到 GCD 冷卻後重新計時。");
+        int seconds = GcdStallWatchdog.NormalizeWaitSeconds(_settings.Farming.GcdStallWaitSeconds);
+        ImGui.SetNextItemWidth(120);
+        if (ImGui.InputInt("等待秒數##localGcdWaitSeconds", ref seconds))
+        {
+            _settings.Farming.GcdStallWaitSeconds = Math.Clamp(seconds,
+                GcdStallWatchdog.MinWaitSeconds, GcdStallWatchdog.MaxWaitSeconds);
+            _settings.Save();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("1–300 秒，預設 6 秒。能力技不會重置 GCD 等待時間；修改秒數、換目標或職業時重新計時。讀條、冷卻、技能排隊或動畫鎖結束且技能可用後才補打。");
     }
 }

@@ -157,6 +157,7 @@ public sealed partial class FsdApplication : IFsdApplication
         {
             _settings.Refresh();
             FsdSettingsValidator.ValidateOrThrow(_settings);
+            _module.UpdateGcdStallProtection(); // Independent of FSD/encounter readiness.
             if (_ownedEncounter is { } owned)
             {
                 if (IsRunActive) owned.Update(framework);

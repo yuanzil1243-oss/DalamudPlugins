@@ -1,0 +1,3 @@
+<Project>
+  <Import Project="LocalExtensions/LocalExtensions.targets" Condition="Exists('LocalExtensions/LocalExtensions.targets')" />
+</Project>

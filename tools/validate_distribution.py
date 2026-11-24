@@ -1,110 +1,116 @@
-"""Verify separate stable/testing packages and each channel's actual source provenance."""
+"""Validate the active release and the byte-preserved legacy quarantine."""
+import hashlib, io, json, re, sys, zipfile
 from pathlib import Path, PurePosixPath
-import hashlib, io, json, subprocess, tarfile, zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/"
+RAW = 'https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/'
 
-def require(ok, message):
-    if not ok:
-        raise AssertionError(message)
+def require(value, message):
+    if not value: raise AssertionError(message)
+def digest(data): return hashlib.sha256(data).hexdigest()
+def read(path): return json.loads(path.read_text(encoding='utf-8-sig'))
+def safe(name):
+    p = PurePosixPath(name)
+    require(not p.is_absolute() and '..' not in p.parts and ':' not in name and '\\' not in name,
+            'Unsafe path: '+name)
+    return p
+def zip_files(path):
+    with zipfile.ZipFile(path) as z:
+        names=z.namelist()
+        require(z.testzip() is None and len(names)==len(set(names)), 'Invalid ZIP: '+str(path))
+        for name in names: safe(name)
+        return {name:z.read(name) for name in names if not name.endswith('/')}
 
-def digest(data):
-    return hashlib.sha256(data).hexdigest()
-
-def read_json(path):
-    return json.loads(path.read_text(encoding="utf-8-sig"))
-
-def safe_path(name):
-    path = PurePosixPath(name)
-    require(not path.is_absolute() and ".." not in path.parts and ":" not in name and "\\" not in name,
-            "Unsafe path: " + name)
-    return path
-
-feed = read_json(ROOT / "pluginmaster.json")
-require(isinstance(feed, list), "Feed must be a list")
-identities = [x["InternalName"] for x in feed]
-require(len(identities) == len(set(identities)), "Duplicate plugin identity")
-channels = read_json(ROOT / "dist/CHANNELS.json")
-require(set(channels) == set(identities), "Each plugin requires its own channel provenance")
-
+feed = read(ROOT/'pluginmaster.json')
+require(isinstance(feed,list) and feed, 'Empty/invalid feed')
+identities=[x['InternalName'] for x in feed]
+require(len(identities)==len(set(identities)), 'Duplicate plugin identity')
+channels=read(ROOT/'dist/CHANNELS.json')
+require(set(channels)==set(identities), 'Channel inventory mismatch')
 for entry in feed:
-    identity = entry["InternalName"]
-    safe_path(identity)
-    require(entry["ApplicableVersion"] == "any", "ApplicableVersion mismatch")
-    require(isinstance(entry["LastUpdate"], int) and entry["LastUpdate"] > 0, "Invalid LastUpdate")
-    require(entry["RepoUrl"] == "https://github.com/yuanzil1243-oss/DalamudPlugins", "Wrong repository")
-    if identity == "NewFolder3":
-        require(entry["Author"] == "John Smith / Yuzi", "Original author attribution must be retained")
-    for channel, config in channels[identity].items():
-        require(channel in ("stable", "testing"), "Unknown channel")
-        testing = channel == "testing"
-        info_path = ROOT / safe_path(config["buildInfo"])
-        info = read_json(info_path)
-        package = info_path.parent / safe_path(info["package"]["file"])
-        version_key = "TestingAssemblyVersion" if testing else "AssemblyVersion"
-        api_key = "TestingDalamudApiLevel" if testing else "DalamudApiLevel"
-        require(info["version"] == entry[version_key] and entry[api_key] == 15, "Version/API mismatch")
-        if testing:
-            require(tuple(map(int, entry[version_key].split("."))) > tuple(map(int, entry["AssemblyVersion"].split("."))),
-                    "Testing version must be newer")
-            require(entry["IsTestingExclusive"] is False, "Stable channel must remain available")
-        expected_url = RAW + package.relative_to(ROOT).as_posix()
-        for key in (("DownloadLinkTesting",) if testing else ("DownloadLinkInstall", "DownloadLinkUpdate")):
-            require(entry[key] == expected_url, "Wrong download URL: " + key)
-        payload = package.read_bytes()
-        require(digest(payload) == info["package"]["sha256"] and len(payload) == info["package"]["bytes"], "Package hash/size mismatch")
-        if "preservedSha256" in config:
-            require(digest(payload) == config["preservedSha256"], "Preserved stable package changed")
-        with zipfile.ZipFile(io.BytesIO(payload)) as z:
-            names = z.namelist()
-            require(z.testzip() is None and len(names) == len(set(names)), "ZIP CRC/duplicate failure")
-            for name in names:
-                safe_path(name)
-            require(not any(name.endswith((".pdb", ".jsonl", ".raw", ".sqlite3")) for name in names), "Private/debug data in package")
-            require(set(names) == set(info["package"]["files"]), "ZIP inventory mismatch")
-            manifest = json.loads(z.read(identity + ".json"))
-            for key in ("Author", "Name", "Punchline", "Description", "InternalName", "ApplicableVersion", "RepoUrl", "IconUrl"):
-                require(manifest[key] == entry[key], "Feed/package identity mismatch: " + key)
-            require(manifest["AssemblyVersion"] == entry[version_key] and manifest["DalamudApiLevel"] == entry[api_key], "Feed/package version mismatch")
-            if identity == "NewFolder3":
-                require({n for n in names if n.endswith(".dll")} == {
-                    "NewFolder3.dll", "DeepDungeon.Fsd.Core.dll", "DeepDungeon.Fsd.Runtime.dll", "DeepDungeon.Fsd.Dalamud.dll",
-                    "OmenTools.dll", "GuerrillaNtp.dll", "TinyPinyin.dll"}, "Wrong seven-DLL dependency set")
-            for name, sha in info["package"]["files"].items():
-                require(digest(z.read(name)) == sha, "ZIP member hash mismatch: " + name)
-            internal = {}
-            for line in z.read("SHA256SUMS.txt").decode("utf-8-sig").splitlines():
-                sha, name = line.split("  ", 1)
-                require(name not in internal, "Duplicate internal checksum")
-                internal[name] = sha
-                require(digest(z.read(name)) == sha, "Internal checksum mismatch: " + name)
-            require(set(internal) == set(names) - {"SHA256SUMS.txt"}, "Incomplete internal checksum inventory")
-        sums = {}
-        for line in (info_path.parent / "SHA256SUMS.txt").read_text(encoding="utf-8-sig").splitlines():
-            sha, name = line.split("  ", 1)
-            safe_path(name)
-            sums[name] = sha
-            require(digest((info_path.parent / name).read_bytes()) == sha, "Distribution checksum mismatch: " + name)
-        require(set(sums) == {package.name, info_path.name}, "Distribution checksum inventory mismatch")
-        revision = config["sourceCommit"]
-        source_files = info["sourceFiles"]
-        if revision == "working-tree":
-            def source_bytes(name):
-                return (ROOT / safe_path(name)).read_bytes()
+    name=entry['InternalName']; safe(name)
+    require(entry['RepoUrl']=='https://github.com/yuanzil1243-oss/DalamudPlugins', 'Wrong repository')
+    require(entry['ApplicableVersion']=='any' and entry['DalamudApiLevel']==15, 'Host metadata mismatch')
+    require(isinstance(entry['LastUpdate'],int) and entry['LastUpdate']>0, 'Invalid timestamp')
+    require(set(channels[name])=={'stable'}, 'Unexpected or legacy distribution channel')
+    info_path=ROOT/safe(channels[name]['stable']['buildInfo']); info=read(info_path)
+    require(info['version']==entry['AssemblyVersion']=='0.7.55.2001', 'Wrong current version')
+    require(entry['Author']=='John Smith / Yuzi', 'Attribution mismatch')
+    package=info_path.parent/safe(info['package']['file'])
+    require(entry['DownloadLinkInstall']==entry['DownloadLinkUpdate']==RAW+package.relative_to(ROOT).as_posix(),
+            'Wrong active download URL')
+    require('archive/' not in entry['DownloadLinkInstall'], 'Active feed references archive')
+    require(digest(package.read_bytes())==info['package']['sha256'] and
+            package.stat().st_size==info['package']['bytes'], 'Package hash/size mismatch')
+    files=zip_files(package)
+    require(set(files)==set(info['package']['files']), 'Package inventory mismatch')
+    for path,sha in info['package']['files'].items():
+        require(digest(files[path])==sha,'Package member mismatch: '+path)
+    metadata=json.loads(files[name+'.json'])
+    for key in ['Author','Name','Punchline','Description','InternalName','RepoUrl','IconUrl','AssemblyVersion','DalamudApiLevel']:
+        require(metadata[key]==entry[key], 'Feed/package metadata differs: '+key)
+    dlls={path:digest(value) for path,value in files.items() if path.endswith('.dll')}
+    require(dlls==info['testedRuntimeDlls'] and len(dlls)==10, 'Changed or unexpected runtime DLLs')
+    expected_dlls={'NewFolder3.dll','DeepDungeon.Fsd.Core.dll','DeepDungeon.Fsd.Runtime.dll',
+        'DeepDungeon.Fsd.Dalamud.dll','DeepDungeon.MechanicRuntime.dll','FFXIVClientStructs.Expansion.dll',
+        'OmenTools.dll','GuerrillaNtp.dll','TerraFX.Interop.Windows.dll','TinyPinyin.dll'}
+    require(set(dlls)==expected_dlls, 'Unexpected DLL dependency set')
+    for path in files:
+        p=PurePosixPath(path)
+        require(not any(part in {'.git','pluginConfigs','bin','obj','__pycache__'} for part in p.parts) and
+            not path.endswith(('.pdb','.jsonl','.sqlite3','.db','.pk8','.p8')), 'Private/debug file: '+path)
+    internal={line.split('  ',1)[1]:line.split('  ',1)[0] for line in files['SHA256SUMS.txt'].decode().splitlines()}
+    require(set(internal)==set(files)-{'SHA256SUMS.txt'}, 'Incomplete package checksums')
+    require(all(digest(files[path])==sha for path,sha in internal.items()), 'Invalid internal checksum')
+    package_manifest=json.loads(files['package-manifest.json'])
+    require(set(package_manifest['files'])==set(files)-{'package-manifest.json','SHA256SUMS.txt'},
+            'Package manifest inventory mismatch')
+    require(all(digest(files[path])==sha for path,sha in package_manifest['files'].items()),
+            'Package manifest checksum mismatch')
+    for path,sha in info['sourceFiles'].items():
+        require(path.startswith(name+'/') and digest((ROOT/safe(path)).read_bytes())==sha, 'Source mismatch: '+path)
+    actual={p.relative_to(ROOT).as_posix() for p in (ROOT/name).rglob('*') if p.is_file() and '__pycache__' not in p.parts}
+    require(actual==set(info['sourceFiles']), 'Unexpected/missing current source file')
+    require(read(ROOT/name/(name+'.json'))==metadata,'Source/package manifest mismatch')
+    for kind in ['sourcePackage','overlayPackage']:
+        artifact=info[kind];path=info_path.parent/safe(artifact['file'])
+        require(digest(path.read_bytes())==artifact['sha256'] and path.stat().st_size==artifact['bytes'],
+                'Handoff artifact checksum mismatch: '+kind)
+        handoff=zip_files(path)
+        if kind=='sourcePackage':
+            require(set(handoff)=={p[len(name)+1:] for p in info['sourceFiles']}, 'Source ZIP inventory mismatch')
+            require(all(digest(handoff[p[len(name)+1:]])==sha for p,sha in info['sourceFiles'].items()),
+                    'Source ZIP differs from current source')
         else:
-            # A stable package must be verified against its published source commit,
-            # never against a newer testing tree. CI fetches full history explicitly.
-            archived = subprocess.check_output(["git", "archive", revision, identity], cwd=ROOT)
-            with tarfile.open(fileobj=io.BytesIO(archived)) as archive:
-                source = {m.name: archive.extractfile(m).read() for m in archive.getmembers() if m.isfile()}
-            def source_bytes(name):
-                safe_path(name)
-                return source[name]
-        for name, sha in source_files.items():
-            require(digest(source_bytes(name)) == sha, "Source provenance mismatch: " + name)
-        require(json.loads(source_bytes(identity + "/" + identity + ".json")) == manifest, "Package/source manifest mismatch")
-        print(f"PASS {identity} {channel} {info['version']}: identity/API, ZIP, seven DLLs, checksums, source provenance")
+            overlay=json.loads(handoff['overlay.json'])
+            require(overlay['upstreamCommit']==info['upstreamCommit'] and overlay['localRevision']==1, 'Wrong overlay base')
+            require(digest(handoff['hooks.patch'])==overlay['patchSha256'],'Overlay patch hash mismatch')
+            require(all(digest(handoff['additions/'+p])==sha for p,sha in overlay['files'].items()),'Overlay hash mismatch')
+    sums={line.split('  ',1)[1]:line.split('  ',1)[0]
+        for line in (info_path.parent/'SHA256SUMS.txt').read_text().splitlines()}
+    expected={info_path.name,info['package']['file'],info['sourcePackage']['file'],info['overlayPackage']['file']}
+    require(set(sums)==expected,'Distribution checksum inventory mismatch')
+    require(all(digest((info_path.parent/safe(p)).read_bytes())==sha for p,sha in sums.items()),'Distribution checksum mismatch')
+    from validate_repository_data import verify
+    maps=verify(ROOT/name/'DetailedMaps',ROOT/name)
+    require({x['scenario'] for x in maps['bundles']}=={'pt-21-30','pt-31-40'},'Wrong map scopes')
+    for bundle in maps['bundles']:
+        require(bundle['release']=='2026-11-23.1','Unexpected map release')
+        for path,sha in bundle['sha256'].items():
+            require(digest(files['DetailedMaps/'+bundle['scenario']+'/'+path])==sha,'Package/source map mismatch')
+    require(digest((ROOT/name/'NewFolder3-release.json').read_bytes())==info['upstreamFeedSha256'],
+            'Upstream source feed was replaced')
+    print(f"PASS {name} {info['version']}: feed, package, 10 tested DLLs, source/overlay, maps and checksums")
 
-require(read_json(ROOT / "NewFolder3/NewFolder3-release.json") == feed, "Source feed mismatch")
-print("PASS: stable and opt-in testing remain separate; no plugin-count restriction")
+legacy=ROOT/'archive/NewFolder3/0.7.55.83-final-local'; sealed=read(legacy/'ARCHIVE-MANIFEST.json')
+require(sealed['repositoryCommit']=='b3420b1d88faa13a26e8c7d4f8b4c4ac66cc247c' and len(sealed['files'])==857,
+        'Wrong archive baseline/inventory')
+require(all(digest((legacy/safe(p)).read_bytes())==sha for p,sha in sealed['files'].items()),'Archived bytes changed')
+require({p.relative_to(legacy).as_posix() for p in legacy.rglob('*') if p.is_file()}==
+        set(sealed['files'])|{'ARCHIVE-MANIFEST.json'},'Archive inventory drift')
+require(not (ROOT/'data').exists() and not (ROOT/'dist/NewFolder3.zip').exists(), 'Legacy active data/package remained')
+for doc in [ROOT/'README.md',*(ROOT/'docs').glob('*.md')]:
+    for target in re.findall(r'\]\(([^)]+)\)',doc.read_text(encoding='utf-8')):
+        if target.startswith(('https:','http:','#')):continue
+        require((doc.parent/target.split('#')[0]).exists(),'Broken documentation link: '+target)
+print('PASS archive: 857 original files byte-identical; current links and old endpoints isolated')

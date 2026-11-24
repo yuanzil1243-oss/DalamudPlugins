@@ -1,0 +1,18 @@
+<Project>
+  <!-- Local features live outside the upstream snapshot; only explicit project hooks are patched. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'NewFolder3'">
+    <Compile Include="$(MSBuildThisFileDirectory)Host/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'DeepDungeon.Fsd.Core'">
+    <Compile Include="$(MSBuildThisFileDirectory)Core/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'DeepDungeon.Fsd.Runtime'">
+    <Compile Include="$(MSBuildThisFileDirectory)Runtime/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'DeepDungeon.Fsd.Dalamud'">
+    <Compile Include="$(MSBuildThisFileDirectory)Dalamud/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'NewFolder3' Or '$(MSBuildProjectName)' == 'NewFolder3.ContractTests'">
+    <None Include="$(MSBuildThisFileDirectory)../DetailedMaps/**/*" Link="DetailedMaps/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

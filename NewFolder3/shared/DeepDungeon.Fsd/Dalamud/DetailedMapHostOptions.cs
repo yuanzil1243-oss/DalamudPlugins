@@ -5,14 +5,10 @@ public sealed class DetailedMapHostOptions
     public const string NoOnlineCatalogServiceMessage =
         "此構建未配置詳細地圖服務。";
 
-    public const string NoOnlineCatalogFallbackMessage =
-        "本地模式：未配置線上詳細地圖，使用普通探索。";
-
     public DetailedMapHostOptions(
         Uri? catalogBaseUri,
         bool contributesAnonymousEvidence,
-        bool deleteCatalogsWhenDisabled,
-        bool supportsControlledPtSurvey)
+        bool deleteCatalogsWhenDisabled)
     {
         if (catalogBaseUri != null)
         {
@@ -46,7 +42,6 @@ public sealed class DetailedMapHostOptions
 
         ContributesAnonymousEvidence = contributesAnonymousEvidence;
         DeleteCatalogsWhenDisabled = deleteCatalogsWhenDisabled;
-        SupportsControlledPtSurvey = supportsControlledPtSurvey;
     }
 
     /// <summary>
@@ -57,11 +52,14 @@ public sealed class DetailedMapHostOptions
 
     public bool HasOnlineCatalogService => CatalogBaseUri != null;
 
-    /// <summary>Use a configured service or an already validated local catalog.</summary>
-    public bool ShouldUseDetailedMap(bool requested, bool hasValidLocalCatalog = false) =>
-        requested && (HasOnlineCatalogService || hasValidLocalCatalog);
-
     public bool ContributesAnonymousEvidence { get; }
     public bool DeleteCatalogsWhenDisabled { get; }
-    public bool SupportsControlledPtSurvey { get; }
+    // Keep older standalone hosts buildable when they supply the disabled flag.
+    public DetailedMapHostOptions(Uri? catalogBaseUri, bool contributesAnonymousEvidence,
+        bool deleteCatalogsWhenDisabled, bool supportsControlledPtSurvey)
+        : this(catalogBaseUri, contributesAnonymousEvidence, deleteCatalogsWhenDisabled)
+    {
+        if (supportsControlledPtSurvey)
+            throw new ArgumentException("Controlled PT survey has been removed.", nameof(supportsControlledPtSurvey));
+    }
 }

@@ -1,0 +1,16 @@
+{
+  "Author": "John Smith / Yuzi",
+  "Name": "NewFolder3（天宫本地收尾候选版）",
+  "Punchline": "基于 .82-final-local 的本地版；原作者已更新，推荐使用原作者版本。",
+  "InternalName": "NewFolder3",
+  "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
+  "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
+  "AssemblyVersion": "0.7.55.83",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "Description": "原作者已经完善了死宫、天宫、妖宫的下底功能，推荐使用原作者版本。原作者仓库：https://github.com/transparent-duck/NewFolder3 。原作者库链：https://raw.githubusercontent.com/transparent-duck/NewFolder3/refs/heads/main/NewFolder3-release.json 。本地 0.7.55.83-final-local 基于 .82-final-local，仅新增原作者更新确认提示；每次加载后需点击确定才能继续使用，提供可复制库链和仓库地址。保留 .82 的AE输出、十层暂停、天宫探索与战斗等本地功能；确认不会自动切换版本或启动任务，新增提示尚待游戏界面验证。",
+  "Changelog": "0.7.55.83-final-local：基于 .82-final-local 第2次打包版新增原作者更新提示，明确推荐原作者的死宫、天宫、妖宫下底版本。启动时显示确认弹窗，提供可复制原作者库链及仓库地址，点击确定后才允许继续使用本地版；不自动启动任务或换版。保留 .82 累计修复，未引入此前取消的大平层选门处理。"
+}

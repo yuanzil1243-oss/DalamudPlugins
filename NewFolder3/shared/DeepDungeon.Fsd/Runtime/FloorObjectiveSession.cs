@@ -11,8 +11,7 @@ public enum RoomObjectiveCategory
 public readonly record struct RoomObjectiveKey(
     int RoomIndex,
     RoomObjectiveCategory Category,
-    FloorObjectiveKind Kind,
-    int Batch = 0);
+    FloorObjectiveKind Kind);
 
 public readonly record struct ActiveObjectiveExecution(
     ObjectiveIdentity Identity,
@@ -95,20 +94,6 @@ public sealed class FloorObjectiveSession : IDisposable
     	ObjectiveDecision = decision;
     	HasObjectiveDecision = true;
     	return true;
-    }
-
-    public RoomPlanEntry RemoveResolvedWork(RoomPlanEntry entry)
-    {
-        var progress = GetRoomProgress(entry.RoomIndex);
-        bool chestResolved = _objectiveIds.Any(pair => pair.Key.RoomIndex == entry.RoomIndex &&
-            pair.Key.Batch == entry.ChestBatch && pair.Key.Category == RoomObjectiveCategory.Chests &&
-            ObjectiveLedger.TryGetObjective(pair.Value, out var objective) && objective.IsResolved);
-        return entry with
-        {
-            ShouldProbeHoard = entry.ShouldProbeHoard && !progress.HoardSearched,
-            ShouldSearchChests = entry.ShouldSearchChests && !chestResolved,
-            ShouldVisitForIntel = entry.ShouldVisitForIntel && !progress.IntelVisited
-        };
     }
 
     public bool RefreshObjectiveDecision(

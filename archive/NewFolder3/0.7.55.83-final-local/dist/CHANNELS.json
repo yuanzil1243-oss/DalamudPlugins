@@ -1,0 +1,8 @@
+{
+  "NewFolder3": {
+    "stable": {
+      "buildInfo": "dist/BUILDINFO.json",
+      "sourceCommit": "working-tree"
+    }
+  }
+}

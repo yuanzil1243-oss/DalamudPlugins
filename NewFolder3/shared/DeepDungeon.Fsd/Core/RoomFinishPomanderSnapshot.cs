@@ -4,7 +4,6 @@ namespace DeepDungeon.Fsd.Core
     {
         public bool CanAttemptPomanderUse { get; init; }
         public bool BandedEnabled { get; init; }
-        public bool HoardDistributionHintsOnly { get; init; }
         public bool HasOpenedHoardThisFloor { get; init; }
         public int FloorsetBandedCount { get; init; }
         public FloorsetHoardOpportunity HoardOpportunity { get; init; }

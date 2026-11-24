@@ -75,7 +75,10 @@ namespace DeepDungeon.Fsd.Core
 
         public static bool ShouldUseSlot(in GeneralAutoPomanderSnapshot snapshot, uint slotIndex)
         {
-            if (!snapshot.CanAttemptPomanderUse)
+            // Policy is independent of a temporary dispatch block. Decide
+            // checks readiness; chest overflow also needs this policy while busy.
+            if (!DeepDungeonFloorItemUsePolicy.AllowsNextFloorEffect(
+                    slotIndex, snapshot.NextFloorIsMob))
             {
                 return false;
             }
@@ -84,7 +87,7 @@ namespace DeepDungeon.Fsd.Core
             {
                 FloorInitPlanner.PurityPomanderSlotIndex => snapshot.PurityUsable && snapshot.HasCurseStatus,
                 FloorInitPlanner.SerenityPomanderSlotIndex => snapshot.SerenityUsable && snapshot.HasHarmfulFloorEffect,
-                FloorInitPlanner.AffluencePomanderSlotIndex => snapshot.AffluenceUsable && !snapshot.AffluenceActive && snapshot.NextFloorIsMob,
+                FloorInitPlanner.AffluencePomanderSlotIndex => snapshot.AffluenceUsable && !snapshot.AffluenceActive,
                 FloorInitPlanner.StrengthPomanderSlotIndex => snapshot.StrengthUsable && (snapshot.AllowStatusOverlap || !snapshot.HasStrengthStatus),
                 FloorInitPlanner.SteelPomanderSlotIndex => snapshot.SteelUsable && (snapshot.AllowStatusOverlap || !snapshot.HasSteelStatus),
                 FloorInitPlanner.RaisingPomanderSlotIndex => snapshot.RaisingUsable && !snapshot.RaisingActive,

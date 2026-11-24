@@ -2,26 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using DeepDungeon.Fsd.Core;
 using global::Dalamud.Plugin.Services;
 using DeepDungeon.Fsd.Dalamud.GameState;
 using DeepDungeon.Fsd.Dalamud.Runtime;
 using DeepDungeon.Fsd.Dalamud.Runtime.Navigation;
-using DeepDungeon.Fsd.Core;
 
 namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 {
-	internal interface IDeleteSaveFlow
-	{
-		void Prepare(RunContext context);
-		bool Update(IFramework framework);
-	}
-
 	/// <summary>
 	/// Reactive flow to delete a deep dungeon save slot via NPC �?menu �?save list �?yes/no confirm �?close menu.
 	/// Mirrors PTDeleteSaveFlow behavior.
 	/// </summary>
-	public sealed class GenericDeleteSaveFlow : IDeleteSaveFlow, IDisposable
+	public sealed class GenericDeleteSaveFlow
 	{
+		private EntranceWindowCleanup _cleanup = new();
 		private RunContext? _ctx;
 		private readonly DungeonData _dungeon;
 		private readonly Func<IReadOnlyList<DeepDungeon.Fsd.Core.SaveSlotSnapshot>, string?>? _validateSource;
@@ -31,26 +26,22 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 		private readonly Dictionary<string, DateTime> _seenSince = new Dictionary<string, DateTime>();
 		private DateTime _nextTry = DateTime.MinValue;
 		private string _lastStatus = string.Empty;
-		private string _lastResetMenuDiagnostic = string.Empty;
 		private DateTime _lastLog = DateTime.MinValue;
 		private DateTime _lastProgress = DateTime.MinValue;
 		private DateTime _postInteractUntil = DateTime.MinValue;
 		private DateTime _noWindowSince = DateTime.MinValue;
 		private DateTime _lastMenuFire = DateTime.MinValue;
 		private bool _firstProbeDone;
-		private bool _deleteConfirmed;
-		private bool _targetSlotObservedOccupied;
 		private bool _deleteSlotClickSent;
+		private long? _deleteSubmittedAt;
 		private bool _targetSlotObservedEmptyAfterDelete;
+		private bool _freshListRequested;
 		private DateTime _lastNpcNotFound = DateTime.MinValue;
 		private NavigationHelper? _npcNavHelper;
-		private readonly OwnedSaveCleanupWatchdog _watchdog = new();
 
 		private static readonly TimeSpan StabilityShort = TimeSpan.FromMilliseconds(150);
 		private static readonly TimeSpan StabilityNormal = TimeSpan.FromMilliseconds(250);
-		private static readonly TimeSpan CooldownNormal = TimeSpan.FromMilliseconds(400);
-		private static readonly TimeSpan PostInteractGrace = TimeSpan.FromMilliseconds(1500);
-		private static readonly TimeSpan NoWindowReinteractDelay = TimeSpan.FromMilliseconds(2200);
+		private static readonly TimeSpan DeleteVerificationWindow = TimeSpan.FromSeconds(10);
 
 		public GenericDeleteSaveFlow(DungeonData dungeon, int slotIndex,
 			Func<IReadOnlyList<DeepDungeon.Fsd.Core.SaveSlotSnapshot>, string?>? validateSource = null)
@@ -63,20 +54,19 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 		public void Prepare(RunContext context)
 		{
 			_ctx = context;
+			_cleanup = new();
 			_cooldowns.Clear();
 			_seenSince.Clear();
-			_lastResetMenuDiagnostic = string.Empty;
-			_watchdog.Reset(DateTime.UtcNow);
 			_lastProgress = DateTime.Now;
 			_nextTry = DateTime.MinValue;
 			_postInteractUntil = DateTime.MinValue;
 			_noWindowSince = DateTime.Now; // probe quickly after exit
 			_lastMenuFire = DateTime.MinValue;
 			_firstProbeDone = false;
-			_deleteConfirmed = false;
-			_targetSlotObservedOccupied = false;
 			_deleteSlotClickSent = false;
+			_deleteSubmittedAt = null;
 			_targetSlotObservedEmptyAfterDelete = false;
+			_freshListRequested = false;
 			_npcNavHelper = new NavigationHelper(context.Navigator);
 			if (_ctx != null)
 			{
@@ -88,61 +78,44 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 		public unsafe bool Update(IFramework framework)
 		{
 			if (_ctx == null) return false;
-			if (_ctx.CancellationSource.IsCancellationRequested) { _npcNavHelper?.Cancel(); return true; }
+			if (DutyState.IsClientTransitioning || _ctx.Duty.IsInDuty) return false;
 			if (DateTime.Now < _nextTry) return false;
-			if (_ctx.Duty.IsInDuty) return Fail("Save cleanup refused while still inside a duty.");
-			bool paused = _ctx.Duty.IsTransitioning || Service.LocalPlayer == null;
-			if (paused) { _watchdog.Tick(DateTime.UtcNow, true); return false; }
+
+			if (!_cleanup.Ready(_ctx)) return false;
 
 			// Snapshot addons
 			var hasYesno = DeepDungeonUi.TryGetSelectYesNo(out var yesno);
 			var hasSave = DeepDungeonUi.TryGetAddon("DeepDungeonSaveData", out var save);
 			var hasMenu = DeepDungeonUi.TryGetAddon("DeepDungeonMenu", out var menu);
-			var hasSelect = DeepDungeonUi.TryGetSelectString(out _);
-			var hasTalk = DeepDungeonUi.TryGetTalk(out _);
-			_watchdog.Observe(_targetSlotObservedEmptyAfterDelete ? 4 : hasYesno && _deleteSlotClickSent ? 3 : hasSave ? 2 : hasMenu ? 1 : 0, DateTime.UtcNow);
-			var watchdog = _watchdog.Tick(DateTime.UtcNow);
-			if (watchdog == CleanupWatchdogDecision.Fail)
-			{
-				_ctx.RecordDiagnostic?.Invoke("owned-save-cleanup-exhausted", new { slot = _slotIndex, _watchdog.Recoveries, _deleteConfirmed, _targetSlotObservedEmptyAfterDelete, status = _lastStatus });
-				return Fail("Save cleanup exhausted its verified-progress budget; no new save was created and no other slot was touched.");
-			}
-			if (watchdog == CleanupWatchdogDecision.Recover)
-			{
-				_ctx.RecordDiagnostic?.Invoke("owned-save-cleanup-recovery", new { slot = _slotIndex, _watchdog.Recoveries, hasSave, hasMenu, hasYesno, hasSelect, hasTalk, _deleteConfirmed });
-				// Never dismiss or accept an unknown confirmation/dialogue. Once deletion
-				// was dispatched, recover only by observing/reopening the same slot.
-				if (!hasYesno && !hasSelect && !hasTalk && !_deleteConfirmed)
-				{
-					DeepDungeonUi.CloseDeepDungeonEntryWindows();
-					_deleteSlotClickSent = _targetSlotObservedOccupied = false;
-					_firstProbeDone = false;
-					_seenSince.Clear();
-				}
-				_cooldowns.Clear();
-				_nextTry = DateTime.Now.AddMilliseconds(350);
-				return false;
-			}
 
 			MarkPresence("yesno", hasYesno);
 			MarkPresence("save", hasSave);
 			MarkPresence("menu", hasMenu);
-			var hasAnyUi = hasYesno || hasSave || hasMenu || hasSelect || hasTalk;
+			var hasAnyUi = hasYesno || hasSave || hasMenu;
 			UpdateNoWindow(hasAnyUi);
 			if (hasAnyUi)
 				_npcNavHelper?.Cancel();
 
-			// 1) If SelectYesno present (delete confirm), confirm 0
-			if (hasYesno && SeenStable("yesno", StabilityShort) && !IsOnCooldown("yesno"))
+			// 1) A modal blocks all lower-priority actions, including while stabilizing.
+			if (hasYesno)
 			{
-				if (_deleteConfirmed) { SetStatus("Save cleanup: waiting for the dispatched confirmation to close"); return false; }
-				if (!_deleteSlotClickSent || !_targetSlotObservedOccupied)
+				if (_deleteSubmittedAt.HasValue)
 				{
-					return Fail($"{_dungeon.Name} Del: unexpected confirm before an occupied slot was selected");
+					if (!_targetSlotObservedEmptyAfterDelete && DeleteVerificationExpired("yesno"))
+						return Fail($"已送出存檔 {_slotIndex + 1} 的刪除確認，但對話仍阻止重新讀取該槽。刪除結果未確認。");
+					SetStatus($"{_dungeon.Name} Del: waiting for the same slot's delete result");
+					return false;
+				}
+				if (!SeenStable("yesno", StabilityShort) || IsOnCooldown("yesno")) return false;
+				if (!_deleteSlotClickSent)
+				{
+					SetStatus($"{_dungeon.Name} Del: waiting for confirmation with a known target slot");
+					return false;
 				}
 				if (!DeepDungeonUi.IsDeleteSaveConfirmationPrompt(yesno, out var promptError))
 				{
-					return Fail($"{_dungeon.Name} Del: {promptError}");
+					SetStatus($"{_dungeon.Name} Del: waiting for unrelated confirmation ({promptError})");
+					return false;
 				}
 
 				SetStatus($"{_dungeon.Name} Del: confirming delete");
@@ -150,48 +123,55 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				{
 					return Fail($"{_dungeon.Name} Del: delete confirmation callback failed");
 				}
-				_deleteConfirmed = true;
-				SetCooldown("yesno", CooldownNormal);
+				_deleteSubmittedAt = Environment.TickCount64;
+				_freshListRequested = false;
+				SetCooldown("yesno", InteractionTiming.GetRetryInterval());
 				_lastProgress = DateTime.Now;
-				_nextTry = DateTime.Now.AddMilliseconds(300);
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
 				return false;
 			}
 
 			// 2) If SaveData visible, click chosen slot via Agent
 			if (hasSave && SeenStable("save", StabilityNormal) && !IsOnCooldown("save-slot"))
 			{
+				// Entry panels can survive zoning with their pre-entry empty rows.
+				// Require a new reset-list request before using any row as a result.
+				if (!_freshListRequested)
+				{
+					SetStatus($"{_dungeon.Name} Del: closing residual save list before refresh");
+					DeepDungeonUi.TryCloseAddon("DeepDungeonSaveData");
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+					return false;
+				}
+				if (!DeepDungeonUi.IsSaveListForDeletion(save))
+				{
+					SetStatus($"{_dungeon.Name} Del: closing a non-delete save list");
+					DeepDungeonUi.TryCloseAddon("DeepDungeonSaveData");
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+					return false;
+				}
 				if (!DeepDungeonUi.TryReadSaveSlots(out var slots, out _) || !slots.Any(slot => slot.Index == _slotIndex))
 				{
+					if (!_targetSlotObservedEmptyAfterDelete && DeleteVerificationExpired("save"))
+						return Fail($"已送出刪除確認，但無法從重新開啟的列表讀取存檔 {_slotIndex + 1}。刪除結果未確認。");
 					SetStatus($"{_dungeon.Name} Del: waiting for save slot state");
 					_nextTry = DateTime.Now.AddMilliseconds(250);
 					return false;
 				}
 
 				bool targetSlotEmpty = slots.Single(slot => slot.Index == _slotIndex).Empty;
-				if (_deleteConfirmed)
-				{
-					if (targetSlotEmpty)
-					{
-						_targetSlotObservedEmptyAfterDelete = true;
-						_watchdog.Observe(4, DateTime.UtcNow);
-						SetStatus($"{_dungeon.Name} Del: slot {(_slotIndex + 1)} verified empty");
-						DeepDungeonUi.TryCloseAddon("DeepDungeonSaveData");
-						_lastProgress = DateTime.Now;
-					}
-					else
-					{
-						SetStatus($"{_dungeon.Name} Del: waiting for slot {(_slotIndex + 1)} to clear");
-					}
-					_nextTry = DateTime.Now.AddMilliseconds(250);
-					return false;
-				}
-
+				// Completion is a game fact. A user or YesAlready may have confirmed.
 				if (targetSlotEmpty)
 				{
-					return Fail($"{_dungeon.Name} Del: slot {(_slotIndex + 1)} is already empty");
+					_targetSlotObservedEmptyAfterDelete = true;
+					SetStatus($"{_dungeon.Name} Del: slot {(_slotIndex + 1)} verified empty");
+					DeepDungeonUi.TryCloseAddon("DeepDungeonSaveData");
+					_lastProgress = DateTime.Now;
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+					return false;
 				}
-				if (_deleteSlotClickSent) { SetStatus("Save cleanup: waiting for the selected slot confirmation"); return false; }
-
+				if (_deleteSubmittedAt.HasValue)
+					return Fail($"已送出刪除確認，但重新讀取後存檔 {_slotIndex + 1} 仍非空，無法確認刪除結果。");
 				string? sourceError = _validateSource?.Invoke(slots);
 				if (!string.IsNullOrEmpty(sourceError)) return Fail(sourceError);
 				SetStatus($"{_dungeon.Name} Del: clicking slot {(_slotIndex + 1)}");
@@ -199,89 +179,79 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				if (!DeepDungeonUi.ClickSaveSlotForDelete(_slotIndex))
 				{
 					SetStatus($"{_dungeon.Name} Del: slot click failed");
-					_nextTry = DateTime.Now.AddMilliseconds(250);
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
 					return false;
 				}
-				_targetSlotObservedOccupied = true;
 				_deleteSlotClickSent = true;
-				SetCooldown("save-slot", CooldownNormal);
+				SetCooldown("save-slot", InteractionTiming.GetRetryInterval());
 				_lastProgress = DateTime.Now;
-				_nextTry = DateTime.Now.AddMilliseconds(300);
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
 				return false;
 			}
 
+			// A visible save list blocks its parent menu even during cooldown.
+			if (hasSave) return false;
+
 			// 3) If Menu visible, open SaveData for deletion via Agent (robust - not affected by menu order)
-			// Note: We no longer close the menu after delete - GenericEntryFlow will reuse the open menu on next loop
 			if (hasMenu && SeenStable("menu", StabilityShort))
 			{
 				// Open SaveData for deletion via Agent
-				if ((!_deleteConfirmed || !_targetSlotObservedEmptyAfterDelete) && !IsOnCooldown("menu-open-save") && DateTime.Now - _lastMenuFire >= TimeSpan.FromMilliseconds(350))
+				if (!_targetSlotObservedEmptyAfterDelete && !IsOnCooldown("menu-open-save") && DateTime.Now - _lastMenuFire >= InteractionTiming.GetRetryInterval())
 				{
-					SetStatus(_deleteConfirmed
+					SetStatus(_deleteSlotClickSent
 						? $"{_dungeon.Name} Del: opening save data to verify slot"
 						: $"{_dungeon.Name} Del: opening save data via Agent");
-					bool selected = DeepDungeonUi.TrySelectResetProgress(out var options, out var menuError);
-					string diagnostic = string.Join("\u001f", options) + "|" + menuError;
-					if (selected || diagnostic != _lastResetMenuDiagnostic)
-					{
-						_ctx.RecordDiagnostic?.Invoke("owned-save-delete-menu", new
-						{ slot = _slotIndex, intent = "reset-progress", selected, options, error = menuError });
-						_lastResetMenuDiagnostic = diagnostic;
-					}
-					if (!selected) SetStatus(menuError);
+					_freshListRequested = DeepDungeonUi.OpenDeleteSaveViaAgent();
 					_lastMenuFire = DateTime.Now;
-					SetCooldown("menu-open-save", CooldownNormal);
+					SetCooldown("menu-open-save", InteractionTiming.GetRetryInterval());
 					_lastProgress = DateTime.Now;
-					_nextTry = DateTime.Now.AddMilliseconds(250);
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
 					return false;
 				}
 			}
 
-			// Finish after we confirmed a delete and save/yesno are closed (menu can remain open for next loop)
-			if (_deleteConfirmed && !hasSave && !hasYesno && !_targetSlotObservedEmptyAfterDelete)
-			{
-				SetStatus($"{_dungeon.Name} Del: waiting to verify slot empty");
-				_nextTry = DateTime.Now.AddMilliseconds(250);
-				return false;
-			}
-
-			if (_deleteConfirmed && _targetSlotObservedEmptyAfterDelete && (hasSave || hasMenu || hasYesno))
+			// Finish only after the target slot was read empty and panels close.
+			if (_targetSlotObservedEmptyAfterDelete && hasMenu)
 			{
 				SetStatus($"{_dungeon.Name} Del: closing entry windows");
-				DeepDungeonUi.CloseDeepDungeonEntryWindows();
-				_nextTry = DateTime.Now.AddMilliseconds(250);
+				DeepDungeonUi.TryCloseAddon("DeepDungeonMenu");
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
 				return false;
 			}
 
-			if (_deleteConfirmed && _targetSlotObservedEmptyAfterDelete && !hasSave && !hasMenu && !hasYesno && (DateTime.Now - _lastProgress) > TimeSpan.FromMilliseconds(400))
+			if (_targetSlotObservedEmptyAfterDelete && !hasSave && !hasMenu && !hasYesno && (DateTime.Now - _lastProgress) > TimeSpan.FromMilliseconds(400))
 			{
 				_npcNavHelper?.Cancel();
 				SetStatus($"{_dungeon.Name} Del: finished");
 				return true;
 			}
+			if (_targetSlotObservedEmptyAfterDelete) return false;
 
-			// 4) Fallback: interact with NPC if no UI visible, honoring grace and no-window delay
+			// 4) Retry NPC interaction at the shared cadence while no UI is visible.
 			if (!hasAnyUi && !IsOnCooldown("npc-probe"))
 			{
 				var inGrace = DateTime.Now < _postInteractUntil;
-				var noWindowLongEnough = _noWindowSince != DateTime.MinValue && (DateTime.Now - _noWindowSince) >= NoWindowReinteractDelay;
+				var noWindowLongEnough = _noWindowSince != DateTime.MinValue && (DateTime.Now - _noWindowSince) >= InteractionTiming.GetRetryInterval();
 				var allowFirstProbe = !_firstProbeDone;
 				var preferNpcReprobe = _lastNpcNotFound != DateTime.MinValue;
 				if (allowFirstProbe || preferNpcReprobe || (!inGrace && noWindowLongEnough))
 				{
 					SetStatus($"{_dungeon.Name} Del: interacting with NPC");
 					InteractWithDungeonNpc();
-					var probeCooldown = preferNpcReprobe ? TimeSpan.FromMilliseconds(600) : TimeSpan.FromMilliseconds(900);
-					SetCooldown("npc-probe", probeCooldown);
+					SetCooldown("npc-probe", InteractionTiming.GetRetryInterval());
 					_firstProbeDone = true;
 					_lastProgress = DateTime.Now;
-					_nextTry = DateTime.Now.AddMilliseconds(350);
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
 					return false;
 				}
 			}
 
 			_nextTry = DateTime.Now.AddMilliseconds(150);
 			return false;
+
+			bool DeleteVerificationExpired(string window) => _deleteSubmittedAt is { } sentAt &&
+				Environment.TickCount64 - sentAt >= DeleteVerificationWindow.TotalMilliseconds &&
+				SeenStable(window, DeleteVerificationWindow);
 
 			void InteractWithDungeonNpc()
 			{
@@ -306,16 +276,15 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 					return;
 				}
 
-				var distance = Vector3.Distance(player.Position, npc.Position);
-				_watchdog.Observe(0, DateTime.UtcNow, distance);
-				if (distance > NpcInteractionGuard.MaxInteractDistance)
+				var distance = NpcInteractionGuard.InteractionRange.Distance(player.Position, npc.Position);
+				if (!NpcInteractionGuard.InteractionRange.HasArrived(player.Position, npc.Position))
 				{
 					if (!moveHelper.VNav.NavmeshReady())
 					{
 						SetStatus($"{_dungeon.Name} Del: waiting for navigation mesh");
 						return;
 					}
-					var navState = _npcNavHelper?.Navigate(npc.Position, player.Position, NpcInteractionGuard.MaxInteractDistance - 0.4f) ?? NavigationState.Failed;
+					var navState = _npcNavHelper?.Navigate(npc.Position, player.Position, NpcInteractionGuard.InteractionRange) ?? NavigationState.Failed;
 					SetStatus(navState is NavigationState.Failed or NavigationState.StuckGiveUp
 						? $"{_dungeon.Name} Del: NPC navigation failed ({distance:F1}m)"
 						: $"{_dungeon.Name} Del: moving to NPC ({distance:F1}m)");
@@ -331,7 +300,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				}
 
 				SetStatus(status);
-				_postInteractUntil = DateTime.Now.Add(PostInteractGrace);
+				_postInteractUntil = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
 			}
 			void MarkPresence(string key, bool present)
 			{
@@ -392,6 +361,5 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				return true;
 			}
 		}
-		public void Dispose() { _npcNavHelper?.Cancel(); _ctx = null; }
 	}
 }

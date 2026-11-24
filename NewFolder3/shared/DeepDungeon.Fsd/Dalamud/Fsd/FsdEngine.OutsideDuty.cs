@@ -14,7 +14,9 @@ namespace DeepDungeon.Fsd.Dalamud
             int targetLoops,
             bool infinite,
             string? detailedMapScenarioKey,
-            out string error)
+            out string error,
+            bool resumePausedProgression = false,
+            int completedLoops = 0)
         {
             _runLogExportNotice = null;
             _runLogExportFailed = false;
@@ -26,7 +28,7 @@ namespace DeepDungeon.Fsd.Dalamud
                 return false;
             }
 
-            if (!TryAuthorizeOutsideDutyOperation(OutsideDutyOperation.StartOrEnter, out error))
+            if (!TryAuthorizeOutsideDutyOperation(OutsideDutyOperation.StartOrEnter, out error, resumePausedProgression))
                 return false;
 
             if (!TryValidateRotation(out error))
@@ -40,15 +42,8 @@ namespace DeepDungeon.Fsd.Dalamud
                 return false;
             }
 
-            var detailedMapStatus = _detailedMapCatalogManager.GetStatus(
-                _configuration.UseDetailedMap, detailedMapScenarioKey);
-            bool useDetailedMap = _detailedMapHostOptions.ShouldUseDetailedMap(
-                _configuration.UseDetailedMap, detailedMapStatus.HasValidCatalog);
-            if (_configuration.UseDetailedMap && !useDetailedMap)
-                Service.Log.Info($"[FsdEngine] {DetailedMapHostOptions.NoOnlineCatalogFallbackMessage}");
-
             if (!_detailedMapCatalogManager.TryAcquireRunSnapshot(
-                    useDetailedMap,
+                    _configuration.UseDetailedMap,
                     detailedMapScenarioKey,
                     out DetailedMapRunSnapshot detailedMapSnapshot,
                     out error))
@@ -63,15 +58,18 @@ namespace DeepDungeon.Fsd.Dalamud
                 _executionLease.Acquire();
                 _ddHost ??= new RunHost(
                     _configuration,
+                    _encounters,
                     _dutyState,
                     _logMessageSource,
                     _floorEvidenceObserver,
-                    _runTelemetryObserver);
+                    _runTelemetryObserver,
+                    _spinBossMovementFactory);
                 _ddHost.StartFsd(
                     scenarioFactory,
                     targetLoops,
                     infinite,
-                    detailedMapSnapshot);
+                    detailedMapSnapshot,
+                    completedLoops);
             }
             catch (Exception ex)
             {
@@ -98,8 +96,14 @@ namespace DeepDungeon.Fsd.Dalamud
             return false;
         }
 
-        private bool TryAuthorizeOutsideDutyOperation(OutsideDutyOperation requestedOperation, out string error)
+        private bool TryAuthorizeOutsideDutyOperation(OutsideDutyOperation requestedOperation, out string error,
+            bool resumePausedProgression = false)
         {
+            if (ProgressionPauseLocked && !resumePausedProgression)
+            {
+                error = _checkpointIssue?.Message ?? "死靈術士任務已要求暫停，請由「繼續」接回任務。";
+                return false;
+            }
             var decision = GetOutsideDutyOperationDecision(requestedOperation);
             if (decision.Allowed)
             {

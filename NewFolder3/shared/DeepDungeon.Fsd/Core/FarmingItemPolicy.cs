@@ -8,7 +8,7 @@ public readonly record struct FarmingItemPolicy(CombatBuffUse CombatBuffs, bool 
     public const float BossRefreshSeconds = 5f;
     public static FarmingItemPolicy For(FarmingMode? mode) => mode switch
     {
-        FarmingMode.DeepProgression or FarmingMode.FreeExploration => new(CombatBuffUse.ReserveForBoss, true),
+        FarmingMode.DeepProgression => new(CombatBuffUse.ReserveForBoss, true),
         FarmingMode.Aetherpool => new(CombatBuffUse.None, true),
         FarmingMode.HoardDiscovery => new(CombatBuffUse.None, false),
         _ => new(CombatBuffUse.Eager, true)
@@ -23,8 +23,8 @@ public readonly record struct FarmingItemPolicy(CombatBuffUse CombatBuffs, bool 
         });
 
     public static bool NeedsBossRefresh(float remainingSeconds) => remainingSeconds <= BossRefreshSeconds;
-    public bool AllowsBossSerenity(int stock, bool bossFloor, float remainingSeconds, bool awaitingBuff) =>
-        bossFloor && !awaitingBuff && AllowsCombatBuff(stock, bossFloor) && NeedsBossRefresh(remainingSeconds);
+    public bool AllowsBossSerenity(int stock, bool bossFloor, float remainingSeconds, bool consumedOnFloor) =>
+        bossFloor && !consumedOnFloor && AllowsCombatBuff(stock, bossFloor) && NeedsBossRefresh(remainingSeconds);
     public bool AllowsEntryIncense(bool floorSetup, double secondsSinceReady) =>
         EntryPassageIncense && floorSetup && secondsSinceReady <= 20;
 }

@@ -7,7 +7,7 @@ namespace DeepDungeon.Fsd.Dalamud.GameState;
 
 internal enum DetailedMapRuntimePolicy
 {
-    PalacePalOnly,
+    PalantirOnly,
     DetailedMap
 }
 
@@ -59,7 +59,7 @@ internal sealed class DetailedMapRunSnapshot
     internal string? ReleaseId => Catalog?.ReleaseId;
     internal string Status => Policy == DetailedMapRuntimePolicy.DetailedMap
         ? $"detailed map {Catalog!.ReleaseId}"
-        : "PalacePal only";
+        : "Palantir only";
 
     internal bool TryGetPresentation(
         int layoutIndex,
@@ -82,7 +82,7 @@ internal readonly record struct DetailedMapCatalogStatusSnapshot(
     bool RetryAvailable,
     string Message);
 
-internal sealed class DetailedMapCatalogManager : IDisposable
+internal sealed partial class DetailedMapCatalogManager : IDisposable
 {
     private const string CatalogDirectoryName = "DetailedMapCatalogs";
     private const string InstalledPointerFileName = "installed.json";
@@ -106,7 +106,6 @@ internal sealed class DetailedMapCatalogManager : IDisposable
     private readonly Uri? _catalogBaseUri;
     private readonly bool _deleteCatalogsWhenDisabled;
     private readonly HttpClient? _httpClient;
-    private readonly CancellationTokenSource _lifetime = new();
     private readonly Dictionary<(int LayoutIndex, int RoomIndex), DetailedMapRoomGraphPresentation>
         _presentations = new();
 
@@ -128,13 +127,17 @@ internal sealed class DetailedMapCatalogManager : IDisposable
     internal DetailedMapCatalogManager(
         string pluginConfigDirectory,
         DetailedMapHostOptions hostOptions,
-        HttpMessageHandler? httpMessageHandler = null)
+        HttpMessageHandler? httpMessageHandler = null, string? bundledCatalogRoot = null)
     {
+        Active = this;
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginConfigDirectory);
         ArgumentNullException.ThrowIfNull(hostOptions);
 
         string configRoot = Path.GetFullPath(pluginConfigDirectory);
         _catalogConfigRoot = configRoot;
+        _bundledCatalogRoot = bundledCatalogRoot ?? ResolveBundledCatalogRoot(
+            Service.PluginInterface?.AssemblyLocation.FullName,
+            typeof(DetailedMapCatalogManager).Assembly.Location, AppContext.BaseDirectory);
         _loadedScenarioKey = DetailedMapEvidenceContract.PilgrimsTraverse21To30ScenarioKey;
         _catalogRoot = GetScenarioRoot(_loadedScenarioKey);
         string expectedPrefix =
@@ -196,6 +199,11 @@ internal sealed class DetailedMapCatalogManager : IDisposable
         SelectPresentationCatalog(_activeRun, _currentCatalog);
     internal string? ActiveRunReleaseId => _activeRun?.ReleaseId;
     internal DetailedMapRunSnapshot? ActiveRunSnapshot => _activeRun;
+
+    /// <summary>The live instance — the catalog is terrain-level data,
+    /// always current, readable with or without a run. Mid-run release
+    /// swaps are deliberately allowed (daily update cadence).</summary>
+    internal static DetailedMapCatalogManager? Active { get; private set; }
 
     internal static DetailedMapCatalog? SelectPresentationCatalog(
         DetailedMapRunSnapshot? activeRun,
@@ -260,7 +268,7 @@ internal sealed class DetailedMapCatalogManager : IDisposable
             selectedScenarioKey!,
             installedReleaseComplete ? _installedPointer : null,
             installedReleaseComplete ? _latestEtag : null,
-            _lifetime.Token);
+            CancellationToken.None);
     }
 
     internal void RetryUpdate(
@@ -294,7 +302,7 @@ internal sealed class DetailedMapCatalogManager : IDisposable
         if (!useDetailedMap || !IsSupportedScenario(scenarioKey))
         {
             snapshot = new DetailedMapRunSnapshot(
-                DetailedMapRuntimePolicy.PalacePalOnly,
+                DetailedMapRuntimePolicy.PalantirOnly,
                 scenarioKey,
                 null);
             _activeRun = snapshot;
@@ -347,11 +355,13 @@ internal sealed class DetailedMapCatalogManager : IDisposable
         EnsureScenarioLoaded(selectedScenarioKey);
         bool supported = IsSupportedScenario(selectedScenarioKey);
         string message;
-        if (_catalogBaseUri == null)
+        if (IsOfflineDetailedMap)
         {
-            message = _currentCatalog != null
-                ? $"本地離線詳細地圖 {_currentCatalog.ReleaseId}；未配置線上更新服務。"
-                : DetailedMapHostOptions.NoOnlineCatalogServiceMessage;
+            message = $"離線詳細地圖 {_currentCatalog!.ReleaseId} 已就緒；資料隨本地插件包更新，不會連線同步。";
+        }
+        else if (_catalogBaseUri == null)
+        {
+            message = DetailedMapHostOptions.NoOnlineCatalogServiceMessage;
         }
         else if (!supported)
         {
@@ -501,11 +511,6 @@ internal sealed class DetailedMapCatalogManager : IDisposable
                 DetailedMapHostOptions.NoOnlineCatalogServiceMessage);
         }
 
-        // ResponseHeadersRead does not apply HttpClient.Timeout to later body reads.
-        // Bound the entire multi-file check, including slow response streams.
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(60));
-        cancellationToken = deadline.Token;
         Uri latestUri = new(
             _catalogBaseUri,
             $"{scenarioKey}/{DetailedMapCatalogContract.LatestFileName}");
@@ -775,6 +780,7 @@ internal sealed class DetailedMapCatalogManager : IDisposable
         WriteAtomic(
             Path.Combine(_catalogRoot, InstalledPointerFileName),
             DetailedMapCatalogContract.SerializeLatest(latest));
+        RetainInstalledRelease(releaseDirectory);
     }
 
     private void ReloadInstalledCatalog()
@@ -790,14 +796,17 @@ internal sealed class DetailedMapCatalogManager : IDisposable
             _catalogRoot,
             InstalledPointerFileName);
         if (!File.Exists(pointerPath))
+        {
+            LoadBundledCatalogIfPreferred();
             return;
+        }
 
         try
         {
             DetailedMapCatalogLatest latest =
                 DetailedMapCatalogContract.ParseLatest(
                     File.ReadAllBytes(pointerPath));
-            ValidateLatestPaths(latest, latest.ScenarioKey);
+            ValidateLatestPaths(latest, _loadedScenarioKey);
             string releaseDirectory = GetReleaseDirectory(latest);
             byte[] catalogBytes = File.ReadAllBytes(
                 Path.Combine(
@@ -811,7 +820,7 @@ internal sealed class DetailedMapCatalogManager : IDisposable
                 latest,
                 catalogBytes,
                 signatureBytes,
-                latest.ScenarioKey);
+                _loadedScenarioKey);
             if (catalog.HoardYieldSha256 != null)
             {
                 try
@@ -842,6 +851,7 @@ internal sealed class DetailedMapCatalogManager : IDisposable
 
             _currentCatalog = catalog;
             _installedPointer = latest;
+            RetainInstalledRelease(releaseDirectory);
             Service.Log.Info(
                 $"[DetailedMapCatalog] Loaded release {catalog.ReleaseId}; rooms={catalog.Rooms.Length}.");
         }
@@ -855,6 +865,7 @@ internal sealed class DetailedMapCatalogManager : IDisposable
             Service.Log.Error(
                 $"[DetailedMapCatalog] Local catalog is invalid: {error}");
         }
+        LoadBundledCatalogIfPreferred();
     }
 
     private static DetailedMapCatalog ValidateDownloadedCatalog(
@@ -952,6 +963,44 @@ internal sealed class DetailedMapCatalogManager : IDisposable
             _catalogRoot,
             "releases",
             $"{latest.ReleaseId}-{latest.CatalogSha256[..12]}");
+
+    // The installed pointer is published only after validation. Keep its
+    // complete release; retired releases are not needed by in-memory run snapshots.
+    private void RetainInstalledRelease(string installedDirectory)
+    {
+        string releases = Path.GetFullPath(Path.Combine(_catalogRoot, "releases"));
+        string installed = Path.GetFullPath(installedDirectory);
+        string parentPrefix = GetValidatedCatalogParent() + Path.DirectorySeparatorChar;
+        if (!releases.StartsWith(parentPrefix, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(Path.GetDirectoryName(installed), releases, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Catalog retention resolved outside its release directory.");
+        }
+        if (!Directory.Exists(installed))
+            return;
+
+        try
+        {
+            foreach (string directory in Directory.EnumerateDirectories(releases))
+            {
+                if (string.Equals(Path.GetFullPath(directory), installed, StringComparison.OrdinalIgnoreCase) ||
+                    (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
+                    continue;
+                try
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                {
+                    Service.Log.Warning($"[DetailedMapCatalog] Retired release could not be removed: {error.Message}");
+                }
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            Service.Log.Warning($"[DetailedMapCatalog] Release retention could not be completed: {error.Message}");
+        }
+    }
 
     private void DeleteDownloadedCatalogs()
     {
@@ -1162,12 +1211,10 @@ internal sealed class DetailedMapCatalogManager : IDisposable
     {
         if (_disposed)
             return;
+        if (Active == this)
+            Active = null;
         _activeRun = null;
-        _lifetime.Cancel();
         _httpClient?.Dispose();
-        if (_checkTask != null) _ = _checkTask.ContinueWith(task => _ = task.Exception,
-            CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
-        _lifetime.Dispose();
         _disposed = true;
     }
 

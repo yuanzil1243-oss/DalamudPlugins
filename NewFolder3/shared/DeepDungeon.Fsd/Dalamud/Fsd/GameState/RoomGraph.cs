@@ -287,7 +287,7 @@ namespace DeepDungeon.Fsd.Dalamud.GameState
 					var dz = position.Z - roomCenter.Z;
 					var d2 = dx * dx + dz * dz;
 
-					if (IsBetterRoomCandidate(d2, room, bestDist2, bestRoom))
+					if (d2 < bestDist2)
 					{
 						bestDist2 = d2;
 						bestRoom = room;
@@ -297,8 +297,5 @@ namespace DeepDungeon.Fsd.Dalamud.GameState
 
 			return bestRoom >= 0 ? bestRoom : fallbackRoom;
 		}
-
-		internal static bool IsBetterRoomCandidate(float distanceSquared, int room, float bestDistanceSquared, int bestRoom) =>
-			distanceSquared < bestDistanceSquared || distanceSquared == bestDistanceSquared && (bestRoom < 0 || room < bestRoom);
 	}
 }

@@ -62,17 +62,6 @@ namespace DeepDungeon.Fsd.Dalamud
 				};
 			}
 
-			if (TryGetDeepDungeonEntryUiNames(out var openUiNames))
-			{
-				return new
-				{
-					ok = false,
-					error = "Deep Dungeon or dialog UI is open; close it before starting FSD.",
-					openUi = openUiNames,
-					snapshot = GetMobPilotSnapshot()
-				};
-			}
-
 			var player = Service.LocalPlayer;
 			var npc = FindObjectByBaseId(PilgrimsTraverseNpcDataId);
 			if (player == null)
@@ -183,46 +172,19 @@ namespace DeepDungeon.Fsd.Dalamud
 
 		public FsdControlResult StopDeepDungeonFsd()
 		{
-            ResetHoh90Kiting();
-            _hohGazeMovement?.Reset();
-            _hohBossOrbit?.Stop("FSD停止，绕圈已结束");
+
 			if (_ddHost == null || !_ddHost.FsdActive)
 			{
 				return new FsdControlResult(false, "Deep Dungeon FSD is not active.", Snapshot: GetMobPilotSnapshot());
 			}
 
 			_ddHost.StopFsd();
-			if (!_ddHost.FsdActive)
-				_bossMechanics.Stop();
 			if (_ddHost.FsdActive)
 			{
 				return new FsdControlResult(false, "Deep Dungeon FSD stop request did not stop the active session.", Snapshot: GetMobPilotSnapshot());
 			}
 
 			return new FsdControlResult(true, Snapshot: GetMobPilotSnapshot());
-		}
-
-		public object ArmControlledReusableSaveSurveyCapture()
-		{
-			if (!_detailedMapHostOptions.SupportsControlledPtSurvey)
-			{
-				return new
-				{
-					ok = false,
-					error = "Controlled reusable-save survey capture is unavailable for this FSD host."
-				};
-			}
-
-			if (_ddHost?.FsdActive != true)
-			{
-				return new
-				{
-					ok = false,
-					error = "Controlled reusable-save survey capture requires an active FSD session."
-				};
-			}
-
-			return _ddHost.ArmControlledReusableSaveSurveyCapture();
 		}
 
 		public object GetPilgrimsTraverseFsdPreflight(int startFloor)
@@ -237,7 +199,7 @@ namespace DeepDungeon.Fsd.Dalamud
 			var selectStringOpen = DeepDungeonUi.IsAddonOpen("SelectString");
 			var talkOpen = DeepDungeonUi.IsAddonOpen("Talk") || DeepDungeonUi.IsAddonOpen("EventTalk");
 			var contentsFinderConfirmOpen = DeepDungeonUi.IsAddonOpen("ContentsFinderConfirm");
-			var saveSlots = BuildBridgeSaveSlotSnapshot(out var saveSlotsObservable, out var emptySaveSlotCount);
+			var saveSlots = BuildBridgeSaveSlotSnapshot(out _, out _);
 			var vnavRunning = DeepDungeon.Fsd.Dalamud.moveHelper.VNav.Path.IsRunning();
 			var vnavWaypoints = DeepDungeon.Fsd.Dalamud.moveHelper.VNav.Path.NumWaypoints();
 			var inCombat = Service.Condition[ConditionFlag.InCombat];
@@ -271,15 +233,6 @@ namespace DeepDungeon.Fsd.Dalamud
 
 			if (vnavRunning || vnavWaypoints > 0)
 				blockers.Add("VNav pathing is still active.");
-
-			if (saveDataOpen || menuOpen || selectYesnoOpen || selectStringOpen || talkOpen || contentsFinderConfirmOpen)
-				blockers.Add("Deep Dungeon or dialog UI is open; close it before starting FSD.");
-
-			if (saveDataOpen && !saveSlotsObservable)
-				blockers.Add("DeepDungeonSaveData is open but save slot state cannot be read.");
-
-			if (saveDataOpen && emptySaveSlotCount == 0)
-				blockers.Add("No empty Pilgrim's Traverse save slot is available.");
 
 			if (npc == null)
 			{
@@ -439,17 +392,6 @@ namespace DeepDungeon.Fsd.Dalamud
 				};
 			}
 
-			if (TryGetDeepDungeonEntryUiNames(out var openUiNames))
-			{
-				return new
-				{
-					ok = false,
-					error = "Deep Dungeon or dialog UI is open; close it before deleting a save.",
-					openUi = openUiNames,
-					snapshot = GetMobPilotSnapshot()
-				};
-			}
-
 			EnsureGeneralAssists();
 			if (_dutyState == null)
 			{
@@ -463,10 +405,11 @@ namespace DeepDungeon.Fsd.Dalamud
 
 			var slotIndex = slotNumber - 1;
 			_bridgeDeleteSaveContext = new RunContext(
+				_encounters,
 				_configuration,
 				_dutyState,
 				new DetailedMapRunSnapshot(
-					DetailedMapRuntimePolicy.PalacePalOnly,
+					DetailedMapRuntimePolicy.PalantirOnly,
 					scenarioKey: null,
 					catalog: null));
 			_bridgeDeleteSaveFlow = new GenericDeleteSaveFlow(DungeonCatalog.PilgrimsTraverse, slotIndex);
@@ -529,15 +472,16 @@ namespace DeepDungeon.Fsd.Dalamud
 			}
 
 			_bridgeLeaveDutyContext = new RunContext(
+				_encounters,
 				_configuration,
 				_dutyState,
 				new DetailedMapRunSnapshot(
-					DetailedMapRuntimePolicy.PalacePalOnly,
+					DetailedMapRuntimePolicy.PalantirOnly,
 					scenarioKey: null,
 					catalog: null));
 			if (_bridgeLeaveDutyContext.Duty.IsInDuty)
 			{
-				_bridgeLeaveDutyFlow = new LeaveDutyFlow();
+				_bridgeLeaveDutyFlow = new LeaveDutyFlow(requireValidatedAbandonPrompt: true);
 				_bridgeLeaveDutyFlow.Prepare(_bridgeLeaveDutyContext);
 			}
 			else
@@ -574,7 +518,8 @@ namespace DeepDungeon.Fsd.Dalamud
 			string hostStatus = activeHost?.CurrentStatus ?? string.Empty;
 			bool hostStatusIsError = activeHost?.CurrentStatusIsError ?? false;
 			string debugStatus = debug?.Status ?? string.Empty;
-			string snapshotStatus = (hostStatusIsError || host?.FarmingPaused == true || activeHost?.Context?.HohContinuity.HoldsControls == true) && !string.IsNullOrWhiteSpace(hostStatus)
+			string snapshotStatus = (hostStatusIsError || activeHost?.DutyObservationUnavailable == true) &&
+                !string.IsNullOrWhiteSpace(hostStatus)
 				? hostStatus
 				: !string.IsNullOrWhiteSpace(debugStatus)
 					? debugStatus
@@ -601,10 +546,6 @@ namespace DeepDungeon.Fsd.Dalamud
 				ok = true,
 				hostIdentity = _hostIdentity,
 				hostVersion = _hostVersion,
-				hohContinuity = activeHost?.Context?.HohContinuity.Phase.ToString() ?? string.Empty,
-                hohContinuityHold = activeHost?.Context?.HohContinuity.HoldsControls ?? false,
-                hohBossRebuffPending = activeHost?.Context?.HohContinuity.BossRebuffPending ?? false,
-                hohResumeSequence = activeHost?.Context?.HohContinuity.ResumeSequence ?? 0,
 				fsdEngineVersion = FsdEngineIdentity.InformationalVersion,
 				inDeepDungeonTerritory = _currentInDeepDungeon,
 				mode,
@@ -613,8 +554,8 @@ namespace DeepDungeon.Fsd.Dalamud
 				completedLoops = activeHost?.CompletedLoops ?? 0,
                 cycleUnit = activeHost?.CycleUnit ?? string.Empty,
                 farmingFailures = activeHost?.FarmingFailures ?? 0,
-                farmingPaused = activeHost?.FarmingPaused ?? false,
-                pauseAfterFloorsetClear = activeHost?.PauseAfterFloorsetClear ?? false,
+                holdOnFailure = activeHost?.Context?.FarmingPlan?.HoldOnFailure == true,
+                holdAfterClear = activeHost?.Context?.FarmingPlan?.HoldAfterClear == true,
                 hoardDiscoveries = activeHost?.HoardDiscoveries ?? 0,
                 preparedSave = activeHost?.PreparedSaveDescription ?? string.Empty,
 				targetLoops = activeHost?.TargetLoops ?? 0,
@@ -627,75 +568,49 @@ namespace DeepDungeon.Fsd.Dalamud
 				inCombat = Service.Condition[ConditionFlag.InCombat],
 				vnavRunning = DeepDungeon.Fsd.Dalamud.moveHelper.VNav.Path.IsRunning(),
 				vnavWaypoints = DeepDungeon.Fsd.Dalamud.moveHelper.VNav.Path.NumWaypoints(),
-				currentTargetId = currentTarget?.GameObjectId ?? 0,
+				directMovement = new
+				{
+					owner = Utilities.DirectMovementController.ActiveOwner,
+					inputHooksReady = Utilities.DirectMovementController.InputHooksReady,
+					initializationFailure = Utilities.DirectMovementController.InitializationFailure,
+					moduleMvid = typeof(Utilities.DirectMovementController).Module.ModuleVersionId,
+				},
+                camera = new { northLocked = _camera.NorthLocked,
+                    observedHeadingRadians = _camera.ObservedHeading, headingRadians = _camera.AppliedHeading },
+                bossMovement = activeHost?.FloorController.BossMovementSnapshot,
+                sceneObservation = GameState.DeepDungeonSceneObservation.Capture(dd),
+                currentTargetId = currentTarget?.GameObjectId ?? 0,
 				dungeonId = dd != null ? dd->DeepDungeonId : status?.dungeonId ?? 0,
 				floor = dd != null ? dd->Floor : status?.floor ?? 0,
-				passageOpen = status?.passageOpen ?? false,
+				passageOpen = dd != null ? DeepDungeonHelper.IsPassageOpen(dd) : status?.passageOpen ?? false,
 				playerRoom,
 				phase = debug?.Phase.ToString() ?? string.Empty,
-				taskPhase = debug?.TaskPhase.ToString() ?? string.Empty,
+				taskPhase = debug?.TaskPhase ?? string.Empty,
 				status = snapshotStatus,
 				statusIsError = leaveDutyActive ? leaveDutyStatusIsError : hostStatusIsError,
 				hoardCount = debug?.HoardCount ?? 0,
 				hoardEvidenceState = debug?.HoardEvidenceState.ToString() ?? string.Empty,
 				cachedHoardIndicator = SnapshotVector(debug?.CachedHoardIndicatorPos),
-				currentTargetRoom = debug?.RoomPlan.FirstOrDefault()?.RoomIndex,
+				currentTargetRoom = debug?.CurrentTargetRoom,
 				roomPath = debug?.RoomPath.ToArray() ?? [],
 				completedRooms = debug?.CompletedRooms.OrderBy(room => room).ToArray() ?? [],
-				roomPlan = debug?.RoomPlan.Select(entry => new
-				{
-					entry.RoomIndex,
-					entry.ShouldProbeHoard,
-					entry.ShouldSearchChests,
-					entry.ShouldVisitForIntel,
-					hoardEvidenceState = entry.HoardEvidenceState.ToString()
-				}).ToArray() ?? [],
-				planTrace = debug?.PlanTrace == null
-					? null
-					: new
-					{
-						rejectionReason = debug.PlanTrace.RejectionReason ?? string.Empty,
-						candidates = debug.PlanTrace.Candidates.Select(candidate => new
-						{
-							candidate.RoomIndex,
-							candidate.Eligible,
-							candidate.ShouldProbeHoard,
-							candidate.ShouldSearchChests,
-							candidate.ShouldVisitForIntel,
-							hoardEvidenceState = candidate.HoardEvidenceState.ToString(),
-							candidate.BasePriority,
-							candidate.Reason
-						}).ToArray(),
-						selections = debug.PlanTrace.Selections.Select(selection => new
-						{
-							selection.Step,
-							selection.FromRoomIndex,
-							selection.SelectedRoomIndex,
-							selection.Distance,
-							selection.PassageDistance,
-							selection.BasePriority
-						}).ToArray()
-					},
-				roomContext = debug?.RoomContext == null
-					? null
-					: new
-					{
-						debug.RoomContext.RoomIndex,
-						debug.RoomContext.CurrentWaypointIndex,
-						waypoints = debug.RoomContext.Waypoints.Select(waypoint => new
-						{
-							type = waypoint.Type.ToString(),
-							position = SnapshotVector(waypoint.Position)
-						}).ToArray()
-					},
+                roomPlan = debug?.Work.Select(site => new
+                {
+                    site.RoomIndex,
+                    shouldProbeHoard = site.Kind is Coord.ObjectiveSiteKind.Candidate or Coord.ObjectiveSiteKind.Hoard or Coord.ObjectiveSiteKind.HoardIndicator,
+                    shouldSearchChests = site.Kind == Coord.ObjectiveSiteKind.ConfirmedChest,
+                    shouldVisitForIntel = site.Kind is Coord.ObjectiveSiteKind.RoomProbe or Coord.ObjectiveSiteKind.PassageSearch,
+                    hoardEvidenceState = debug.HoardEvidenceState.ToString(),
+                    kind = site.Kind.ToString(),
+                    site.Key,
+                    position = SnapshotVector(site.Position)
+                }).ToArray() ?? [],
                 companions = new
                 {
                     farmingMode = activeHost?.Context?.FarmingPlan?.Mode.ToString(),
-                    mechanicsEnabled = _bossMechanics.IsEnabled,
                     rotationProvider = _configuration.Rotation.Provider.ToString(),
                     rotationSuppressionActive = IsRunActive && activeHost?.Context?.FarmingPlan?.ReusesSave == true,
                     rotationDesiredEnabled = IsRunActive ? _rotationControl.DesiredEnabled : (bool?)null,
-                    bossRotationSuppressed = IsRunActive && _bossRotationSuppressed,
                     rotationConfigurationError = TryValidateRotation(out var rotationError) ? null : rotationError,
                     rotationFailure = _rotationControl.FailedProvider?.ToString(),
                     rsr = ReadRotationState(FsdRotationProvider.RotationSolverReborn).ToString(),
@@ -759,29 +674,6 @@ namespace DeepDungeon.Fsd.Dalamud
 				y = value.Y,
 				z = value.Z
 			};
-		}
-
-		private static bool TryGetDeepDungeonEntryUiNames(out string[] openUiNames)
-		{
-			var names = new List<string>();
-			foreach (var name in new[]
-			         {
-				         "DeepDungeonSaveData",
-				         "DeepDungeonMenu",
-				         "ContentsFinderConfirm",
-				         "SelectYesno",
-				         "SelectString",
-				         "Talk",
-				         "EventTalk",
-				         "ContextIconMenu"
-			         })
-			{
-				if (DeepDungeonUi.IsAddonOpen(name))
-					names.Add(name);
-			}
-
-			openUiNames = names.ToArray();
-			return openUiNames.Length > 0;
 		}
 
 		private static object BuildBridgeSaveSlotSnapshot(out bool observable, out int? emptyCount)

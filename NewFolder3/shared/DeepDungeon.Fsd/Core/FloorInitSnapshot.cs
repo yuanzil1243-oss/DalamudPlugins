@@ -3,7 +3,6 @@ namespace DeepDungeon.Fsd.Core
     public readonly record struct FloorInitSnapshot
     {
         public bool CanAttemptPomanderUse { get; init; }
-        public bool NextFloorIsMob { get; init; }
         public bool BandedEnabled { get; init; }
         public bool HasOpenedHoardThisFloor { get; init; }
         public FloorsetHoardOpportunity HoardOpportunity { get; init; }
@@ -24,6 +23,9 @@ namespace DeepDungeon.Fsd.Core
         public bool HasSteelStatus { get; init; }
         public bool HasCurseStatus { get; init; }
         public bool HasHarmfulFloorEffect { get; init; }
+    /// <summary>True when floor+1 is a mob floor — hoard-economy slots
+    /// check this through <see cref="DeepDungeonFloorItemUsePolicy"/>.</summary>
+    public bool NextFloorIsMob { get; init; }
     }
 
     public readonly record struct FloorInitDecision

@@ -2,43 +2,40 @@ using DeepDungeon.Fsd.Core;
 
 namespace DeepDungeon.Fsd.Runtime;
 
-public sealed class FarmingSettings
+public sealed partial class FarmingSettings
 {
     public uint DungeonId { get; set; } = 4;
     public FarmingMode Mode { get; set; }
-    public CheckpointEntrySettings HeavenOnHighEntry { get; set; } = new() { StartFloor = 21, StopAfterFloor = 30 };
-    [System.Text.Json.Serialization.JsonIgnore]
-    public CheckpointEntrySettings ActiveCheckpointEntry => DungeonId == 2 ? HeavenOnHighEntry : CheckpointEntry;
-    public CheckpointEntrySettings CheckpointEntry { get; set; } = new();
+    // Omitted when false to preserve fingerprints of existing upstream pause checkpoints.
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool StartFromHighestFloor { get; set; }
     public Dictionary<string, FarmingPreferences> Preferences { get; set; } = new();
 
-    public FarmingPreferences GetPreferences(FsdSettings legacy)
+    public FarmingPreferences GetPreferences(FsdSettings legacy, FarmingMode? modeOverride = null)
     {
-        string key = Mode switch
+        var mode = modeOverride ?? Mode;
+        if (FreeExploration && mode == FarmingMode.DeepProgression) return GetFreeExplorationPreferences();
+        string key = mode == FarmingMode.DeepProgression && StartFromHighestFloor ? "OrdinaryDescent:Create" : mode switch
         {
             FarmingMode.Hoard => "Hoard:Create",
             FarmingMode.Aetherpool => "Aetherpool:Prepared",
             FarmingMode.HoardDiscovery => "HoardDiscovery:Prepared",
-            FarmingMode.FreeExploration => "FreeExploration:Create",
-            FarmingMode.FinalBoss => "FinalBoss:None",
             _ => "DeepProgression:Create"
         };
-        if (DungeonId == 2) key = "Hoh:" + key;
         if (!Preferences.TryGetValue(key, out var value))
         {
             value = new FarmingPreferences
             {
-                OpenGold = Mode != FarmingMode.HoardDiscovery && legacy.NecromancerAutoOpenGoldChest,
-                OpenSilver = Mode == FarmingMode.Aetherpool || Mode != FarmingMode.HoardDiscovery && legacy.NecromancerAutoOpenSilverChest,
-                OpenBronze = Mode == FarmingMode.Aetherpool || Mode != FarmingMode.HoardDiscovery && legacy.NecromancerAutoOpenBronzeChest,
-                Cycles = Mode == FarmingMode.FinalBoss ? 1 : legacy.NecromancerFsdLoopCount,
-                Infinite = Mode != FarmingMode.FinalBoss && legacy.NecromancerFsdLoopInfinite
+                OpenGold = mode != FarmingMode.HoardDiscovery && legacy.NecromancerAutoOpenGoldChest,
+                OpenSilver = mode == FarmingMode.Aetherpool || mode != FarmingMode.HoardDiscovery && legacy.NecromancerAutoOpenSilverChest,
+                OpenBronze = mode == FarmingMode.Aetherpool || mode != FarmingMode.HoardDiscovery && legacy.NecromancerAutoOpenBronzeChest,
+                Cycles = legacy.NecromancerFsdLoopCount,
+                Infinite = legacy.NecromancerFsdLoopInfinite
             };
             Preferences.Add(key, value);
         }
-        if (DungeonId == 2) value.BandedEnabled = false;
-        value.BandedEnabled ??= Mode == FarmingMode.Hoard && legacy.NecromancerAutoBandedFarmEnabled;
-        var targets = FarmingTargetPolicy.Constrain(Mode, new(value.BandedEnabled.Value,
+        value.BandedEnabled ??= mode == FarmingMode.Hoard && legacy.NecromancerAutoBandedFarmEnabled;
+        var targets = FarmingTargetPolicy.Constrain(mode, new(value.BandedEnabled.Value,
             value.OpenGold, value.OpenSilver, value.OpenBronze));
         value.BandedEnabled = targets.Hoard;
         value.OpenGold = targets.Gold;
@@ -48,21 +45,7 @@ public sealed class FarmingSettings
     }
 }
 
-public sealed class CheckpointEntrySettings
-{
-    public bool Enabled { get; set; } = true;
-    public int StartFloor { get; set; } = 31;
-    public int StopAfterFloor { get; set; } = 50;
-    public int? ResumeSlot { get; set; }
-
-    public FsdStartRequest CreateRequest(FarmingMode mode, FsdStartScenario scenario) =>
-        Enabled && mode == FarmingMode.FreeExploration && scenario == FsdStartScenario.Farming
-            ? new(StopAfterFloor: StopAfterFloor, DiagnosticStartFloor: ResumeSlot.HasValue ? null : StartFloor, ResumeSlot: ResumeSlot,
-                Scenario: scenario)
-            : new(Scenario: scenario);
-}
-
-public sealed class FarmingPreferences
+public class FarmingPreferences
 {
     public bool? BandedEnabled { get; set; }
     public bool OpenGold { get; set; }
@@ -70,5 +53,4 @@ public sealed class FarmingPreferences
     public bool OpenBronze { get; set; }
     public int Cycles { get; set; } = 1;
     public bool Infinite { get; set; }
-    public bool PreserveSaveOnCompletion { get; set; }
 }

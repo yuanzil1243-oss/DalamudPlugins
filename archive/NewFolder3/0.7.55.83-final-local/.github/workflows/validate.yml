@@ -1,0 +1,19 @@
+name: Validate NewFolder3 distribution
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check feed, package, and source hashes
+        run: python3 tools/validate_distribution.py
+      - name: Check public map data and signatures
+        run: python3 tools/validate_repository_data.py

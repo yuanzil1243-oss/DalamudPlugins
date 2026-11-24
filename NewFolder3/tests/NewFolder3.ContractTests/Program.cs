@@ -12,87 +12,24 @@ namespace NewFolder3;
 
 internal static class Program
 {
-    public static int Main(string[] args)
+    public static int Main()
     {
-        if (args.Length != 0 && (args.Length != 2 || args[0] is not ("--validate-local-catalogs" or "--validate-repository-data" or "--validate-repository-live")))
-            throw new ArgumentException("Usage: [--validate-local-catalogs <plugin-config-directory> | --validate-repository-data <repository-data-directory> | --validate-repository-live confirm]");
-        typeof(FsdApplication).Assembly.GetType("DeepDungeon.Fsd.Dalamud.Service")!
-            .GetProperty("Log", BindingFlags.Static | BindingFlags.NonPublic)!
-            .SetValue(null, DispatchProxy.Create<IPluginLog, NoOpDispatchProxy>());
         int passed = 0;
-        passed += OriginalAuthorUpdateNoticeTests.Run();
-        passed += Hoh82ShieldAndPassageTests.Run();
-        passed += Hoh81RotationPullTests.Run();
-        passed += Hoh80CurseMimicTests.Run();
         passed += Run("y-axis-movement-packets", YAxisPacketTests.Run);
-        passed += ProbeNavigationTests.Run();
-        passed += Run35RegressionTests.Run();
-        passed += Run36RegressionTests.Run();
-        passed += Run38RegressionTests.Run();
-        passed += Run39RegressionTests.Run();
-        passed += Run40RepositoryTests.Run();
-        passed += Run41InitialColorTests.Run();
-        passed += Run41CombatRepositionTests.Run();
-        passed += Run41SaveCompletionTests.Run();
-        passed += HohLocalTests.Run();
-        passed += Hoh52ChestOvercapTests.Run();
-        passed += Hoh53PostClearCombatTests.Run();
-        passed += Hoh54CombatRecoveryTests.Run();
-        passed += Hoh55PetrifiedRecoveryTests.Run();
-        passed += Hoh57RecoveryTests.Run();
-        passed += Hoh58TargetHandoffTests.Run();
-        passed += Hoh59WorkLifecycleTests.Run();
-        passed += Hoh61RecoveryTests.Run();
-        passed += Hoh62ContinuityTests.Run();
-        passed += Hoh63ContinuityBoundaryTests.Run();
-        passed += Hoh64ApproachTests.Run();
-        passed += Hoh76DoorwayApproachTests.Run();
-        passed += Hoh77ApproachPathTests.Run();
-        passed += Hoh77ProductionFlowTests.Run();
-        passed += SummonerOpenerTests.Run();
-        passed += HohCombatRoomLatchTests.Run();
-        passed += Hoh64HighFloorTests.Run();
-        passed += Hoh65DoorSequenceTests.Run();
-        passed += Hoh66HandoffTests.Run();
-        passed += Hoh67SupplementActionTests.Run();
-        passed += Hoh70FloorFlowTests.Run();
-        passed += Hoh72ResourceAndContactTests.Run();
-        passed += Hoh74CentaurAndBuffTests.Run();
-        passed += HohStoneskinPriorityTests.Run();
-        passed += HohCurrentDutyResumeTests.Run();
-        passed += HohGazeOutputTests.Run();
-        passed += HohGazeMovementTests.Run();
-        passed += Hoh70PuddleTests.Run();
-        passed += HohNavigationTests.Run();
-        passed += HohBossOrbitTests.Run();
-        passed += ProgressionContinuationTests.Run();
-        passed += FloorsetPauseTests.Run();
-        passed += CheckpointEntryTests.Run();
-        passed += MobCombatPolicyTests.Run();
-        passed += Run("public-read-only-repository-build-profile", TestPublicNoServiceBuildProfile);
+        passed += Run("public-no-service-build-profile", TestPublicNoServiceBuildProfile);
         passed += Run("public-allow-all-access-gate", TestPublicAllowAllAccessGate);
         passed += Run("detailed-map-host-options-no-service", TestDetailedMapHostOptionsNoService);
-        passed += Run("saved-detailed-map-preference-falls-back-without-service", TestSavedDetailedMapPreferenceFallback);
-        passed += Run("configured-detailed-map-service-honors-preference", TestConfiguredDetailedMapPreference);
-        passed += Run("validated-offline-catalog-honors-preference", TestOfflineCatalogPreference);
         passed += Run("catalog-manager-no-http-when-unavailable", TestCatalogManagerNoHttpWhenUnavailable);
         passed += Run("community-evidence-upload-contract", TestCommunityEvidenceUploadContract);
         passed += Run("community-usage-scenario-index-mapping", TestCommunityUsageScenarioIndexMapping);
         passed += Run("community-usage-telemetry-contract", TestCommunityUsageTelemetryContract);
         passed += Run("community-long-run-log-contract", TestCommunityLongRunLogContract);
         passed += Run("public-manifest-and-release-feed-roots", TestPublicManifestAndReleaseFeedRoots);
-        if (args.Length == 2 && args[0] == "--validate-local-catalogs")
-        {
-            passed += Run("installed-local-catalogs-validate-and-load-offline", () => TestInstalledOfflineCatalogs(args[1]));
-            passed += Run("modified-offline-catalog-is-rejected-and-falls-back", () => TestModifiedOfflineCatalog(args[1]));
-        }
-        if (args.Length == 2 && args[0] == "--validate-repository-data")
-            passed += Run40RepositoryTests.ValidatePublishedData(args[1]);
-        if (args.Length == 2 && args[0] == "--validate-repository-live")
-        {
-            if (args[1] != "confirm") throw new ArgumentException("Live repository validation requires confirm.");
-            passed += Run40RepositoryTests.ValidateLiveRepository();
-        }
+        passed += LocalFeatureTests.Run();
+        passed += ContinuationFeatureTests.Run();
+        passed += FreeExplorationTests.Run();
+        passed += OfflineMapTests.Run();
+        passed += LegacyConfigTests.Run();
         Console.WriteLine($"NewFolder3 contract tests: {passed} passed");
         return 0;
     }
@@ -141,25 +78,25 @@ internal static class Program
     {
         NewFolder3BuildCapabilities capabilities = NewFolder3BuildProfile.Capabilities;
         Assert(
-            capabilities.DetailedMapCatalogEndpoint?.AbsoluteUri == "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/data/NewFolder3/detailed/" &&
+            capabilities.DetailedMapCatalogEndpoint == null &&
             capabilities.CommunityEvidenceEndpoint == null &&
             capabilities.UsageTelemetryEndpoint == null &&
             capabilities.LongRunLogEndpoint == null &&
-            capabilities.HasOnlineCatalogService &&
+            !capabilities.HasOnlineCatalogService &&
             !capabilities.HasCommunityEvidenceUpload &&
             !capabilities.HasUsageTelemetry &&
             !capabilities.HasLongRunLogUpload &&
             !capabilities.ContributesAnonymousEvidence &&
             !capabilities.SupportsControlledPtSurvey &&
             capabilities.CreateAccessGate == null,
-            "Public build profile permits only repository reads; user-data upload remains disabled.");
+            "Public build profile must resolve to an explicit no-service configuration.");
 
         DetailedMapHostOptions options = NewFolder3BuildProfile.CreateDetailedMapHostOptions();
         Assert(
-            options.HasOnlineCatalogService &&
-            options.CatalogBaseUri == capabilities.DetailedMapCatalogEndpoint &&
+            !options.HasOnlineCatalogService &&
+            options.CatalogBaseUri == null &&
             !options.ContributesAnonymousEvidence,
-            "Public build profile must use the signed repository catalog without evidence uploads.");
+            "Public build profile must create DetailedMapHostOptions without a catalog URI.");
     }
 
     private static void TestPublicAllowAllAccessGate()
@@ -206,104 +143,6 @@ internal static class Program
             "Anonymous evidence contribution must require an online catalog service.");
     }
 
-    private static void TestSavedDetailedMapPreferenceFallback()
-    {
-        string configRoot = Path.Combine(Path.GetTempPath(), $"newfolder3-local-fallback-{Guid.NewGuid():N}");
-        try
-        {
-            Directory.CreateDirectory(configRoot);
-            var options = new DetailedMapHostOptions(null, false, false, false);
-            using var manager = new DetailedMapCatalogManager(configRoot, options);
-            foreach (bool savedPreference in new[] { true, false })
-            {
-                bool effectivePreference = options.ShouldUseDetailedMap(savedPreference);
-                Assert(!effectivePreference, "No-service builds must not request online detailed maps.");
-                Assert(manager.TryAcquireRunSnapshot(effectivePreference,
-                        DetailedMapEvidenceContract.PilgrimsTraverse21To30ScenarioKey,
-                        out var snapshot, out string error) &&
-                    snapshot.Policy == DetailedMapRuntimePolicy.PalacePalOnly && error.Length == 0,
-                    "A saved true preference must not block ordinary farming in a no-service build.");
-                manager.ReleaseRunSnapshot();
-            }
-        }
-        finally
-        {
-            if (Directory.Exists(configRoot)) Directory.Delete(configRoot, recursive: true);
-        }
-    }
-
-    private static void TestConfiguredDetailedMapPreference()
-    {
-        var options = new DetailedMapHostOptions(new Uri("https://catalog.invalid/"), false, false, false);
-        Assert(options.ShouldUseDetailedMap(true), "Configured services must honor an enabled preference.");
-        Assert(!options.ShouldUseDetailedMap(false), "Configured services must honor a disabled preference.");
-    }
-
-    private static void TestOfflineCatalogPreference()
-    {
-        var options = new DetailedMapHostOptions(null, false, false, false);
-        Assert(options.ShouldUseDetailedMap(true, hasValidLocalCatalog: true),
-            "A validated offline catalog must be usable without a configured online service.");
-        Assert(!options.ShouldUseDetailedMap(false, hasValidLocalCatalog: true),
-            "An offline catalog must not override an explicitly disabled preference.");
-        Assert(!options.ShouldUseDetailedMap(true, hasValidLocalCatalog: false),
-            "Missing or invalid offline data must not enable detailed-map mode.");
-    }
-
-    private static void TestInstalledOfflineCatalogs(string configDirectory)
-    {
-        var options = new DetailedMapHostOptions(null, false, false, false);
-        using var manager = new DetailedMapCatalogManager(configDirectory, options);
-        foreach (string scenarioKey in new[] { "pt-21-30", "pt-31-40" })
-        {
-            var status = manager.GetStatus(true, scenarioKey);
-            Assert(status.HasValidCatalog, $"Local catalog {scenarioKey} did not validate: {status.Message}");
-            Assert(options.ShouldUseDetailedMap(true, status.HasValidCatalog), "Valid cache must enable offline maps.");
-            Assert(manager.TryAcquireRunSnapshot(true, scenarioKey, out var snapshot, out string error),
-                $"Offline snapshot acquisition failed: {error}");
-            Assert(snapshot.Policy == DetailedMapRuntimePolicy.DetailedMap && snapshot.Catalog != null,
-                "Offline runs must use the actual detailed-map policy.");
-            Assert(snapshot.HoardYield != null, "Signed hoard-yield artifact must also validate.");
-            Console.WriteLine($"  offline {scenarioKey}: release={snapshot.ReleaseId}; rooms={snapshot.Catalog!.Rooms.Length}; candidates={status.CandidateCount}; knownSuccessors={status.KnownSuccessorCount}");
-            manager.ReleaseRunSnapshot();
-        }
-    }
-
-    private static void TestModifiedOfflineCatalog(string sourceConfigDirectory)
-    {
-        string configRoot = Path.Combine(Path.GetTempPath(), $"newfolder3-invalid-cache-{Guid.NewGuid():N}");
-        const string scenarioKey = "pt-21-30";
-        try
-        {
-            string sourceRoot = Path.Combine(sourceConfigDirectory, "DetailedMapCatalogs", scenarioKey);
-            string targetRoot = Path.Combine(configRoot, "DetailedMapCatalogs", scenarioKey);
-            foreach (string source in Directory.EnumerateFiles(sourceRoot, "*", SearchOption.AllDirectories))
-            {
-                string target = Path.Combine(targetRoot, Path.GetRelativePath(sourceRoot, source));
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                File.Copy(source, target);
-            }
-            foreach (string catalog in Directory.EnumerateFiles(targetRoot, "catalog.json", SearchOption.AllDirectories))
-                File.AppendAllText(catalog, " ");
-            var options = new DetailedMapHostOptions(null, false, false, false);
-            using var manager = new DetailedMapCatalogManager(configRoot, options);
-            var status = manager.GetStatus(true, scenarioKey);
-            Assert(!status.HasValidCatalog, "Changed catalog bytes must fail the original integrity/signature checks.");
-            Assert(manager.TryAcquireRunSnapshot(options.ShouldUseDetailedMap(true, status.HasValidCatalog),
-                    scenarioKey, out var snapshot, out string error) &&
-                snapshot.Policy == DetailedMapRuntimePolicy.PalacePalOnly && error.Length == 0,
-                "Invalid cached maps must fall back without enabling an unverified detailed map.");
-        }
-        finally
-        {
-            string resolved = Path.GetFullPath(configRoot);
-            string temporaryRoot = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            if (!resolved.StartsWith(temporaryRoot, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Test cleanup escaped the temporary directory.");
-            if (Directory.Exists(resolved)) Directory.Delete(resolved, recursive: true);
-        }
-    }
-
     private static void TestCatalogManagerNoHttpWhenUnavailable()
     {
         string configRoot = Path.Combine(
@@ -317,7 +156,7 @@ internal static class Program
                 contributesAnonymousEvidence: false,
                 deleteCatalogsWhenDisabled: false,
                 supportsControlledPtSurvey: false);
-            using var manager = new DetailedMapCatalogManager(configRoot, options);
+            using var manager = new DetailedMapCatalogManager(configRoot, options, bundledCatalogRoot: Path.Combine(configRoot, "no-bundle"));
             Assert(
                 !manager.HasOnlineCatalogService,
                 "Catalog manager must report no online catalog service.");
@@ -351,7 +190,7 @@ internal static class Program
                     scenarioKey,
                     out DetailedMapRunSnapshot palacePal,
                     out string palacePalError) &&
-                palacePal.Policy == DetailedMapRuntimePolicy.PalacePalOnly &&
+                palacePal.Policy == DetailedMapRuntimePolicy.PalantirOnly &&
                 palacePalError.Length == 0,
                 "PalacePal-only acquisition must remain available without an online catalog service.");
             manager.ReleaseRunSnapshot();

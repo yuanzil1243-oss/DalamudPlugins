@@ -118,10 +118,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Helpers
                             continue;
                     }
 
-                    if (predicate != null && !predicate(bnpc))
-                        continue;
-
-                    if (bnpc.CurrentHp > bestHp)
+                    // Only a better-ranked candidate needs the native sight check.
+                    if (bnpc.CurrentHp > bestHp && (predicate == null || predicate(bnpc)))
                     {
                         bestHp = bnpc.CurrentHp;
                         best = bnpc;
@@ -133,21 +131,10 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Helpers
         }
 
         // Optional BMR arena data is sampled by the caller, not queried inside the object scan.
-        public static IBattleChara? PickBossTarget(Vector2 center, Func<IBattleChara, bool>? predicate,
-            ulong stickyAdd = 0, float actionRange = 0, bool stabilizeAdds = false)
+        public static IBattleChara? PickBossTarget(Vector2 center, Func<IBattleChara, bool>? predicate)
         {
             var player = Service.LocalPlayer;
             if (player == null) return null;
-            if (stabilizeAdds)
-            {
-                var candidates = Service.GameObjects.OfType<IBattleNpc>()
-                    .Where(n => IsBossCandidate(n, player.Position, predicate)).ToArray();
-                var selected = BossAddTargetPolicy.Select(candidates.Select(n => new BossAddCandidate(
-                    n.GameObjectId, n.MaxHp, n.CurrentHp,
-                    Vector2.DistanceSquared(new(n.Position.X, n.Position.Z), center),
-                    CanHitBossAdd(player.Position, player.HitboxRadius, n, actionRange))), stickyAdd);
-                return candidates.FirstOrDefault(n => n.GameObjectId == selected);
-            }
             IBattleChara? best = null;
             BossTargetPriority bestPriority = default;
             foreach (var obj in Service.GameObjects)
@@ -162,15 +149,6 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Helpers
                 }
             }
             return best;
-        }
-
-        private static bool CanHitBossAdd(Vector3 player, float radius, IBattleChara enemy, float range)
-        {
-            if (range <= 0 || Vector2.Distance(new(player.X, player.Z), new(enemy.Position.X, enemy.Position.Z)) >
-                range + radius + enemy.HitboxRadius) return false;
-            float y = Math.Max(player.Y, enemy.Position.Y) + 1;
-            return OmenTools.Interop.Game.Helpers.RaycastHelper.HasLineOfSight(
-                new(player.X, y, player.Z), new(enemy.Position.X, y, enemy.Position.Z));
         }
 
         public static Vector2 BossTargetFallbackCenter(Func<IBattleChara, bool>? predicate)
@@ -204,21 +182,40 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Helpers
             return native != null && native->InCombat;
         }
 
-		public static unsafe IBattleChara? PickAggroedHostile(float range, out bool withinRange, ulong preferredGameObjectId = 0)
+        public static unsafe IBattleChara? PickExcludedAggroTarget(RunContext? context, Func<IBattleChara, bool> allowed)
+        {
+            if (context?.FarmingPlan?.Mode != FarmingMode.DeepProgression)
+                return null;
+
+            var uiState = UIState.Instance();
+            if (uiState == null)
+                return null;
+
+            var hater = &uiState->Hater;
+            var count = Math.Clamp(hater->HaterCount, 0, 32);
+            IBattleChara? best = null;
+            for (int i = 0; i < count; i++)
+            {
+                var id = hater->Haters[i].EntityId;
+                if (id == 0 || Service.GameObjects.SearchByEntityId(id) is not IBattleNpc npc ||
+                    npc is not { IsTargetable: true, IsDead: false, CurrentHp: > 0 } ||
+                    (global::Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind)npc.SubKind !=
+                        global::Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind.Combatant ||
+                    !context.IsPullExcluded(npc))
+                    continue;
+
+                if (best != null && (npc.CurrentHp > best.CurrentHp ||
+                    npc.CurrentHp == best.CurrentHp && npc.GameObjectId >= best.GameObjectId))
+                    continue;
+
+                if (allowed(npc))
+                    best = npc;
+            }
+            return best;
+        }
+
+		public static unsafe IBattleChara? PickNearestAggroedHostile(Func<IBattleChara, bool> predicate)
 		{
-			withinRange = false;
-			var selected = PickAggroedHostileCore(preferredGameObjectId, out var selectedDist);
-			if (selected == null)
-				return null;
-
-			withinRange = selectedDist <= range * range;
-			return selected;
-		}
-
-		private static unsafe IBattleChara? PickAggroedHostileCore(ulong preferredGameObjectId, out float selectedDist)
-		{
-			selectedDist = 0f;
-
 			var player = Service.LocalPlayer;
 			if (player == null)
 				return null;
@@ -245,8 +242,6 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Helpers
 			if (aggroCount == 0)
 				return null;
 
-			IBattleChara? preferred = null;
-			float preferredDist = 0f;
 			IBattleChara? nearest = null;
 			float nearestDist = float.MaxValue;
 
@@ -278,26 +273,14 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Helpers
 				var dz = bnpc.Position.Z - player.Position.Z;
 				var distSq = dx * dx + dz * dz;
 
-				if (preferredGameObjectId != 0 && bnpc.GameObjectId == preferredGameObjectId)
-				{
-					preferred = bnpc;
-					preferredDist = distSq;
-					break;
-				}
+				if (distSq >= nearestDist || !predicate(bnpc))
+					continue;
 
-				if (distSq < nearestDist)
-				{
-					nearest = bnpc;
-					nearestDist = distSq;
-				}
+				nearest = bnpc;
+				nearestDist = distSq;
 			}
 
-			var selected = preferred ?? nearest;
-			if (selected == null)
-				return null;
-
-			selectedDist = preferred != null ? preferredDist : nearestDist;
-			return selected;
+			return nearest;
 		}
 
 		public static IBattleChara? GetBattleCharaByGameObjectId(ulong targetId)

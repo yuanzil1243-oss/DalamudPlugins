@@ -13,12 +13,13 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	/// Layer 1: Container with flat state for FSD mode.
 	/// Layer 2: MultiLoopState (FSD only) - survives loop completions.
 	/// Layer 3: RunContext - per dungeon run lifecycle.
-	/// DutyState and general assists (auto-spin, recovery potion) are owned by FsdEngine,
+	/// DutyState and recovery potion assistance are owned by FsdEngine,
 	/// not by this host. RunHost receives DutyState as a dependency.
 	/// </summary>
-	public sealed partial class RunHost : IDisposable
+	public sealed class RunHost : IDisposable
 	{
 		private readonly FsdSettings _configuration;
+        private readonly MasterPlayer.MechanicRuntime.IEncounterSource _encounters;
 
 		private RunContext? _context;
 
@@ -46,15 +47,19 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 
 		public RunHost(
 			FsdSettings configuration,
+            MasterPlayer.MechanicRuntime.IEncounterSource encounterSource,
 			DutyState dutyState,
 			NativeDeepDungeonLogMessageSource logMessageSource,
 			IFloorEvidenceObserver? floorEvidenceObserver = null,
-			IRunTelemetryObserver? runTelemetryObserver = null)
+			IRunTelemetryObserver? runTelemetryObserver = null,
+            Func<IBossMovementStrategy>? spinBossMovementFactory = null)
 		{
 			_configuration = configuration;
+            _encounters = encounterSource ?? throw new ArgumentNullException(nameof(encounterSource));
 			_dutyState = dutyState;
 			ArgumentNullException.ThrowIfNull(logMessageSource);
-			_floorController = new FloorPhaseController(logMessageSource, floorEvidenceObserver, runTelemetryObserver);
+			_floorController = new FloorPhaseController(logMessageSource, floorEvidenceObserver, runTelemetryObserver,
+                spinBossMovementFactory);
 		_exit = new ExitPolicyController();
 	}
 
@@ -63,40 +68,11 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		public RunContext? Context => _context;
 		public IRunOptionsProvider? RunOptionsProvider => _context?.RunOptions;
 		public bool FsdActive => _isFsdMode;
-        internal bool IsFinalBossPractice => _attachedScenario is Scenarios.FinalBossScenario;
-        internal bool DutyEntryReady => _attachedScenario switch
-        {
-            Scenarios.FarmingScenario farming => farming.EntryAccepted,
-            Scenarios.FinalBossScenario finalBoss => finalBoss.EntryAccepted,
-            _ => true
-        };
-		public bool FarmingPaused => (_attachedScenario as Scenarios.FarmingScenario)?.Session.IsPaused == true;
-		public bool PauseAfterFloorsetClear => (_attachedScenario as Scenarios.FarmingScenario)?.Session.PauseAfterFloorsetClear == true;
-		public bool ExplorationErrorPaused => _context?.ExplorationRecovery.IsPaused == true;
-        public bool CanResumeExploration => _isFsdMode && _context is { StatusIsError: true } &&
-            _attachedScenario is Scenarios.FarmingScenario { EntryAcceptedForRecovery: true } &&
-            _floorController.CanResumeExploration && _context.ExplorationRecovery.CanResume(new(
-                _context.Duty.DungeonId, _context.Duty.Floor, _context.Duty.IsInDuty, !_context.Duty.StateReadFailed,
-                _context.Duty.IsTransitioning || Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas] ||
-                    Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas51],
-                Service.ClientState.IsLoggedIn && Service.LocalPlayer is { IsDead: false, CurrentHp: > 0 },
-                _context.DutyFailureObserved, _context.DutyCompletionObserved, _context.Duty.TimerRemainingSeconds is <= 0));
-        public bool ResumeExploration()
-        {
-            if (!CanResumeExploration || !_floorController.ResumeExplorationAfterError()) return false;
-            _context!.ExplorationRecovery.Clear(); _context.StatusIsError = false;
-            _context.StatusLine = _lastStatus = "已继续探索；保留当前任务、存档和楼层进度。";
-            _lastStatusIsError = false;
-            return true;
-        }
-        public bool AssistModeActive => _isFsdMode && !ExplorationErrorPaused;
+		public bool AssistModeActive => _isFsdMode;
 		public bool ScenarioAttached => _attachedScenario != null;
 
 	// Expose shared controller for scenarios/panels that need fine-grained state.
 	public FloorPhaseController FloorController => _floorController;
-
-	public object ArmControlledReusableSaveSurveyCapture() =>
-		_floorController.ArmControlledReusableSaveSurveyCapture();
 
 		// ===== FSD API =====
 
@@ -108,7 +84,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			Func<IScenario> scenarioFactory,
 			int targetLoops,
 			bool infinite,
-			DetailedMapRunSnapshot detailedMapRunSnapshot)
+			DetailedMapRunSnapshot detailedMapRunSnapshot,
+            int completedLoops = 0)
 		{
 			if (_isFsdMode)
 			{
@@ -124,16 +101,16 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 				_scenarioFactory = scenarioFactory;
 				_detailedMapRunSnapshot = detailedMapRunSnapshot ??
 					throw new ArgumentNullException(nameof(detailedMapRunSnapshot));
-				var multiLoopDriver = new MultiLoopDriver(targetLoops, infinite);
+				var multiLoopDriver = new MultiLoopDriver(targetLoops, infinite, completedLoops);
 				NormalizeLegacyEndMode();
 				_multiLoopDriver = multiLoopDriver;
 				_lastStatus = string.Empty;
 				_lastStatusIsError = false;
-				DeepDungeonUi.CloseDeepDungeonEntryWindows();
 				DeepDungeonFloorsetTracker.Reset();
 
 			// Initialize Layer 3: RunContext
 			_context = new RunContext(
+				_encounters,
 				_configuration,
 				_dutyState,
 				_detailedMapRunSnapshot);
@@ -145,6 +122,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			// Create first scenario instance
 				_attachedScenario = _scenarioFactory();
 				_attachedScenario.Initialize(_context);
+                        LocalRunOptions.Apply(_context);
 
 				Service.Log.Info($"[RunHost] FSD started: {_attachedScenario.Name} (loops={(_multiLoopDriver!.InfiniteLoop ? "∞" : _multiLoopDriver.TargetLoops)})");
 			}
@@ -198,7 +176,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			_context = null;
 
 			_multiLoopDriver = null;
-			DeepDungeonUi.CloseDeepDungeonEntryWindows();
+            _dutyObservationBlock = null;
+			if (!_dutyState.IsInDuty) DeepDungeonUi.CloseDeepDungeonEntryWindows();
 
 			Service.Log.Info("[RunHost] FSD stopped");
 		}
@@ -207,39 +186,34 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 
 		public void Update(IFramework framework)
 		{
-			if (!_isFsdMode || FarmingPaused)
+			if (!_isFsdMode)
 				return;
-            if (_context?.HohContinuity.HoldsHost == true) return;
 
-            if (ExplorationErrorPaused && _context != null)
-            {
-                var duty = _context.Duty;
-                // A failed state read or zoning can temporarily clear IsInDuty. Keep the
-                // retained attempt inert until the actual exit or failure is confirmed.
-                bool stable = !duty.StateReadFailed && !duty.IsTransitioning &&
-                    Service.ClientState.IsLoggedIn && Service.LocalPlayer != null &&
-                    !Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas] &&
-                    !Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas51];
-                if (_context.DutyFailureObserved || _context.DutyCompletionObserved ||
-                    Service.LocalPlayer is { IsDead: true } || (stable && !duty.IsInDuty))
-                {
-                    _context.ExplorationRecovery.Clear();
-                    _context.StatusIsError = false;
-                }
-                else
-                {
-                    if (stable) ObserveDutyTimeout();
-                    return;
-                }
-            }
-			if (_context != null)
+			if (_context is { Duty.StateReadFailed: true } context)
 			{
-				if (_context.Duty.StateReadFailed)
+				string error = context.Duty.LastStateReadError;
+				if (context.Duty.StateReadIncompatible)
 				{
-					SetDutyStateUnavailableStatus(_context.Duty.LastStateReadError);
+					context.StatusLine = _lastStatus = error;
+					context.StatusIsError = _lastStatusIsError = true;
+					StopFsd("duty-observation-incompatible", new { error, territory = Service.ClientState.TerritoryType });
 					return;
 				}
+				if (_dutyObservationBlock == null)
+				{
+					_floorController.SuspendForMissingDutyObservation();
+					context.Navigator.CancelAll();
+					context.CombatAssist.Suspend();
+				}
+				SetDutyObservationBlock(error);
+				return;
 			}
+
+            if (_dutyObservationBlock != null)
+            {
+                _context?.RecordDiagnostic?.Invoke("duty-observation-restored", new { floor = _context.Duty.Floor });
+                _dutyObservationBlock = null;
+            }
 
 			// FSD mode: scenario drives entry/exit flows
 			if (_isFsdMode)
@@ -261,26 +235,25 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			{
 				MarkPlayerDeathFatalIfObserved();
 				StopInDutyMovementAfterDutyExit();
-				if (ObserveDutyTimeout()) return;
 				_attachedScenario.Update(framework);
 
 				_lastStatus = _context.StatusLine ?? string.Empty;
 				_lastStatusIsError = _context.StatusIsError;
-				if (FarmingPaused)
+
+				if (_context.Duty.IsInDuty && _context.EntryReadyForDuty && !_context.StatusIsError)
+					UpdateControllers(framework);
+                else
+                    _floorController.SuspendBossMovement();
+
+				if (_context.TerminalStayRequested)
 				{
-					_floorController.CancelActiveMovement();
+					_lastStatus = _context.StatusLine ?? string.Empty;
+					_lastStatusIsError = false;
+					_multiLoopDriver.IncrementLoop();
+					StopFsd("terminal-reward-confirmed", new { floor = _context.Duty.Floor, dungeonId = _context.Duty.DungeonId });
 					return;
 				}
 
-				if (_context.Duty.IsInDuty && !_context.StatusIsError && DutyEntryReady && !IsFinalBossPractice)
-					UpdateControllers(framework);
-
-                if (ExplorationErrorPaused)
-                {
-                    _floorController.CancelActiveMovement(); _context.Navigator.CancelAll();
-                    _lastStatus = _context.StatusLine ?? string.Empty; _lastStatusIsError = true;
-                    return;
-                }
 				if (_attachedScenario.IsComplete)
 				{
 					if (_context.StatusIsError)
@@ -357,6 +330,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 
 						DeepDungeonFloorsetTracker.Reset();
 						_context = new RunContext(
+							_encounters,
 							_configuration,
 							_dutyState,
 							_detailedMapRunSnapshot ??
@@ -369,6 +343,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 
 						_attachedScenario = _scenarioFactory!.Invoke();
 						_attachedScenario.Initialize(_context);
+                        LocalRunOptions.Apply(_context);
 					}
 					else
 					{
@@ -393,6 +368,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 
 		bool assistActive = AssistModeActive;
 		_inDutyControllersActive = true;
+		bool wasLeaving = _exit.IsLeaveActive;
 
 		if (assistActive)
 		{
@@ -408,8 +384,13 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 
 		if (_exit.IsLeaveActive)
 		{
-			try { _floorController.CancelActiveMovement(); } catch { }
-			try { _context.Navigator.CancelAll(); } catch { }
+			// Release floor movement once. The leave flow may now navigate to a
+			// native terminal exit; cancelling every frame would kill its route.
+			if (!wasLeaving)
+			{
+				try { _floorController.CancelActiveMovement(); } catch { }
+				try { _context.Navigator.CancelAll(); } catch { }
+			}
 			try
 			{
 				_exit.Update(framework);
@@ -435,36 +416,20 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			}
 		}
 
-            if (ExplorationErrorPaused) return;
-			// Auto-open chests when assist mode is active
-			if (assistActive)
-			{
-				try
-				{
-					_floorController.TickInteractionChannel(framework);
-				}
-				catch (Exception ex)
-				{
-					try { Service.Log.Error($"[RunHost] Chest interaction channel error: {ex}"); } catch { }
-				}
-			}
-
 			if (assistActive)
 				_floorController.TickCombatChannel(out _);
 
 		}
 
-	private void SetDutyStateUnavailableStatus(string error)
+    private string? _dutyObservationBlock;
+
+	private void SetDutyObservationBlock(string error)
 	{
 		string reason = string.IsNullOrWhiteSpace(error) ? "unknown error" : error;
-		string status = $"Duty state unavailable: {reason}";
-		_lastStatus = status;
-		_lastStatusIsError = true;
-		if (_context != null)
-		{
-			_context.StatusLine = status;
-			_context.StatusIsError = true;
-		}
+		string status = $"等待有效的副本觀測：{reason}";
+        if (_dutyObservationBlock == status) return;
+        _dutyObservationBlock = status;
+        _context?.RecordDiagnostic?.Invoke("duty-observation-unavailable", new { reason });
 	}
 
 	private void MarkPlayerDeathFatalIfObserved()
@@ -475,11 +440,18 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		var player = Service.LocalPlayer;
 		if (player == null || !player.IsDead)
 			return;
-        if (DeepDungeon.Fsd.Runtime.HohRunContinuity.Applies(_context.FarmingPlan?.Mode, _context.Duty.DungeonId) &&
-            _context.HohContinuity.Phase != DeepDungeon.Fsd.Runtime.HohContinuityPhase.ConfirmedDeath) return;
+
+        // Raising can revive a dead player without failing the attempt. The
+        // floor controller pauses movement; DutyWiped owns the final result.
+        if (_context.FarmingPlan != null) return;
 
         _context.MarkDutyFailed();
-        if (_context.FarmingPlan?.IsProgression == true)
+        if (_context.TryHoldFailedAttempt("角色死亡"))
+        {
+            _floorController.CancelActiveMovement();
+            return;
+        }
+        if (_context.FarmingPlan?.Mode == FarmingMode.DeepProgression)
         {
             _context.RunOptions.Update(o => o.LeaveMode = LeaveMode.Immediate);
             _context.StatusLine = "攻略死亡；退本後清理本任務存檔並從第一層重開。";
@@ -505,36 +477,6 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 		Service.Log.Warning("[RunHost] Deep Dungeon run marked fatal because the local player died.");
 	}
 
-	private bool ObserveDutyTimeout()
-	{
-		var ctx = _context;
-		if (ctx == null || (ctx.StatusIsError && !ctx.ExplorationRecovery.IsPaused) ||
-            _attachedScenario is not Scenarios.FarmingScenario { EntryAcceptedForRecovery: true }) return false;
-		var duty = ctx.Duty;
-		if (duty.IsInDuty && !duty.IsTransitioning && duty.TimerRemainingSeconds is { } seconds)
-			ctx.TimeoutEvidence.Observe(duty.DungeonId, duty.Floor, seconds, duty.TimerMaximumSeconds, duty.TimerSampleAtUtc);
-		bool stable = !duty.IsTransitioning && Service.LocalPlayer != null &&
-			!Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas] &&
-			!Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.BetweenAreas51] &&
-			Service.ClientState.IsLoggedIn;
-		var decision = ctx.TimeoutEvidence.Evaluate(duty.IsInDuty, stable, ctx.DutyCompletionObserved, ctx.DutyFailureObserved, DateTime.UtcNow);
-		if (decision == DutyTimeoutDecision.WaitingForExitEvidence)
-		{
-			// Never finalize a missing-completion exit before zoning and the final event grace finish.
-			if (!duty.IsInDuty) ctx.StatusLine = "等待退本完成並核對副本超時證據…";
-			return !duty.IsInDuty;
-		}
-		if (decision != DutyTimeoutDecision.Expired) return false;
-		ctx.MarkDutyFailed("duty-timeout");
-		_floorController.RecordReplayEvent("duty-timeout-confirmed", new {
-			floor = ctx.TimeoutEvidence.LastFloor, dungeonId = ctx.TimeoutEvidence.DungeonId,
-			lastTimerSeconds = ctx.TimeoutEvidence.RemainingSeconds, timerSampleAtUtc = ctx.TimeoutEvidence.SampleAtUtc,
-			outsideDuty = !duty.IsInDuty, reason = ctx.DutyFailureReason });
-		_floorController.CancelActiveMovement();
-		ctx.StatusLine = "已確認副本時間耗盡；按失敗流程核對並清理所屬存檔，不計成功次數。";
-		return false;
-	}
-
 	private void StopInDutyMovementAfterDutyExit()
 	{
 		var context = _context;
@@ -547,23 +489,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	}
 
 		public string CurrentScenarioName => _attachedScenario?.Name ?? string.Empty;
-        public void SetPauseAfterFloorsetClear(bool enabled) =>
-            (_attachedScenario as Scenarios.FarmingScenario)?.Session.SetPauseAfterFloorsetClear(enabled);
-
-        public bool ResumeFarming()
-        {
-            if (!_isFsdMode || _context == null || _context.StatusIsError ||
-                _context.Duty.StateReadFailed || _context.Duty.IsInDuty || _context.Duty.IsTransitioning ||
-                _attachedScenario is not Scenarios.FarmingScenario farming || !farming.Session.Resume()) return false;
-            _context.StatusLine = "已繼續；完成本組收尾後接續原任務。";
-            _lastStatus = _context.StatusLine;
-            try { _context.RecordDiagnostic?.Invoke("fsd-resumed-after-floorset", new
-            {
-                clearedFloor = farming.Session.PausedAfterFloor, ownedSlot = farming.Session.OwnedSlot
-            }); } catch { }
-            Service.Log.Info($"[Farming] Resumed after floorset: cleared={farming.Session.PausedAfterFloor}, ownedSlot={farming.Session.OwnedSlot}");
-            return true;
-        }
+        internal Scenarios.FarmingScenario? ActiveFarming => _attachedScenario as Scenarios.FarmingScenario;
         public void SetFarmingTargets(bool hoard, bool gold, bool silver, bool bronze)
         {
             if (_attachedScenario is not Scenarios.FarmingScenario farming) return;
@@ -581,7 +507,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
         public int FarmingFailures => (_attachedScenario as Scenarios.FarmingScenario)?.Session.Failures ?? 0;
         public int HoardDiscoveries => (_attachedScenario as Scenarios.FarmingScenario)?.Session.Discoveries ?? 0;
         public string PreparedSaveDescription => _context?.PreparedSaveDescription ?? string.Empty;
-		public string CurrentStatus => _context?.StatusLine ?? string.Empty;
+        internal bool DutyObservationUnavailable => _dutyObservationBlock != null;
+		public string CurrentStatus => _dutyObservationBlock ?? _context?.StatusLine ?? string.Empty;
 		public bool CurrentStatusIsError => _context?.StatusIsError ?? false;
 		public string LastStatus => _lastStatus;
 		public bool LastStatusIsError => _lastStatusIsError;
@@ -700,7 +627,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 				}
 
 				var player = Service.LocalPlayer;
-				if (player != null && player.IsDead)
+				if (player != null && player.IsDead && attemptContext.FarmingPlan == null)
 				{
 					MarkDutyWipeFatal(attemptContext, "Deep Dungeon run failed: duty completion event arrived while the player was dead.");
 					return;
@@ -807,23 +734,16 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 	{
 		try
 		{
-            if (DeepDungeon.Fsd.Runtime.HohRunContinuity.Applies(context.FarmingPlan?.Mode, context.Duty.DungeonId) &&
-                context.HohContinuity.DeferWipe(Service.LocalPlayer?.IsDead == true, DateTime.UtcNow))
-            {
-                if (Service.LocalPlayer is { IsDead: true }) context.HohContinuity.ObserveDeath(DateTime.UtcNow);
-                _floorController.CancelActiveMovement();
-                _floorController.RecordReplayEvent("hoh-wipe-awaiting-revival", new { floor = context.Duty.Floor,
-                    phase = context.HohContinuity.Phase.ToString(), playerDead = Service.LocalPlayer?.IsDead,
-                    reason = Service.LocalPlayer?.IsDead == true ? "observed-death-awaiting-revival" : "late-wipe-or-disconnected-frame-retained" });
-                return;
-            }
-            if (context.ExplorationRecovery.IsPaused)
-            { context.ExplorationRecovery.Clear(); context.StatusIsError = false; }
 			if (context.StatusIsError)
 				return;
 
             context.MarkDutyFailed();
-            if (context.FarmingPlan?.IsProgression == true)
+            if (context.TryHoldFailedAttempt("攻略失敗"))
+            {
+                _floorController.CancelActiveMovement();
+                return;
+            }
+            if (context.FarmingPlan?.Mode == FarmingMode.DeepProgression)
             {
                 context.RunOptions.Update(o => o.LeaveMode = LeaveMode.Immediate);
                 context.StatusLine = "攻略失敗；退本後從第一層重開。";

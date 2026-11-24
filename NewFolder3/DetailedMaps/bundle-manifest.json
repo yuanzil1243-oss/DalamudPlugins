@@ -1,0 +1,25 @@
+{
+  "source": "user-local-official-download",
+  "bundles": [
+    {
+      "scenario": "pt-21-30",
+      "release": "2026-11-23.1",
+      "sha256": {
+        "installed.json": "9fb150f54fe83e03a658deaa4c0b0c20fea99c24d16a3ac7a3f27143e46f012a",
+        "releases/2026-11-23.1-799e998000b9/catalog.json": "799e998000b96d3c07430c5ae943b3b401236b8e10069405ba96a6543110be18",
+        "releases/2026-11-23.1-799e998000b9/catalog.sig.json": "dd356dd680b25f671c8ba137e8e5c9d5e8fc9b4fb5668bcf859ec5eddcfe324b",
+        "releases/2026-11-23.1-799e998000b9/hoard-yield-catalog.json": "abee77486deed93d5e8a57a9b7f28b9c7b8f78d9d924969a1932d9d6f9afaf2a"
+      }
+    },
+    {
+      "scenario": "pt-31-40",
+      "release": "2026-11-23.1",
+      "sha256": {
+        "installed.json": "654642c567eb81dd4030dbcb810da3db89234825e6fd5f957e90c91cd60cd7c8",
+        "releases/2026-11-23.1-cc9c7ce98e00/catalog.json": "cc9c7ce98e00b931954e1d9976dcd13ffdf24e05c2000b7583924073dfe5e0ae",
+        "releases/2026-11-23.1-cc9c7ce98e00/catalog.sig.json": "a4badf13be133624191f86499e6b6f0789405bdf48b5a15697f88c36be833ffc",
+        "releases/2026-11-23.1-cc9c7ce98e00/hoard-yield-catalog.json": "d1d0ee459dbaef2f45e63e2a8bf67e97caf1f9b29314b147da322a408920e0c0"
+      }
+    }
+  ]
+}

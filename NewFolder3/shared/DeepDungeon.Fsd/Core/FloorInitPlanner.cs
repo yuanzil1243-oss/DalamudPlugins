@@ -7,11 +7,11 @@ namespace DeepDungeon.Fsd.Core
         public const uint SteelPomanderSlotIndex = 3;
         public const uint AffluencePomanderSlotIndex = 4;
         public const uint FlightPomanderSlotIndex = 5;
+        public const uint AlterationPomanderSlotIndex = 6;
         public const uint PurityPomanderSlotIndex = 7;
         public const uint FortunePomanderSlotIndex = 8;
         public const uint SerenityPomanderSlotIndex = 10;
         public const uint HastePomanderSlotIndex = 11; // Pilgrim's Traverse only.
-        public const uint CleansingCharmSlotIndex = 12; // Pilgrim's Traverse only.
         public const uint IntuitionPomanderSlotIndex = 13;
         public const uint RaisingPomanderSlotIndex = 14;
 
@@ -65,7 +65,9 @@ namespace DeepDungeon.Fsd.Core
                 };
             }
 
-            if (snapshot.AffluenceUsable && !snapshot.AffluenceActive && snapshot.NextFloorIsMob)
+            if (snapshot.AffluenceUsable && !snapshot.AffluenceActive &&
+                DeepDungeonFloorItemUsePolicy.AllowsNextFloorEffect(
+                    AffluencePomanderSlotIndex, snapshot.NextFloorIsMob))
             {
                 return new FloorInitDecision
                 {

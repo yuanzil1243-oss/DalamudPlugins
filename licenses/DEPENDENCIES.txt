@@ -1,0 +1,11 @@
+NewFolder3 0.7.55.2001 local build — dependency notices
+
+NewFolder3 — John Smith / Yuzi — GNU GPL v3 (root LICENSE).
+OmenTools — Copyright (c) 2025 AtmoOmen — MIT, submodule commit 6b8f1244bee6a8eca741b8c27e1cfc229ceef66c.
+FFXIVClientStructs.Expansion — Copyright (c) 2021-2023 aers — MIT (upstream supplied Native/LICENSE).
+BossModReborn — Copyright (c) 2022-2024 Andrew Gilewsky — BSD-3-Clause (upstream supplied LICENSE.BossModReborn).
+GuerrillaNtp 3.1.0 — robertvazan — Apache-2.0 (local NuGet nuspec). License fetched from the repository declared by the package, robertvazan/guerrillantp, LICENSE, Git blob ff9ad4530f5716304e042cbac72cecd7c40f0e0e.
+TerraFX.Interop.Windows 10.0.26100.6 — Copyright © Tanner Gooding and Contributors — MIT (local NuGet nuspec). License fetched from the package's repository terrafx/terrafx.interop.windows at commit 7d3e679e74be9da3584b4d4c4689e10422cc485f, LICENSE.md, Git blob abd6a0160e4c6254c62fc5a3dd31a52a60472669.
+TinyPinyin 1.1.0 — Copyright (c) 2017 Jay.M.Hu — MIT, license copied from the exact locally restored NuGet package.
+
+Dalamud, FFXIVClientStructs and ImGui host assemblies are compile-time host references and are not redistributed in this package. Existing upstream source notices are preserved in the accompanying source archive. The independent MoveSpeedLab plugin binary is not included.

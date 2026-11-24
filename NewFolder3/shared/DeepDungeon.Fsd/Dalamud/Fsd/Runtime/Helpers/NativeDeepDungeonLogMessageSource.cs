@@ -95,13 +95,14 @@ public sealed unsafe class NativeDeepDungeonLogMessageSource : IDisposable
     {
         switch (item.LogMessageId)
         {
-            case 9209: // Confirmed native magicite use, including manual use.
-            case 9208: // HoH: native magicite could not fit and was returned to this chest.
             case 7222:
             case 7256:
             case 7272:
             case 7273:
             case 7274:
+            case 9208:
+            case 9209:
+            case 9217:
             case 10287:
             case 11251:
                 break;
@@ -138,7 +139,7 @@ public sealed unsafe class NativeDeepDungeonLogMessageSource : IDisposable
         }
     }
 
-    internal static void EnableHook<T>(Hook<T> hook, string name) where T : Delegate
+    private static void EnableHook<T>(Hook<T> hook, string name) where T : Delegate
     {
         hook.Enable();
         if (hook.IsEnabled)

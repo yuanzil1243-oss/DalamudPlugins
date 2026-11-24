@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "upstreamVersion": "0.7.55.20",
+  "upstreamCommit": "ac90ff5e958c2eb236d5afa380d244d8217ac215",
+  "localRevision": 1,
+  "versionRule": "upstream fourth component * 100 + local revision (01..99)",
+  "localVersion": "0.7.55.2001",
+  "features": ["builtin-speed", "ae-output", "external-save", "continue-exploration", "highest-start-descent", "free-exploration", "signed-offline-maps", "legacy-config-upgrade", "data-preserving-version-switch"],
+  "mapScenarios": ["pt-21-30", "pt-31-40"],
+  "onlineCatalogConfigured": false
+}

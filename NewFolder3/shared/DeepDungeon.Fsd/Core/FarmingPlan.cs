@@ -1,49 +1,54 @@
 namespace DeepDungeon.Fsd.Core;
 
-public enum FarmingMode { Hoard, Aetherpool, HoardDiscovery, DeepProgression, FreeExploration, FinalBoss }
-public enum SaveUse { Create, Prepared, None }
+public enum FarmingMode { Hoard, Aetherpool, HoardDiscovery, DeepProgression }
+public enum SaveUse { Create, Prepared }
 
 /// <summary>Validated, immutable intent shared by UI, API and the runtime.</summary>
-public sealed record FarmingPlan(
+public sealed partial record FarmingPlan(
     FarmingMode Mode, SaveUse SaveUse, int StartFloor, int TargetCycles, bool Infinite,
     bool BandedEnabled, bool OpenGold, bool OpenSilver, bool OpenBronze)
 {
-    public string DisplayName => Mode switch
+    public string DisplayName => FreeExploration ? "自由探索" : OrdinaryDescent ? "普通下底" : Mode switch
     {
         FarmingMode.Hoard => "挖寶藏",
         FarmingMode.Aetherpool => "強化／陶片",
         FarmingMode.HoardDiscovery => "寶藏發現成就",
-        FarmingMode.FreeExploration => "自由探索",
-        FarmingMode.FinalBoss => "尾王模式",
-        _ => "死靈術士挑戰"
+        _ => "死靈術士"
     };
-    // Optional run-only diagnostic boundary; normal progression still climbs to 100.
     public uint DungeonId { get; init; } = 4;
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool OrdinaryDescent { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool CurrentDutyOnly { get; init; }
+    public int MaxFloor => DungeonId == 1 ? 200 : 100;
+    public int TerminalEntryFloor => MaxFloor - 9;
+    // Optional run-only diagnostic boundary; normal progression still climbs to MaxFloor.
     public int? StopAfterFloor { get; init; }
-    // Explicit checkpoint tests from UI/API; normal challenge runs still start/restart at floor one.
-    public bool UsesDiagnosticCheckpoints { get; init; }
-    public bool PreserveExternalSave { get; init; }
-    public bool DeleteExternalSaveOnFailure { get; init; }
-    public bool PreserveSaveOnCompletion { get; init; }
-    public bool IsProgression => ProgressionModePolicy.IsProgression(Mode);
+    // Run-only diagnostic option: retain the duty and save for in-place inspection.
+    public bool HoldOnFailure { get; init; }
+    public bool HoldAfterClear { get; init; }
+    // A user-selected existing save is never owned for deletion or failure restart.
+    public bool ExternalSave { get; init; }
+    public ulong ExternalSaveCharacter { get; init; }
+    public uint ExternalSaveJob { get; init; }
+    public bool StopsForTerminalReview => Mode == FarmingMode.DeepProgression && StopAfterFloor == MaxFloor;
     public bool ReusesSave => Mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery;
     public bool ShowsDetailedMap => Mode == FarmingMode.Hoard && BandedEnabled;
-    public string CycleUnit => Mode == FarmingMode.FinalBoss ? "尾王通關次數" : Mode == FarmingMode.DeepProgression ? "登頂次數" : Mode == FarmingMode.FreeExploration ? "完成次數" : Mode == FarmingMode.Hoard ? "挖寶輪數" : "採集輪數";
+    public string CycleUnit => FreeExploration ? "完整層段輪數" : Mode == FarmingMode.DeepProgression ? "登頂次數" : Mode == FarmingMode.Hoard ? "挖寶輪數" : "採集輪數";
 
     public static bool TryCreate(FarmingMode mode, SaveUse saveUse, int startFloor,
         int cycles, bool infinite, bool hoard, bool gold, bool silver, bool bronze,
-        out FarmingPlan? plan, out string error, uint dungeonId = 4)
+        out FarmingPlan? plan, out string error, uint dungeonId = 4, bool ordinaryDescent = false)
     {
         plan = null;
+        bool validProgressionStart = ordinaryDescent
+            ? OrdinaryDescentPolicy.IsValidStart(dungeonId, mode, saveUse, startFloor)
+            : dungeonId is (1 or 2 or 4) && startFloor == 1;
         error = !Enum.IsDefined(mode) || !Enum.IsDefined(saveUse) ? "未知玩法或存檔用途。"
-            : dungeonId is not (2 or 4) ? "此本地版只支援妖宮與天宮。"
-            : dungeonId == 2 && (mode != FarmingMode.FreeExploration || hoard) ? "天宮首版使用自由探索，暫不啟用挖寶。"
-            : dungeonId == 2 && !HohLocalPolicy.IsNewSaveStart(startFloor) ? "天宮只能從1或21層新建；高層請選擇已有存檔。"
+            : dungeonId is not (1 or 2 or 4) ? "不支援此地宮。"
+            : dungeonId != 4 && mode != FarmingMode.DeepProgression ? "此地宮目前只支援深層攻略模式。"
             : cycles < 1 ? "循環次數必須至少為 1。"
-            : mode == FarmingMode.FinalBoss && (saveUse != SaveUse.None || startFloor != 99)
-                ? "尾王模式只使用獨立99層練習挑戰，不使用存檔。"
-            : mode != FarmingMode.FinalBoss && saveUse == SaveUse.None
-                ? "此模式必須指定存檔用途。"
+            : ordinaryDescent && !validProgressionStart ? "普通下底須從所選地宮最高的新建起點開始。"
             : mode == FarmingMode.Hoard && saveUse != SaveUse.Create
                 ? "固定層段模式只使用空槽位新建存檔，不接受既有存檔。"
             : mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery && saveUse != SaveUse.Prepared
@@ -52,16 +57,17 @@ public sealed record FarmingPlan(
                 ? "強化／陶片玩法至少選擇銀箱或銅箱。"
             : !FarmingTargetPolicy.IsValid(mode, new(hoard, gold, silver, bronze))
                 ? "此模式的寶藏／寶箱選項不相容。"
-            : mode == FarmingMode.DeepProgression && (saveUse != SaveUse.Create || startFloor != 1)
-                ? "深層攻略必須從第一層新建存檔。"
-            : mode == FarmingMode.FreeExploration && (saveUse != SaveUse.Create || startFloor is < 1 or > 91 || startFloor % 10 != 1)
-                ? "自由探索必須指定有效的十層組起點。"
+            : mode == FarmingMode.DeepProgression && (saveUse != SaveUse.Create || !validProgressionStart)
+                ? "深層攻略起點與地宮設定不符。"
             : mode == FarmingMode.Hoard && saveUse == SaveUse.Create && startFloor is not (21 or 31)
                 ? "目前固定層段挖寶支援 PT 21–30、31–40。"
             : string.Empty;
         if (error.Length != 0) return false;
         plan = new(mode, saveUse, saveUse == SaveUse.Prepared ? 0 : startFloor,
-            cycles, infinite, hoard, gold, silver, bronze) { DungeonId = dungeonId };
+            cycles, infinite, hoard, gold, silver, bronze)
+        {
+            DungeonId = dungeonId, OrdinaryDescent = ordinaryDescent
+        };
         return true;
     }
 }
@@ -70,17 +76,15 @@ public readonly record struct FarmingTargets(bool Hoard, bool Gold, bool Silver,
 
 public static class FarmingTargetPolicy
 {
-    public static bool LocksHoard(FarmingMode mode) => mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery or FarmingMode.DeepProgression or FarmingMode.FinalBoss;
-    public static bool LocksGold(FarmingMode mode) => mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery or FarmingMode.DeepProgression or FarmingMode.FreeExploration or FarmingMode.FinalBoss;
-    public static bool LocksSilverBronze(FarmingMode mode) => mode is FarmingMode.HoardDiscovery or FarmingMode.DeepProgression or FarmingMode.FreeExploration or FarmingMode.FinalBoss;
+    public static bool LocksHoard(FarmingMode mode) => mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery or FarmingMode.DeepProgression;
+    public static bool LocksGold(FarmingMode mode) => LocksHoard(mode);
+    public static bool LocksSilverBronze(FarmingMode mode) => mode is FarmingMode.HoardDiscovery or FarmingMode.DeepProgression;
 
     public static FarmingTargets Constrain(FarmingMode mode, in FarmingTargets targets) => mode switch
     {
         FarmingMode.Aetherpool => new(false, false, targets.Silver || !targets.Bronze, targets.Bronze),
         FarmingMode.HoardDiscovery => new(true, false, false, false),
         FarmingMode.DeepProgression => new(false, true, true, false),
-        FarmingMode.FreeExploration => new(targets.Hoard, true, true, false),
-        FarmingMode.FinalBoss => new(false, false, false, false),
         _ => targets
     };
 
@@ -88,7 +92,10 @@ public static class FarmingTargetPolicy
         targets == Constrain(mode, targets) && (mode != FarmingMode.Aetherpool || targets.Silver || targets.Bronze);
 }
 
-public readonly record struct SaveSlotSnapshot(int Index, bool Empty, int StartFloor, string Progress, string Identity = "", bool Enterable = true);
+public readonly record struct SaveSlotSnapshot(int Index, bool Empty, int StartFloor, string Progress, string Identity = "", bool Enterable = true)
+{
+    public string? RowFingerprint { get; init; }
+}
 
 public static class SaveSlotUiPolicy
 {
@@ -120,10 +127,11 @@ public static class PreparedSavePolicy
 {
     public static bool TryResolve(IReadOnlyList<SaveSlotSnapshot> slots,
         SaveSlotSnapshot? pinned, bool reusable, int? expectedFloor,
-        out SaveSlotSnapshot source, out string error, int? requiredSlot = null)
+        out SaveSlotSnapshot source, out string error, int? requiredSlot = null, int maxFloor = 100)
     {
         source = default;
         error = string.Empty;
+        int terminalEntry = Math.Max(1, maxFloor - 9);
         int occupied = 0;
         bool managed = requiredSlot.HasValue && !reusable;
         foreach (var slot in slots)
@@ -136,7 +144,7 @@ public static class PreparedSavePolicy
         else if (!source.Enterable)
             error = managed ? "本任務存檔目前無法入場；已停止，不會改選其他存檔。"
                 : "唯一存檔目前無法入場，不能被當成空槽位。";
-        else if (source.StartFloor is < 1 or > 91 || source.StartFloor % 10 != 1)
+        else if (source.StartFloor < 1 || source.StartFloor > terminalEntry || source.StartFloor % 10 != 1)
             error = "無法可靠識別存檔起點，或存檔已完成／不可入場。";
         else if (reusable && source.StartFloor > 21)
             error = "PT 31 層起棄本會使存檔失效；複用玩法只接受 1、11、21 層起點。";

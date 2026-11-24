@@ -4,10 +4,9 @@
   <PropertyGroup>
     <AssemblyName>NewFolder3</AssemblyName>
     <RootNamespace>NewFolder3</RootNamespace>
-    <Version>0.7.55.83</Version>
-    <AssemblyVersion>0.7.55.83</AssemblyVersion>
-    <FileVersion>0.7.55.83</FileVersion>
-    <InformationalVersion>0.7.55.83-final-local</InformationalVersion>
+    <Version>0.7.55.2001</Version>
+    <AssemblyVersion>0.7.55.2001</AssemblyVersion>
+    <FileVersion>0.7.55.2001</FileVersion>
     <Description>Standalone Deep Dungeon FSD host.</Description>
     <IsPackable>false</IsPackable>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -29,6 +28,9 @@
     <!-- Public root sources. OfficialBuildProfile.g.cs is optional and ignored by git;
          private manual builds may stage it beside these files. -->
     <Compile Include="*.cs" />
+    <Compile Remove="OfficialBuildProfile.g.cs;*AntiResell*.cs" Condition="'$(PublicTestBuild)' == 'true'" />
+    <Compile Include="$(TestBuildProfilePath)" Link="TestBuildProfile.g.cs"
+             Condition="'$(PublicTestBuild)' == 'true' and '$(TestBuildProfilePath)' != ''" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="shared\DeepDungeon.Fsd\Core\DeepDungeon.Fsd.Core.csproj" />

@@ -32,6 +32,7 @@ internal static class Program
         passed += LegacyConfigTests.Run();
         passed += TerminalRewardExitTests.Run();
         passed += RecoveryAndPauseTests.Run();
+        passed += RotationDiagnosticTests.Run();
         Console.WriteLine($"NewFolder3 contract tests: {passed} passed");
         return 0;
     }

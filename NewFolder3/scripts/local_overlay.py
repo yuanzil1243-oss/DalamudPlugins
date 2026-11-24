@@ -75,6 +75,7 @@ def additions(root):
     files.append(root/'tests/NewFolder3.ContractTests/LegacyConfigTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/TerminalRewardExitTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/RecoveryAndPauseTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/RotationDiagnosticTests.cs')
     files.append(root/'tests/Test-VersionSwitch.ps1')
     return sorted(set(files))
 

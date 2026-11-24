@@ -53,21 +53,24 @@ internal partial class FsdEngine
 
     private void RecordRotationControl(FsdRotationControlEvent control)
     {
-        var installed = Service.PluginInterface.InstalledPlugins.FirstOrDefault(plugin => control.Provider switch
+        RotationControlDiagnostics.Record(control.Provider, () =>
         {
-            FsdRotationProvider.RotationSolverReborn => plugin.InternalName is "RotationSolver" or "RotationSolverReborn",
-            FsdRotationProvider.WrathCombo => plugin.InternalName == "WrathCombo",
-            FsdRotationProvider.PromeRotation => plugin.InternalName == "PromeRotation",
-            FsdRotationProvider.InsertNameHere3 => plugin.InternalName == "InsertNameHere3",
-            FsdRotationProvider.AEAssist => AePluginIdentity.Matches(plugin.InternalName),
-            _ => false
-        });
-        _ddHost?.FloorController.RecordReplayEvent("rotation-control", new {
+            var installed = Service.PluginInterface.InstalledPlugins.FirstOrDefault(plugin => control.Provider switch
+            {
+                FsdRotationProvider.RotationSolverReborn => plugin.InternalName is "RotationSolver" or "RotationSolverReborn",
+                FsdRotationProvider.WrathCombo => plugin.InternalName == "WrathCombo",
+                FsdRotationProvider.PromeRotation => plugin.InternalName == "PromeRotation",
+                FsdRotationProvider.InsertNameHere3 => plugin.InternalName == "InsertNameHere3",
+                _ => false
+            });
+            return (installed?.InternalName, installed?.Version);
+        }, (plugin, version) => _ddHost?.FloorController.RecordReplayEvent("rotation-control", new {
             provider = control.Provider.ToString(), control.Enabled, before = control.Before.ToString(),
             after = control.After.ToString(), control.Accepted, control.Reason, control.DungeonId, control.Floor,
-            plugin = installed?.InternalName, version = installed?.Version.ToString(),
+            plugin, version,
             playerAvailable = Service.LocalPlayer != null, job = Service.LocalPlayer?.ClassJob.RowId,
-            inCombat = Service.Condition[ConditionFlag.InCombat], state = _currentDeepDungeonState });
+            inCombat = Service.Condition[ConditionFlag.InCombat], state = _currentDeepDungeonState }),
+            error => Service.Log.Warning($"[FSD.Rotation] Output diagnostic recording failed; control result unchanged: {error}"));
     }
 
     private bool TryValidateRotation(out string error)

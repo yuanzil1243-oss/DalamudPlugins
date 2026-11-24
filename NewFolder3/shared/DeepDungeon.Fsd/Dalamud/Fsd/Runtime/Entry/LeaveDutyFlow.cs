@@ -100,10 +100,10 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 
 				SetStatus("Leave: confirming abandon");
 				DeepDungeonUi.Fire(yesno, 0);
-				SetCooldown("yesno", InteractionTiming.GetRetryInterval());
+				SetCooldown("yesno", InteractionTiming.GetTransitionRetryInterval());
 				_lastProgress = DateTime.Now;
-				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
-				SetCooldown("request", InteractionTiming.GetRetryInterval());
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
+				SetCooldown("request", InteractionTiming.GetTransitionRetryInterval());
 				return false;
 			}
 
@@ -112,9 +112,9 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			{
 				SetStatus("Leave: advancing dialog");
 				DeepDungeonUi.Fire(talk, 0);
-				SetCooldown("talk-advance", InteractionTiming.GetRetryInterval());
+				SetCooldown("talk-advance", InteractionTiming.GetTransitionRetryInterval());
 				_lastProgress = DateTime.Now;
-				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 				return false;
 			}
 
@@ -123,14 +123,14 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			{
 				SetStatus("Leave: clearing SelectString");
 				DeepDungeonUi.Fire(sel, 0);
-				SetCooldown("select-advance", InteractionTiming.GetRetryInterval());
+				SetCooldown("select-advance", InteractionTiming.GetTransitionRetryInterval());
 				_lastProgress = DateTime.Now;
-				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 				return false;
 			}
 
 			// 4) After several attempts, do a mild window clear and retry
-			if (_requestAttempts >= 3 && DateTime.Now - _lastClear >= InteractionTiming.GetRetryInterval())
+			if (_requestAttempts >= 3 && DateTime.Now - _lastClear >= InteractionTiming.GetTransitionRetryInterval())
 			{
 				SetStatus("Leave: clearing stray windows");
 				try
@@ -155,8 +155,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 					_lastProgress = DateTime.Now;
 				}
 				_requestAttempts++;
-				SetCooldown("request", InteractionTiming.GetRetryInterval());
-				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+				SetCooldown("request", InteractionTiming.GetTransitionRetryInterval());
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 				return false;
 			}
 

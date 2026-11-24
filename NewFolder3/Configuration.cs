@@ -18,6 +18,7 @@ public sealed class Configuration : IPluginConfiguration, IFsdSettingsStore
     public bool MovementYDisableInParty { get; set; }
     public bool LocalSpeedEnabled { get; set; }
     public float LocalSpeedMultiplier { get; set; } = 1f;
+    public bool AntiKickEnabled { get; set; }
     public string CommunityEvidenceInstallationToken { get; set; } = string.Empty;
 
     public void Initialize(IDalamudPluginInterface pluginInterface)

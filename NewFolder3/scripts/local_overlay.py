@@ -15,7 +15,8 @@ import sys
 from local_version import ROOT, check, make_version
 
 HOOKS = {
- 'Configuration.cs','FsdWindow.cs','NewFolder3.csproj','NewFolder3.json','Plugin.cs','global.json',
+ 'Configuration.cs','FsdWindow.cs','NewFolder3.csproj','NewFolder3.json','Plugin.cs','README.md','global.json',
+ 'shared/DeepDungeon.Fsd/Core/EntryUiPolicy.cs','shared/DeepDungeon.Fsd/Core/InteractionTiming.cs',
  'shared/DeepDungeon.Fsd/Core/FarmingPlan.cs','shared/DeepDungeon.Fsd/Core/FarmingSessionPolicy.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdChestInteraction.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.Companions.cs',
@@ -26,6 +27,11 @@ HOOKS = {
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/GameState/DetailedMapCatalogManager.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/FloorWorkPolicy.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/RunHost.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/DungeonEntryController.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/DungeonExitController.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/EntranceWindowCleanup.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/GenericDeleteSaveFlow.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/LeaveDutyFlow.cs',
  'shared/DeepDungeon.Fsd/Dalamud/FsdApplication.Commands.cs',
  'shared/DeepDungeon.Fsd/Dalamud/FsdApplication.cs',
  'shared/DeepDungeon.Fsd/Runtime/FarmingSession.cs','shared/DeepDungeon.Fsd/Runtime/FarmingSettings.cs',

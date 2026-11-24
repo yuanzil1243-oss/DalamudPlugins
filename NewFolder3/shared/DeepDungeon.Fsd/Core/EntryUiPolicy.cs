@@ -70,11 +70,15 @@ public readonly record struct EntryDispatchReceipt(string Action, string Expecte
 /// Uses monotonic elapsed milliseconds.</summary>
 public sealed class EntryDispatchGate
 {
+    private readonly int _retryMilliseconds;
     private string _revision = string.Empty;
     private long _seenAt;
     private long _lastDispatchAt = long.MinValue;
     public EntryDispatchReceipt? Pending { get; private set; }
     private bool _controlWasDisabled;
+
+    public EntryDispatchGate(int? retryMilliseconds = null) =>
+        _retryMilliseconds = Math.Max(0, retryMilliseconds ?? InteractionTiming.GetRetryMilliseconds());
 
     public void ObserveDisabledControl(string revision)
     {
@@ -95,14 +99,14 @@ public sealed class EntryDispatchGate
     }
 
     public bool ResultStillUnconfirmed(long now) => Pending != null &&
-        now - _lastDispatchAt >= InteractionTiming.GetRetryMilliseconds();
+        now - _lastDispatchAt >= _retryMilliseconds;
 
     public void ClearReceipt() => Pending = null;
 
     public bool IsStable(long now) => now - _seenAt >= 150;
 
     public bool CanDispatch(long now, bool sameActionStillOffered = false) => (Pending == null || sameActionStillOffered) && IsStable(now) &&
-        (_lastDispatchAt == long.MinValue || now - _lastDispatchAt >= InteractionTiming.GetRetryMilliseconds());
+        (_lastDispatchAt == long.MinValue || now - _lastDispatchAt >= _retryMilliseconds);
 
     public void RecordDispatch(long now, EntryDispatchReceipt? receipt = null)
     {

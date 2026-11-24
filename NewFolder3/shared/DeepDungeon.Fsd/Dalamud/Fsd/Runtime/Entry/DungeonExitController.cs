@@ -26,7 +26,7 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
     private static readonly uint[] RestWarpRowIds = [131612, 131236, 131298, 131517];
     private RunContext? _context;
     private NavigationHelper? _navigation;
-    private EntryDispatchGate _dispatch = new();
+    private EntryDispatchGate _dispatch = new(InteractionTiming.GetTransitionRetryMilliseconds());
     private string _dutyPrompt = "", _resultTitle = "", _resultExit = "", _status = "";
     private readonly HashSet<string> _restPrompts = new(StringComparer.Ordinal);
     private long _nextRead, _lastRequest = long.MinValue;
@@ -37,7 +37,7 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
     {
         _context = context;
         _navigation = new(context.Navigator);
-        _dispatch = new();
+        _dispatch = new(InteractionTiming.GetTransitionRetryMilliseconds());
         _nextRead = 0;
         _lastRequest = long.MinValue;
         Outcome = ExitOutcome.Pending;
@@ -119,7 +119,7 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
             return Outcome;
         }
         if (action is ExitAction.RequestDutyExit or ExitAction.ApproachRestExit or ExitAction.ApproachDutyExit &&
-            _lastRequest != long.MinValue && now - _lastRequest < InteractionTiming.GetRetryMilliseconds()) return Outcome;
+            _lastRequest != long.MinValue && now - _lastRequest < InteractionTiming.GetTransitionRetryMilliseconds()) return Outcome;
         if (action is ExitAction.ApproachRestExit or ExitAction.ApproachDutyExit)
         {
             var player = Service.LocalPlayer;

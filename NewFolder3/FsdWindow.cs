@@ -9,13 +9,16 @@ internal sealed class FsdWindow : Window
     private readonly FsdApplication _application;
     private readonly YAxisAdjustController _yAxis;
     private readonly LocalSpeedController _localSpeed;
+    private readonly AntiKickController _antiKick;
 
-    public FsdWindow(FsdApplication application, YAxisAdjustController yAxis, LocalSpeedController localSpeed)
+    public FsdWindow(FsdApplication application, YAxisAdjustController yAxis, LocalSpeedController localSpeed,
+        AntiKickController antiKick)
         : base("你是壞孩子###NewFolder3")
     {
         _application = application ?? throw new ArgumentNullException(nameof(application));
         _yAxis = yAxis ?? throw new ArgumentNullException(nameof(yAxis));
         _localSpeed = localSpeed;
+        _antiKick = antiKick;
     }
 
     public override void Draw()
@@ -33,6 +36,7 @@ internal sealed class FsdWindow : Window
             ImGui.TextWrapped("請啟用你所用輸出外掛的非戰鬥時主動攻擊能力.\n請關閉任意其他外掛的目標選擇.\n請關閉任意其他外掛的移動速度修正.");
             ImGui.TextWrapped("死靈術士需要強強PC, 請勿制限低幀");
             _localSpeed.DrawSettings();
+            _antiKick.DrawSettings();
             ImGui.EndTabItem();
         }
 

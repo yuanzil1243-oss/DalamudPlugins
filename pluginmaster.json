@@ -2,22 +2,22 @@
   {
     "Author": "John Smith / Yuzi",
     "Name": "NewFolder3",
-    "Punchline": "基于官方 .20：内置移速、继续探索、自由层数循环和妖宫离线详细地图。",
+    "Punchline": "基于官方 .20：内置移速、防踢开关、继续探索、自由层数循环和妖宫离线详细地图。",
     "InternalName": "NewFolder3",
     "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-    "AssemblyVersion": "0.7.55.2001",
+    "AssemblyVersion": "0.7.55.2002",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-    "Description": "基于原作者 0.7.55.20 的第一个修改版 0.7.55.2001，重新接入 1902 扩展：内置移速、AEAssist 输出控制、指定已有存档、继续探索、最高起点普通下底与自由探索。自由探索可选择合法起点、结束层组和循环次数；继续探索无需槽位，进入深宫且程序未运行时显示。随包提供妖宫 21–30、31–40 原始签名详细地图（2026-11-23.1），支持离线读取和较新有效缓存优先，不含原作者私人服务器自动同步。修复旧 .83 模式配置导致无法加载及流加载时地图路径为空的问题，迁移前精确备份，不删除地图或续打记录。移速默认关闭，仅普通层且任务运行时生效，Boss、副本外和停止时释放。原作者副本战斗、探索和奖励流程保持原有逻辑；本组后暂停沿用官方功能。已验证游戏加载和两套地图读取，141 项契约与 96 项移速离线检查通过；副本完整实测仍待用户验证。旧 .83 及此前内容已移入 archive，不参与库链安装更新。原作者：transparent-duck/NewFolder3；本地扩展：Yuzi。",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2001/NewFolder3.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2001/NewFolder3.zip",
-    "LastUpdate": 1795486051,
+    "Description": "基于原作者 0.7.55.20 的第二个修改版 0.7.55.2002。沿用 .2001 的移速、输出控制、存档、继续探索、最高起点和自由探索功能；新增默认关闭的深宫静止位置包防踢开关，并加快退本、删档与重新进本的界面操作节奏。防踢只在 FSD 运行、位于深宫、非战斗且原地静止 4 分钟后发送当前位置包，不改变角色坐标。原作者战斗、探索与奖励逻辑保持原有实现。随包内置妖宫 21–30、31–40 离线详细地图。",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2002/NewFolder3.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2002/NewFolder3.zip",
+    "LastUpdate": 1795497034,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "Changelog": "0.7.55.2001：基于官方 .20 重接内置移速、AEAssist 输出、已有存档、继续探索、最高起点普通下底；新增自由层数循环，内置妖宫21–30/31–40签名离线地图。修复旧模式配置和地图路径启动异常，先备份再迁移，保留用户数据。旧 .83 及旧源码、包、说明、地图接口和工具整体归档；本组后暂停沿用官方。游戏加载及地图读取已验证，141项契约和96项移速离线检查通过，完整副本实测待验证。"
+    "Changelog": "0.7.55.2002：新增默认关闭的深宫防踢开关，静止4分钟后发送当前位置更新包，不改变坐标；缩短退本、删档、重新进本的界面操作间隔。保留.2001功能、内置地图及原作者战斗探索逻辑。防踢效果待游戏内验证。"
   }
 ]

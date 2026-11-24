@@ -14,7 +14,7 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/refs/heads/main
 
 | 插件 | 当前版本 | 简介 | 作者 | 状态 | 使用与下载 |
 | --- | --- | --- | --- | --- | --- |
-| NewFolder3 | **0.7.55.2001** | 基于官方 .20，加入内置移速、AEAssist 输出控制、继续探索、最高起点普通下底与自由层数循环；内置妖宫 21–30、31–40 离线详细地图。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 游戏加载与两套地图读取已验证；141 项契约、96 项移速离线检查通过；副本完整实测待验证 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2001/NewFolder3.zip) |
+| NewFolder3 | **0.7.55.2002** | 基于官方 .20，加入内置移速、AEAssist 输出控制、继续探索、自由层数循环、默认关闭的防踢开关和妖宫 21–30、31–40 离线详细地图。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 141 项契约、96 项移速离线检查通过；防踢位置更新的服务端效果及完整副本流程待实测 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2002/NewFolder3.zip) |
 
 这是在官方 `0.7.55.20` 基础上重新接入扩展的版本。原作者的副本战斗、探索、寻路及奖励流程沿用新版逻辑；“本组后暂停”直接使用官方功能。
 
@@ -27,11 +27,11 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/refs/heads/main
 
 ## 当前资料
 
-- [0.7.55.2001 发布说明](docs/发布说明-0.7.55.2001.md)
+- [0.7.55.2002 发布说明](docs/发布说明-0.7.55.2002.md)
 - [功能、安装与保数据换版](docs/使用说明.md)
 - [构建与扩展壳维护](docs/开发说明.md) · [第三方声明](docs/第三方声明.md)
-- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2001/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2001/NewFolder3-overlay.zip)
-- [构建与文件校验](dist/NewFolder3/0.7.55.2001/BUILDINFO.json)
+- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2002/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2002/NewFolder3-overlay.zip)
+- [构建与文件校验](dist/NewFolder3/0.7.55.2002/BUILDINFO.json)
 
 ## 历史隔离
 

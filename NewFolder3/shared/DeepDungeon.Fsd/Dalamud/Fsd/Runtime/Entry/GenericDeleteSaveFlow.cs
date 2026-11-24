@@ -125,9 +125,9 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				}
 				_deleteSubmittedAt = Environment.TickCount64;
 				_freshListRequested = false;
-				SetCooldown("yesno", InteractionTiming.GetRetryInterval());
+				SetCooldown("yesno", InteractionTiming.GetTransitionRetryInterval());
 				_lastProgress = DateTime.Now;
-				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 				return false;
 			}
 
@@ -140,14 +140,14 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				{
 					SetStatus($"{_dungeon.Name} Del: closing residual save list before refresh");
 					DeepDungeonUi.TryCloseAddon("DeepDungeonSaveData");
-					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 					return false;
 				}
 				if (!DeepDungeonUi.IsSaveListForDeletion(save))
 				{
 					SetStatus($"{_dungeon.Name} Del: closing a non-delete save list");
 					DeepDungeonUi.TryCloseAddon("DeepDungeonSaveData");
-					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 					return false;
 				}
 				if (!DeepDungeonUi.TryReadSaveSlots(out var slots, out _) || !slots.Any(slot => slot.Index == _slotIndex))
@@ -167,7 +167,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 					SetStatus($"{_dungeon.Name} Del: slot {(_slotIndex + 1)} verified empty");
 					DeepDungeonUi.TryCloseAddon("DeepDungeonSaveData");
 					_lastProgress = DateTime.Now;
-					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 					return false;
 				}
 				if (_deleteSubmittedAt.HasValue)
@@ -179,13 +179,13 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				if (!DeepDungeonUi.ClickSaveSlotForDelete(_slotIndex))
 				{
 					SetStatus($"{_dungeon.Name} Del: slot click failed");
-					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 					return false;
 				}
 				_deleteSlotClickSent = true;
-				SetCooldown("save-slot", InteractionTiming.GetRetryInterval());
+				SetCooldown("save-slot", InteractionTiming.GetTransitionRetryInterval());
 				_lastProgress = DateTime.Now;
-				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 				return false;
 			}
 
@@ -196,16 +196,16 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			if (hasMenu && SeenStable("menu", StabilityShort))
 			{
 				// Open SaveData for deletion via Agent
-				if (!_targetSlotObservedEmptyAfterDelete && !IsOnCooldown("menu-open-save") && DateTime.Now - _lastMenuFire >= InteractionTiming.GetRetryInterval())
+				if (!_targetSlotObservedEmptyAfterDelete && !IsOnCooldown("menu-open-save") && DateTime.Now - _lastMenuFire >= InteractionTiming.GetTransitionRetryInterval())
 				{
 					SetStatus(_deleteSlotClickSent
 						? $"{_dungeon.Name} Del: opening save data to verify slot"
 						: $"{_dungeon.Name} Del: opening save data via Agent");
 					_freshListRequested = DeepDungeonUi.OpenDeleteSaveViaAgent();
 					_lastMenuFire = DateTime.Now;
-					SetCooldown("menu-open-save", InteractionTiming.GetRetryInterval());
+					SetCooldown("menu-open-save", InteractionTiming.GetTransitionRetryInterval());
 					_lastProgress = DateTime.Now;
-					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 					return false;
 				}
 			}
@@ -215,7 +215,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			{
 				SetStatus($"{_dungeon.Name} Del: closing entry windows");
 				DeepDungeonUi.TryCloseAddon("DeepDungeonMenu");
-				_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+				_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 				return false;
 			}
 
@@ -231,17 +231,17 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 			if (!hasAnyUi && !IsOnCooldown("npc-probe"))
 			{
 				var inGrace = DateTime.Now < _postInteractUntil;
-				var noWindowLongEnough = _noWindowSince != DateTime.MinValue && (DateTime.Now - _noWindowSince) >= InteractionTiming.GetRetryInterval();
+				var noWindowLongEnough = _noWindowSince != DateTime.MinValue && (DateTime.Now - _noWindowSince) >= InteractionTiming.GetTransitionRetryInterval();
 				var allowFirstProbe = !_firstProbeDone;
 				var preferNpcReprobe = _lastNpcNotFound != DateTime.MinValue;
 				if (allowFirstProbe || preferNpcReprobe || (!inGrace && noWindowLongEnough))
 				{
 					SetStatus($"{_dungeon.Name} Del: interacting with NPC");
 					InteractWithDungeonNpc();
-					SetCooldown("npc-probe", InteractionTiming.GetRetryInterval());
+					SetCooldown("npc-probe", InteractionTiming.GetTransitionRetryInterval());
 					_firstProbeDone = true;
 					_lastProgress = DateTime.Now;
-					_nextTry = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+					_nextTry = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 					return false;
 				}
 			}
@@ -300,7 +300,7 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Entry
 				}
 
 				SetStatus(status);
-				_postInteractUntil = DateTime.Now.Add(InteractionTiming.GetRetryInterval());
+				_postInteractUntil = DateTime.Now.Add(InteractionTiming.GetTransitionRetryInterval());
 			}
 			void MarkPresence(string key, bool present)
 			{

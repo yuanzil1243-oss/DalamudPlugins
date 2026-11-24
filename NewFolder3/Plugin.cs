@@ -24,6 +24,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
     private readonly FsdApplication _application;
     private readonly YAxisAdjustController _yAxis;
     private readonly LocalSpeedController _localSpeed;
+    private readonly AntiKickController _antiKick;
     private readonly FsdWindow _window;
     private bool _disposed;
 
@@ -48,6 +49,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
         FsdApplication? application = null;
         YAxisAdjustController? yAxis = null;
         LocalSpeedController? localSpeed = null;
+        AntiKickController? antiKick = null;
         CommunityEvidenceCollector? communityEvidenceCollector = null;
         CommunityUsageTelemetryCollector? usageTelemetryCollector = null;
         CommunityLongRunLogCollector? longRunLogCollector = null;
@@ -156,7 +158,10 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
             localSpeed = new LocalSpeedController(_configuration, () => _application.IsRunActive,
                 clientState, condition, objectTable, sigScanner, interop, pluginLog);
             _localSpeed = localSpeed;
-            _window = new FsdWindow(_application, _yAxis, _localSpeed);
+            antiKick = new AntiKickController(_configuration, () => _application.IsRunActive,
+                condition, objectTable, pluginLog);
+            _antiKick = antiKick;
+            _window = new FsdWindow(_application, _yAxis, _localSpeed, _antiKick);
             _windows.AddWindow(_window);
 
             _commandManager.AddHandler(ProductIdentity.Command, new CommandInfo(OnCommand)
@@ -181,6 +186,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
             RollBack(() => { if (commandRegistered) _commandManager.RemoveHandler(ProductIdentity.Command); }, rollbackErrors);
             RollBack(_windows.RemoveAllWindows, rollbackErrors);
             RollBack(() => localSpeed?.Dispose(), rollbackErrors);
+            RollBack(() => antiKick?.Dispose(), rollbackErrors);
             RollBack(() => yAxis?.Dispose(), rollbackErrors);
             RollBack(() => application?.Dispose(), rollbackErrors);
             RollBack(() => communityEvidenceCollector?.Dispose(), rollbackErrors);
@@ -239,6 +245,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
     private void OnFrameworkUpdate(IFramework framework)
     {
         _localSpeed.Update();
+        _antiKick.Update();
         try { _application.Update(framework); }
         catch { _localSpeed.RevokeForHostError(); throw; }
         finally { _localSpeed.ReleaseIfStopped(); }
@@ -273,6 +280,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
         _pluginInterface.UiBuilder.Draw -= Draw;
         _commandManager.RemoveHandler(ProductIdentity.Command);
         _windows.RemoveAllWindows();
+        _antiKick.Dispose();
         _localSpeed.Dispose();
         _yAxis.Dispose();
         _application.Dispose();

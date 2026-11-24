@@ -37,7 +37,7 @@ internal sealed unsafe class EntranceWindowCleanup
             if (addon == null) continue;
             var key = (name, (nint)addon, addon->Id);
             if (!addon->IsAddonAndNodesReady()) return false;
-            if (key == _closing && now - _closeSentAt < InteractionTiming.GetRetryMilliseconds())
+            if (key == _closing && now - _closeSentAt < InteractionTiming.GetTransitionRetryMilliseconds())
                 return false;
             if (!IsEntranceWindow(name, addon))
             {
@@ -49,12 +49,12 @@ internal sealed unsafe class EntranceWindowCleanup
             if (name == "SelectYesno")
             {
                 if (!DeepDungeonUi.Fire(addon, 1))
-                { _nextRead = now + InteractionTiming.GetRetryMilliseconds(); return false; }
+                { _nextRead = now + InteractionTiming.GetTransitionRetryMilliseconds(); return false; }
             }
             else if (name is "SelectString" or "ContextIconMenu")
                 addon->FireCloseCallback();
             else if (!addon->Close(true))
-            { _nextRead = now + InteractionTiming.GetRetryMilliseconds(); return false; }
+            { _nextRead = now + InteractionTiming.GetTransitionRetryMilliseconds(); return false; }
             _closing = key;
             _closeSentAt = now;
             context.StatusLine = $"等待入口視窗關閉：{name}。";

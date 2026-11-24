@@ -20,7 +20,7 @@ internal sealed class DungeonEntryController : IDisposable
     private readonly PreparedSaveBinding? _prepared;
     private readonly bool _verifyOnly;
     private EntranceWindowCleanup _cleanup = new();
-    private EntryDispatchGate _dispatch = new();
+    private EntryDispatchGate _dispatch = new(InteractionTiming.GetTransitionRetryMilliseconds());
     private RunContext? _context;
     private PtEntryText? _text;
     private NavigationHelper? _navigation;
@@ -55,7 +55,7 @@ internal sealed class DungeonEntryController : IDisposable
             _text = PtEntryText.ForDungeon(_dungeon.DutyDungeonId);
             if (_prepared == null) _ = _text.FloorLabel(_requestedFloor);
             _cleanup = new();
-            _dispatch = new();
+            _dispatch = new(InteractionTiming.GetTransitionRetryMilliseconds());
             _panelsAbsentSince = 0;
             SetStatus("等待可識別的入口 UI。");
         }
@@ -137,7 +137,7 @@ internal sealed class DungeonEntryController : IDisposable
         // Between server-driven dialogs the parent list can briefly be exposed.
         // Do not submit a second slot request before the next modal arrives.
         if (decision.Action is EntryAction.OpenSaves or EntryAction.SelectSave &&
-            _lastNativeRequestAt != long.MinValue && now - _lastNativeRequestAt < 1200)
+            _lastNativeRequestAt != long.MinValue && now - _lastNativeRequestAt < 500)
             return Result;
 
         if (decision.Action == EntryAction.SelectSave)
@@ -161,7 +161,7 @@ internal sealed class DungeonEntryController : IDisposable
         }
         if (decision.Action == EntryAction.InteractNpc)
         {
-            if (_lastNativeRequestAt != long.MinValue && now - _lastNativeRequestAt < InteractionTiming.GetRetryMilliseconds()) return Result;
+            if (_lastNativeRequestAt != long.MinValue && now - _lastNativeRequestAt < InteractionTiming.GetTransitionRetryMilliseconds()) return Result;
             ApproachNpc(now);
             return Result;
         }

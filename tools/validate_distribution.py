@@ -34,7 +34,7 @@ for entry in feed:
     require(isinstance(entry['LastUpdate'],int) and entry['LastUpdate']>0, 'Invalid timestamp')
     require(set(channels[name])=={'stable'}, 'Unexpected or legacy distribution channel')
     info_path=ROOT/safe(channels[name]['stable']['buildInfo']); info=read(info_path)
-    require(info['version']==entry['AssemblyVersion']=='0.7.55.2001', 'Wrong current version')
+    require(info['version']==entry['AssemblyVersion'], 'Wrong current version')
     require(entry['Author']=='John Smith / Yuzi', 'Attribution mismatch')
     package=info_path.parent/safe(info['package']['file'])
     require(entry['DownloadLinkInstall']==entry['DownloadLinkUpdate']==RAW+package.relative_to(ROOT).as_posix(),
@@ -69,7 +69,9 @@ for entry in feed:
             'Package manifest checksum mismatch')
     for path,sha in info['sourceFiles'].items():
         require(path.startswith(name+'/') and digest((ROOT/safe(path)).read_bytes())==sha, 'Source mismatch: '+path)
-    actual={p.relative_to(ROOT).as_posix() for p in (ROOT/name).rglob('*') if p.is_file() and '__pycache__' not in p.parts}
+    ignored_source_parts={'.git','artifacts','bin','obj','__pycache__'}
+    actual={p.relative_to(ROOT).as_posix() for p in (ROOT/name).rglob('*') if p.is_file() and
+        not any(part in ignored_source_parts for part in p.relative_to(ROOT/name).parts)}
     require(actual==set(info['sourceFiles']), 'Unexpected/missing current source file')
     require(read(ROOT/name/(name+'.json'))==metadata,'Source/package manifest mismatch')
     for kind in ['sourcePackage','overlayPackage']:
@@ -83,7 +85,8 @@ for entry in feed:
                     'Source ZIP differs from current source')
         else:
             overlay=json.loads(handoff['overlay.json'])
-            require(overlay['upstreamCommit']==info['upstreamCommit'] and overlay['localRevision']==1, 'Wrong overlay base')
+            require(overlay['upstreamCommit']==info['upstreamCommit'] and
+                overlay['localRevision']==info.get('localRevision',1), 'Wrong overlay base')
             require(digest(handoff['hooks.patch'])==overlay['patchSha256'],'Overlay patch hash mismatch')
             require(all(digest(handoff['additions/'+p])==sha for p,sha in overlay['files'].items()),'Overlay hash mismatch')
     sums={line.split('  ',1)[1]:line.split('  ',1)[0]

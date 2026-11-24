@@ -3,6 +3,7 @@ using Dalamud.Plugin.Services;
 using DeepDungeon.Fsd.Core;
 using DeepDungeon.Fsd.Dalamud.GameState;
 using DeepDungeon.Fsd.Dalamud.Runtime.Entry;
+using DeepDungeon.Fsd.Runtime;
 
 namespace DeepDungeon.Fsd.Dalamud.Runtime.Scenarios;
 
@@ -18,6 +19,17 @@ internal sealed class CurrentDutyResumeScenario(FarmingPlan plan, int groupStart
     public bool ShouldLoop => false;
     public bool CountsAsCycle => false;
     public bool RequiresDutyCompletionEvent => true;
+
+    internal bool TrySetChestTargets(RunContext? expectedContext, bool gold, bool silver, bool bronze)
+    {
+        var context = _context;
+        if (context == null || !ReferenceEquals(context, expectedContext) || _complete ||
+            context.StatusIsError || context.AttemptAborted || context.DutyFailureObserved ||
+            !CurrentDutyChestPolicy.TryApply(context.FarmingPlan, context.RunOptions, new(false, gold, silver, bronze)))
+            return false;
+        context.FarmingPlan = context.FarmingPlan! with { OpenGold = gold, OpenSilver = silver, OpenBronze = bronze };
+        return true;
+    }
 
     internal static ContinueExplorationFacts ReadFacts(DutyState? duty, bool running)
     {

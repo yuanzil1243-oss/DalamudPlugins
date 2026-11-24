@@ -108,40 +108,45 @@ internal partial class FsdEngine
         ImGui.Text("FSD 選項");
         ImGui.Indent();
         bool running = _ddHost?.FsdActive == true;
+        var currentDutyPlan = running && _ddHost?.Context?.FarmingPlan is { CurrentDutyOnly: true } attached ? attached : null;
+        bool currentDuty = currentDutyPlan != null;
         bool pt = _configuration.Farming.DungeonId == 4;
         var mode = pt ? _configuration.Farming.Mode : FarmingMode.DeepProgression;
-        var preferences = _configuration.Farming.GetPreferences(_configuration, mode);
+        var preferences = currentDutyPlan != null
+            ? _configuration.Farming.GetCurrentDutyChestPreferences(currentDutyPlan.DungeonId)
+            : _configuration.Farming.GetPreferences(_configuration, mode);
         var options = running ? _ddHost?.RunOptionsProvider?.Current : null;
         bool hoard = options?.BandedEnabled ?? (preferences.BandedEnabled == true);
         bool gold = options?.OpenGold ?? preferences.OpenGold;
         bool silver = options?.OpenSilver ?? preferences.OpenSilver;
         bool bronze = options?.OpenBronze ?? preferences.OpenBronze;
-        bool free = _configuration.Farming.FreeExploration;
+        bool free = !currentDuty && _configuration.Farming.FreeExploration;
+        bool editableChests = currentDuty || free;
         bool changed;
         ImGui.BeginDisabled(ProgressionPauseLocked);
-        ImGui.BeginDisabled(!free && FarmingTargetPolicy.LocksHoard(mode));
+        ImGui.BeginDisabled(currentDuty || !free && FarmingTargetPolicy.LocksHoard(mode));
         changed = ImGui.Checkbox("探索埋藏的寶藏", ref hoard);
         ImGui.EndDisabled();
-        ImGui.BeginDisabled(!free && FarmingTargetPolicy.LocksGold(mode));
+        ImGui.BeginDisabled(!editableChests && FarmingTargetPolicy.LocksGold(mode));
         changed |= ImGui.Checkbox("開啟金寶箱", ref gold);
         ImGui.EndDisabled();
-        ImGui.BeginDisabled(!free && FarmingTargetPolicy.LocksSilverBronze(mode) ||
-            mode == FarmingMode.Aetherpool && silver && !bronze);
+        ImGui.BeginDisabled(!editableChests && FarmingTargetPolicy.LocksSilverBronze(mode) ||
+            !currentDuty && mode == FarmingMode.Aetherpool && silver && !bronze);
         changed |= ImGui.Checkbox("開啟銀寶箱", ref silver);
         ImGui.EndDisabled();
-        ImGui.BeginDisabled(!free && FarmingTargetPolicy.LocksSilverBronze(mode) ||
-            mode == FarmingMode.Aetherpool && bronze && !silver);
+        ImGui.BeginDisabled(!editableChests && FarmingTargetPolicy.LocksSilverBronze(mode) ||
+            !currentDuty && mode == FarmingMode.Aetherpool && bronze && !silver);
         changed |= ImGui.Checkbox("開啟銅寶箱", ref bronze);
         ImGui.EndDisabled();
-        if (changed)
+        if (changed && (!currentDuty || TrySetCurrentDutyChestTargets(gold, silver, bronze)))
         {
             preferences.BandedEnabled = hoard;
             preferences.OpenGold = gold; preferences.OpenSilver = silver; preferences.OpenBronze = bronze;
-            _ddHost?.SetFarmingTargets(hoard, gold, silver, bronze);
-            _configuration.Save();
-            _farmingError = null;
+            if (!currentDuty) _ddHost?.SetFarmingTargets(hoard, gold, silver, bronze);
+            if (currentDuty) SaveCurrentDutyChestPreferences();
+            else { _configuration.Save(); _farmingError = null; }
         }
-        ImGui.BeginDisabled(mode == FarmingMode.HoardDiscovery);
+        ImGui.BeginDisabled(!currentDuty && mode == FarmingMode.HoardDiscovery);
         bool aggressiveChestInteraction = free
             ? _configuration.Farming.GetFreeExplorationPreferences().AggressiveChestInteraction
             : _configuration.AggressiveChestInteraction;

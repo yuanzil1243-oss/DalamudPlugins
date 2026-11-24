@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "upstreamVersion": "0.7.55.22",
   "upstreamCommit": "e578aaec1b58945a8bf6868a5c8ec2baae8bc50b",
-  "localRevision": 1,
+  "localRevision": 2,
   "versionRule": "upstream fourth component * 100 + local revision (01..99)",
-  "localVersion": "0.7.55.2201",
+  "localVersion": "0.7.55.2202",
   "features": [
     "builtin-speed",
     "ae-output",
@@ -21,7 +21,8 @@
     "all-mode-floorset-pause",
     "release-resume-lock-preserve-save",
     "ae-v3-identity-compatibility",
-    "final-reward-floor-speed"
+    "final-reward-floor-speed",
+    "current-duty-chest-controls-and-profiles"
   ],
   "mapScenarios": [
     "pt-21-30",

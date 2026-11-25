@@ -29,6 +29,8 @@ HOOKS = {
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/GameState/DetailedMapCatalogManager.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/FloorWorkPolicy.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Floor/FloorExplorationController.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Floor/FloorExplorationController.Magicite.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/RunHost.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Scenarios/FarmingScenario.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/DungeonEntryController.cs',

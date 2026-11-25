@@ -20,9 +20,19 @@ public sealed partial record FarmingPlan
 public sealed record GripExchangeDungeon(uint DungeonId, int StartFloor, int Reserve,
     uint NpcId, uint ItemId, string NpcName, string GripName);
 
+public enum GripCharacterStatus { Ready, Waiting, Changed }
+
 public static class AetherpoolExchangePolicy
 {
     public const int CostPerGrip = 10;
+    // Job eligibility belongs to the existing entry/start logic. A loading player
+    // is not a character change, and cannot authorize cleanup or an NPC action.
+    public static GripCharacterStatus EvaluateCharacter(ulong expected, ulong current,
+        bool playerReady, bool transitioning)
+    {
+        if (transitioning || !playerReady || current == 0) return GripCharacterStatus.Waiting;
+        return expected != 0 && current == expected ? GripCharacterStatus.Ready : GripCharacterStatus.Changed;
+    }
     // Conservative reserves from the supplied implementation, not an unlock guarantee.
     public static GripExchangeDungeon? GetDungeon(uint id) => id switch
     {

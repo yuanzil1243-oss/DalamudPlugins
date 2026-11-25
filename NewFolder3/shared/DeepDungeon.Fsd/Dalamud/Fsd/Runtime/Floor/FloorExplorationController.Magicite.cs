@@ -13,6 +13,7 @@ internal sealed partial class FloorExplorationController
     {
         if (DungeonId != 2 || IsDisposed || typeId is < 1 or > 4) return;
         _ctx?.Knowledge.Floor?.RecordConfirmedStoneUse(typeId);
+        ObserveLocalRelicMagiciteConfirmation(typeId);
         if (ItemUse.Pending is { Key.Kind: FloorItemUseKind.Stone } pending && pending.Key.ItemId == typeId)
             pending.ObserveAuthoritativeConfirmation();
         _magiciteAwaitingRelease = true;
@@ -34,6 +35,7 @@ internal sealed partial class FloorExplorationController
 
     internal unsafe bool TryUseHohMagicite(InstanceContentDeepDungeon* dd)
     {
+        UpdateLocalRelicBossMagicite(dd);
         if (dd->DeepDungeonId != 2 || Kind != FloorRuntimeKind.Normal || UsesProgressionItemPolicy) return false;
         if (AwaitingFloorClearRelease()) return true;
         if (dd->Floor <= 90) return false;

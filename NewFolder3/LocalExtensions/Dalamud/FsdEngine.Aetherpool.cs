@@ -30,6 +30,8 @@ internal partial class FsdEngine
             if (ImGui.InputInt("每批聚魔柄數量##gripBatch", ref count))
             { settings.GripExchange ??= new(); settings.GripExchange.BatchCount = AetherpoolExchangePolicy.NormalizeCount(count); _configuration.Save(); }
             ImGui.TextWrapped("每次正常通關後最多兌換一批；保留再入場所需強化。強化未知時先正常跑一輪取得讀數。兌換結果不明時停止，不重複提交。");
+            if (relic && settings.DungeonId == 2)
+                ImGui.TextWrapped("魔石：普通層溢出時使用；30層 Boss 戰依冷卻逐顆用完。");
         }
         ImGui.EndDisabled();
         if (_aetherpoolTracker.TryGet(settings.DungeonId, out var state))

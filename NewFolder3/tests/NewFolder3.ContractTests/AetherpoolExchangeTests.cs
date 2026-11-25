@@ -109,6 +109,100 @@ internal static class AetherpoolExchangeTests
         Check("failed-run-cannot-start-exchange",!AetherpoolExchangePolicy.ShouldRunPostExitExchange(true,false,false,false,new(21,false,true,false,false)));
         Check("aborted-run-cannot-start-exchange",!AetherpoolExchangePolicy.ShouldRunPostExitExchange(true,false,false,false,new(21,true,false,false,true)));
         Check("disabled-option-cannot-start-exchange",!AetherpoolExchangePolicy.ShouldRunPostExitExchange(false,false,false,false,completedRun));
+        foreach (var c in new (string Name, ulong Expected, ulong Current, bool Ready, bool Transitioning, GripCharacterStatus Status)[]
+        {
+            ("same-character",123,123,true,false,GripCharacterStatus.Ready),
+            ("unloaded-player",123,0,false,true,GripCharacterStatus.Waiting),
+            ("missing-character-id",123,0,true,false,GripCharacterStatus.Waiting),
+            ("missing-player-with-known-id",123,123,false,false,GripCharacterStatus.Waiting),
+            ("transition-with-known-player",123,123,true,true,GripCharacterStatus.Waiting),
+            ("transition-with-other-id",123,456,true,true,GripCharacterStatus.Waiting),
+            ("different-ready-character",123,456,true,false,GripCharacterStatus.Changed),
+            ("unbound-start-character",0,123,true,false,GripCharacterStatus.Changed),
+            ("unbound-and-unavailable",0,0,false,false,GripCharacterStatus.Waiting)
+        })
+            Check("character-"+c.Name,AetherpoolExchangePolicy.EvaluateCharacter(c.Expected,c.Current,c.Ready,c.Transitioning)==c.Status);
+        Check("outward-zone-load-recovers-without-error",new[]
+        {
+            AetherpoolExchangePolicy.EvaluateCharacter(123,123,true,false),
+            AetherpoolExchangePolicy.EvaluateCharacter(123,0,false,true),
+            AetherpoolExchangePolicy.EvaluateCharacter(123,0,false,false),
+            AetherpoolExchangePolicy.EvaluateCharacter(123,123,true,false)
+        }.SequenceEqual(new[]{GripCharacterStatus.Ready,GripCharacterStatus.Waiting,GripCharacterStatus.Waiting,GripCharacterStatus.Ready}));
+        Check("real-character-change-still-rejected-after-loading",new[]
+        {
+            AetherpoolExchangePolicy.EvaluateCharacter(123,456,true,true),
+            AetherpoolExchangePolicy.EvaluateCharacter(123,456,true,false)
+        }.SequenceEqual(new[]{GripCharacterStatus.Waiting,GripCharacterStatus.Changed}));
+        var hohRelic = new FarmingPlan(FarmingMode.Hoard,SaveUse.Create,21,3,true,false,true,true,false)
+            { DungeonId=2, RelicMaterial=true, GripExchange=new(60,1) };
+        var bossStock = new HohRelicMagiciteSnapshot(2,30,true,true,true,false,3);
+        Check("hoh-relic-magicite-enabled",HohRelicMagicitePolicy.ShouldSpendAtBoss(hohRelic,bossStock));
+        foreach (var other in new[]
+        {
+            hohRelic with { DungeonId=1,StartFloor=51 },
+            hohRelic with { DungeonId=4 },
+            hohRelic with { DungeonId=3 },
+            hohRelic with { RelicMaterial=false },
+            hohRelic with { Mode=FarmingMode.DeepProgression },
+            hohRelic with { OrdinaryDescent=true },
+            hohRelic with { FreeExploration=true },
+            hohRelic with { ExternalSave=true },
+            hohRelic with { CurrentDutyOnly=true },
+            hohRelic with { SaveUse=SaveUse.Prepared },
+            hohRelic with { StartFloor=31 },
+            hohRelic with { OpenSilver=false }
+        })
+            Check("magicite-other-plan-isolated-"+n,!HohRelicMagicitePolicy.AppliesTo(other) &&
+                !HohRelicMagicitePolicy.ShouldSpendAtBoss(other,bossStock));
+        Check("magicite-no-plan-disabled",!HohRelicMagicitePolicy.ShouldSpendAtBoss(null,bossStock));
+        foreach (int floor in new[]{0,21,29,30,31,40,100})
+            Check("magicite-boss-floor-boundary-"+floor,
+                HohRelicMagicitePolicy.ShouldSpendAtBoss(hohRelic,bossStock with {Floor=floor})==(floor==30));
+        foreach (var blocked in new[]
+        {
+            bossStock with { DungeonId=1 }, bossStock with { DungeonId=4 },
+            bossStock with { BossFloor=false }, bossStock with { InCombat=false },
+            bossStock with { LiveHostile=false }, bossStock with { PassageOpen=true },
+            bossStock with { Stock=0 }
+        })
+            Check("magicite-inactive-boss-holds-"+n,!HohRelicMagicitePolicy.ShouldSpendAtBoss(hohRelic,blocked));
+        foreach(int floor in new[]{21,25,29})
+        {
+            Check("ordinary-floor-keeps-magicite-"+floor,!HohMagicitePolicy.ShouldUse(floor,false,false));
+            Check("ordinary-overflow-still-uses-magicite-"+floor,HohMagicitePolicy.ShouldUse(floor,true,false));
+        }
+        var interval = new HohRelicMagiciteCooldown();
+        Check("magicite-fresh-request-ready",interval.CanRequest(now));
+        interval.ObserveRequestOrConfirmation(now);
+        Check("magicite-request-starts-shared-interval",!interval.CanRequest(now.AddSeconds(3)) &&
+            !interval.CanRequest(now.AddMilliseconds(10499)) && interval.CanRequest(now.AddMilliseconds(10500)));
+        interval.ObserveRequestOrConfirmation(now.AddMilliseconds(300));
+        Check("magicite-confirmation-keeps-cooldown",!interval.CanRequest(now.AddMilliseconds(10500)) &&
+            interval.CanRequest(now.AddMilliseconds(10800)));
+        interval.ObserveRequestOrConfirmation(now.AddMilliseconds(100));
+        Check("magicite-late-observation-cannot-shorten-interval",interval.NextRequestAtUtc==now.AddMilliseconds(10800));
+        var itemChannel = new FloorItemUseSession();
+        interval = new();
+        int stock=3, requests=0;
+        for (int i=0;i<3;i++)
+        {
+            DateTime at=i==0 ? now : interval.NextRequestAtUtc;
+            Check("magicite-next-boss-item-ready-"+i,interval.CanRequest(at) && itemChannel.Pending==null &&
+                HohRelicMagicitePolicy.ShouldSpendAtBoss(hohRelic,bossStock with {Stock=stock}));
+            var pending=itemChannel.Begin(new(FloorItemUseKind.Stone,1),FloorItemUsePurpose.Automatic,stock,
+                at,"HoH relic boss test",false,0,0,0);
+            requests++; interval.ObserveRequestOrConfirmation(at);
+            Check("magicite-dispatch-is-not-consumption-"+i,
+                itemChannel.Observe(stock,false,at.AddMilliseconds(500))==FloorItemUseConfirmationDecisionKind.PendingConfirmation &&
+                !interval.CanRequest(at.AddSeconds(3)));
+            stock--;
+            Check("magicite-inventory-decrement-confirms-"+i,
+                itemChannel.Observe(stock,false,at.AddMilliseconds(600))==FloorItemUseConfirmationDecisionKind.Confirmed);
+            itemChannel.Confirm(pending); interval.ObserveRequestOrConfirmation(at.AddMilliseconds(600));
+        }
+        Check("magicite-all-three-spent-without-once-per-floor-limit",requests==3 && stock==0 && itemChannel.Pending==null &&
+            !HohRelicMagicitePolicy.ShouldSpendAtBoss(hohRelic,bossStock with {Stock=stock}));
         return n;
     }
 }

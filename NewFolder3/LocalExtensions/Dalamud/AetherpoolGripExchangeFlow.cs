@@ -23,7 +23,6 @@ internal sealed class AetherpoolGripExchangeFlow : IDisposable
     private RunContext? _ctx;
     private NavigationHelper? _navigation;
     private ulong _character;
-    private uint _job;
     private bool _interacted, _done;
     private DateTime _started, _lastProgress, _nextAction, _noUiSince;
     private Vector3 _lastPosition;
@@ -35,7 +34,7 @@ internal sealed class AetherpoolGripExchangeFlow : IDisposable
     internal void Prepare(RunContext context)
     {
         _ctx = context; _navigation = new(context.Navigator);
-        _character = Service.PlayerState.ContentId; _job = Service.LocalPlayer?.ClassJob.RowId ?? 0;
+        _character = Service.PlayerState.ContentId;
         _started = _lastProgress = DateTime.UtcNow;
         _lastPosition = Service.LocalPlayer?.Position ?? default;
         context.RecordDiagnostic?.Invoke("grip-exchange-start", new { dungeon = _dungeon.DungeonId, count = _target });
@@ -45,9 +44,12 @@ internal sealed class AetherpoolGripExchangeFlow : IDisposable
         if (_done || _ctx == null) return true;
         var ctx = _ctx;
         DateTime now = DateTime.UtcNow;
-        if (_character == 0 || _job == 0 || Service.PlayerState.ContentId != _character ||
-            Service.LocalPlayer?.ClassJob.RowId != _job) return Fail("角色或職業已變更。");
-        if (ctx.Duty.IsInDuty || ctx.Duty.IsTransitioning || DutyState.IsClientTransitioning) return false;
+        var identity = AetherpoolExchangePolicy.EvaluateCharacter(_character, Service.PlayerState.ContentId,
+            Service.LocalPlayer != null, ctx.Duty.StateReadFailed || ctx.Duty.IsTransitioning || DutyState.IsClientTransitioning);
+        if (identity == GripCharacterStatus.Waiting)
+        { _navigation?.Cancel(); return false; }
+        if (identity == GripCharacterStatus.Changed) return Fail("角色不符或啟動角色未確認。");
+        if (ctx.Duty.IsInDuty) return false;
         if (now - _started > TimeSpan.FromSeconds(90) || now - _lastProgress > TimeSpan.FromSeconds(18))
             return Fail("對話或移動超時。");
         if (!DeepDungeonLootTracker.TryGetItemCount(_dungeon.ItemId, out int inventory, out var inventoryError))

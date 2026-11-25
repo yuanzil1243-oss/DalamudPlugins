@@ -11,17 +11,25 @@ internal sealed partial class FarmingScenario
     private AetherpoolGripExchangeFlow? _gripFlow;
     private bool _localDeleteDone, _postGripChecked;
     private ulong _gripCharacter;
-    private uint _gripJob;
     internal FarmingScenario WithGripTracker(AetherpoolTracker tracker)
     { _gripTracker = tracker; return this; }
     private void InitializeLocalGripExchange()
-    { _gripCharacter = Service.PlayerState.ContentId; _gripJob = Service.LocalPlayer?.ClassJob.RowId ?? 0; }
+    { _gripCharacter = Service.PlayerState.ContentId; }
     private bool ValidateLocalGripIdentity(RunContext ctx)
     {
         if (session.Plan.GripExchange == null) return true;
-        if (_gripCharacter != 0 && _gripJob != 0 && Service.PlayerState.ContentId == _gripCharacter &&
-            Service.LocalPlayer?.ClassJob.RowId == _gripJob) return true;
-        ctx.StatusLine = "聚魔柄任務角色或職業已變更；停止自動化。"; ctx.StatusIsError = true; return false;
+        var status = AetherpoolExchangePolicy.EvaluateCharacter(_gripCharacter, Service.PlayerState.ContentId,
+            Service.LocalPlayer != null, ctx.Duty.StateReadFailed || ctx.Duty.IsTransitioning || DutyState.IsClientTransitioning);
+        if (status == GripCharacterStatus.Ready) return true;
+        if (status == GripCharacterStatus.Waiting)
+        {
+            ctx.StatusLine = "等待角色載入後繼續聚魔柄流程。";
+            return false;
+        }
+        ctx.StatusLine = _gripCharacter == 0 ? "聚魔柄任務啟動角色未確認；請重新啟動任務。"
+            : "聚魔柄任務角色已變更；停止自動化。";
+        ctx.StatusIsError = true;
+        return false;
     }
     private bool TryInitialGripExchange(RunContext ctx, IFramework framework)
     {

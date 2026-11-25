@@ -1333,7 +1333,13 @@ bool primaryOwnsOperation = true)
         FloorItemUsePurpose purpose = FloorItemUsePurpose.Automatic) =>
         this.Items.TryUsePomander(slotIndex, dd, reason, purpose) == true;
     private unsafe bool TryDispatchFloorStone(byte stoneId, InstanceContentDeepDungeon* dd, string reason,
-        FloorItemUsePurpose purpose) => this.Items.TryDispatchFloorStone(stoneId, dd, reason, purpose) == true;
+        FloorItemUsePurpose purpose)
+    {
+        if (!CanRequestLocalRelicMagicite(dd, stoneId)) return false;
+        bool sent = this.Items.TryDispatchFloorStone(stoneId, dd, reason, purpose) == true;
+        if (sent) RecordLocalRelicMagiciteRequest(dd, stoneId);
+        return sent;
+    }
 
     internal unsafe void ResolvePendingFloorItemUse(InstanceContentDeepDungeon* dd)
     {
@@ -1383,6 +1389,7 @@ bool primaryOwnsOperation = true)
         {
             _ctx?.Knowledge.Floor?.RecordConfirmedStoneUse(pending.Key.ItemId);
             byte stoneId = (byte)pending.Key.ItemId;
+            ObserveLocalRelicMagiciteConfirmation(stoneId);
             if (dd->DeepDungeonId == 4 && stoneId is 1 or 2) this.FarmingPassageItemConfirmed = true;
             // A confirmed Mazeroot IS this floor's natural reveal — mark
             // Sight confirmed regardless of purpose, without touching

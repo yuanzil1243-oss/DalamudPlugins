@@ -57,7 +57,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
         var ctx = _context;
         if (ctx == null || _complete) return;
         if (ctx.StatusIsError) { _complete = true; return; }
-        if (!ValidateLocalGripIdentity(ctx)) { _complete = true; return; }
+        if (!ValidateLocalGripIdentity(ctx)) { _complete = ctx.StatusIsError; return; }
         if (ctx.TerminalReviewRequested)
         {
             _aborted = true;

@@ -31,6 +31,7 @@ namespace DeepDungeon.Fsd.Dalamud
         private readonly Func<IBossMovementStrategy>? _spinBossMovementFactory;
         private readonly Action<DeepDungeonStateSnapshot>? _stateObserver;
         private readonly NativeDeepDungeonLogMessageSource _logMessageSource;
+        private readonly AetherpoolTracker _aetherpoolTracker;
 
         private readonly FsdRotationController _rotationControl;
         private readonly Runtime.Navigation.FsdCameraController _camera = new();
@@ -121,6 +122,7 @@ namespace DeepDungeon.Fsd.Dalamud
             _spinBossMovementFactory = spinBossMovementFactory;
             _stateObserver = stateObserver;
             _logMessageSource = new NativeDeepDungeonLogMessageSource(Service.GameInteropProvider);
+            _aetherpoolTracker = new AetherpoolTracker(_logMessageSource);
         }
 
         internal DutyState? DutyState => _dutyState;
@@ -282,6 +284,7 @@ namespace DeepDungeon.Fsd.Dalamud
 
         public void Update(IFramework framework)
         {
+            _aetherpoolTracker.Update(_currentInDeepDungeon);
             _fsfScenarioIndex = GetEffectiveScenarioIndex();
             string? selectedDetailedMapScenario =
                 GetSelectedDetailedMapScenarioKey();
@@ -522,6 +525,7 @@ namespace DeepDungeon.Fsd.Dalamud
             
             try { _ddHost?.Dispose(); } catch { }
             _ddHost = null;
+            try { _aetherpoolTracker.Dispose(); } catch { }
             try { _logMessageSource.Dispose(); } catch { }
             StopBridgeLeaveDutySession();
             if (_bridgeDeleteSaveContext != null || _bridgeDeleteSaveFlow != null)

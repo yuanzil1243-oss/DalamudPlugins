@@ -17,6 +17,10 @@ internal partial class FsdEngine
     private LocalPauseRequest? _localPauseRequest;
     private CurrentDutyResumeScenario? _localCurrentDutyResume;
     private bool LocalFloorsetPauseLocked => _localPauseFilePresent || _localPauseRequest != null;
+    private bool CanCancelLocalFloorsetPause => IsRunActive && !_localPauseFilePresent &&
+        _localPauseCheckpoint == null && _checkpoint == null &&
+        (_localCurrentDutyResume?.CanCancelFloorsetPause == true ||
+         _ddHost?.ActiveFarming?.CanCancelFloorsetPause == true);
 
     private void LoadLocalFloorsetPause(string directory)
     {
@@ -51,12 +55,21 @@ internal partial class FsdEngine
         bool canRequest = running && !ProgressionPauseLocked && !_ddHost!.CurrentStatusIsError &&
             (farming != null && FloorsetPausePolicy.Supports(farming.Session.Plan) ||
              _localCurrentDutyResume is { PauseAfterGroup: false });
-        if (canRequest)
+        bool canCancel = CanCancelLocalFloorsetPause;
+        if (canRequest || canCancel)
         {
             ImGui.SameLine();
-            if (ImGui.Button("本組十層出本後暫停##localFloorsetPause")) RequestLocalFloorsetPause();
+            float width = ImGui.CalcTextSize("本組十層出本後暫停").X + ImGui.GetStyle().FramePadding.X * 2;
+            if (ImGui.Button(canCancel ? "取消暫停###localFloorsetPause" : "本組十層出本後暫停###localFloorsetPause",
+                    new(width, 0)))
+            {
+                if (canCancel) CancelLocalFloorsetPause();
+                else RequestLocalFloorsetPause();
+            }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("本組按原模式完成並出本後暫停。挖寶等模式仍完成原定清理；深層攻略驗證下一組存檔後暫停；採集模式在原定出本點暫停。有後續任務才保存續跑紀錄。異常退出保檔停止，不自動重開。");
+                ImGui.SetTooltip(canCancel
+                    ? "撤回尚未生效的本組後暫停，按原任務及循環次數繼續；不改存檔或計數。原任務若只接續目前副本，仍在本組出本後保檔停止。"
+                    : "本組按原模式完成並出本後暫停；生效前可在此取消。挖寶等模式仍完成原定清理；深層攻略驗證下一組存檔後暫停；採集模式在原定出本點暫停。有後續任務才保存續跑紀錄。異常退出保檔停止，不自動重開。");
         }
         if (ProgressionPauseLocked && !running)
         {
@@ -107,6 +120,18 @@ internal partial class FsdEngine
         Service.Log.Info($"[LocalExtensions.FloorsetPause] Requested: mode={plan.Mode}, dungeon={plan.DungeonId}");
     }
 
+    private void CancelLocalFloorsetPause()
+    {
+        if (!CanCancelLocalFloorsetPause) return;
+        bool currentDuty = _localCurrentDutyResume?.TryCancelFloorsetPause() == true;
+        if (!currentDuty && _ddHost?.ActiveFarming?.TryCancelFloorsetPause() != true) return;
+        _localPauseRequest = null;
+        _localPauseNotice = currentDuty
+            ? "已取消額外暫停請求；繼續探索仍在本組正常出本後保檔停止。"
+            : "已取消本組後暫停，將按原任務及循環次數繼續。";
+        Service.Log.Info("[LocalExtensions.FloorsetPause] Pending pause cancelled; original task, saves and loop targets retained.");
+    }
+
     private string? PersistLocalFloorsetPause(FloorsetPauseCheckpoint checkpoint)
     {
         if (!checkpoint.IsValid() || Service.PlayerState.ContentId != checkpoint.Character ||
@@ -150,7 +175,7 @@ internal partial class FsdEngine
         string? mapKey = checkpoint.Plan.ShowsDetailedMap ? checkpoint.Plan.StartFloor == 21
             ? DetailedMapScenarioCatalog.PilgrimsTraverse21To30.Key
             : DetailedMapScenarioCatalog.PilgrimsTraverse31To40.Key : null;
-        bool started = TryStartOutsideDutyFsd(() => new FarmingScenario(session),
+        bool started = TryStartOutsideDutyFsd(() => CreateLocalFarmingScenario(session),
             checkpoint.Plan.TargetCycles, checkpoint.Plan.Infinite, mapKey, out error,
             resumePausedProgression: true, completedLoops: checkpoint.CompletedCycles);
         // A fresh cycle has no previous save to pin. Consume before the first framework entry tick.

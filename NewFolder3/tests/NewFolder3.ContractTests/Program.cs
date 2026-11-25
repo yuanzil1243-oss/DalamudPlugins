@@ -36,6 +36,9 @@ internal static class Program
         passed += GcdWaitSettingsTests.Run();
         passed += AntiKickPulseTests.Run();
         passed += FailureRestartAuditTests.Run();
+        passed += ExitReceiptTests.Run();
+        passed += PauseCancellationTests.Run();
+        passed += AetherpoolExchangeTests.Run();
         Console.WriteLine($"NewFolder3 contract tests: {passed} passed");
         return 0;
     }

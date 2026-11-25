@@ -5,7 +5,7 @@ from local_version import ROOT, check
 from local_overlay import additions, export
 from verify_local import audit, PAYLOAD
 
-DOCS={'本地扩展壳与更新规则.md','使用与换版说明.md','验收记录.md'}
+DOCS={'本地扩展壳与更新规则.md','使用与换版说明.md','验收记录.md','聚魔柄循环移植与验收.md'}
 def zip_tree(folder,destination):
     with zipfile.ZipFile(destination,'x',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
         for p in sorted(folder.rglob('*')):

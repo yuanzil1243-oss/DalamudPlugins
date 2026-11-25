@@ -17,6 +17,7 @@ from local_version import ROOT, check, make_version
 
 HOOKS = {
  'Configuration.cs','FsdWindow.cs','NewFolder3.csproj','NewFolder3.json','Plugin.cs','README.md','global.json',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Helpers/NativeDeepDungeonLogMessageSource.cs',
  'shared/DeepDungeon.Fsd/Core/EntryUiPolicy.cs','shared/DeepDungeon.Fsd/Core/InteractionTiming.cs',
  'shared/DeepDungeon.Fsd/Core/FarmingPlan.cs','shared/DeepDungeon.Fsd/Core/FarmingSessionPolicy.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdChestInteraction.cs',
@@ -66,7 +67,7 @@ def additions(root):
     files=[]
     for folder in ('LocalExtensions','DetailedMaps','scripts','licenses','tests/NewFolder3.SpeedChecks'):
         files += relative_files(root,folder)
-    for name in ('本地扩展壳与更新规则.md','使用与换版说明.md','验收记录.md'):
+    for name in ('本地扩展壳与更新规则.md','使用与换版说明.md','验收记录.md','聚魔柄循环移植与验收.md'):
         if (root/'docs'/name).is_file():files.append(root/'docs'/name)
     for name in ('Directory.Build.targets','tests/NewFolder3.ContractTests/ContinuationFeatureTests.cs',
         'tests/NewFolder3.ContractTests/FreeExplorationTests.cs','tests/NewFolder3.ContractTests/LocalFeatureTests.cs',
@@ -79,6 +80,9 @@ def additions(root):
     files.append(root/'tests/NewFolder3.ContractTests/GcdWaitSettingsTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/AntiKickPulseTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/FailureRestartAuditTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/ExitReceiptTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/PauseCancellationTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/AetherpoolExchangeTests.cs')
     files.append(root/'tests/Test-VersionSwitch.ps1')
     return sorted(set(files))
 

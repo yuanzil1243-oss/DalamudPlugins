@@ -1,0 +1,21 @@
+Aetherpool Grip farming port — source attribution
+
+Reference source supplied by the user:
+D:/XLbendi/NewFolder3_7.96.3
+Its NewFolder3.json credits "John Smith, Gemini" (AssemblyVersion 7.59.3.0).
+The supplied root LICENSE is GNU GPL version 3; retain it and all original notices.
+This port does not claim independent authorship of the reference design or metadata.
+
+Reference files:
+shared/DeepDungeon.Fsd/Core/AetherpoolExchangePolicy.cs
+shared/DeepDungeon.Fsd/Runtime/IAetherpoolStateProvider.cs
+shared/DeepDungeon.Fsd/Dalamud/Fsd/GameState/AetherpoolTracker.cs
+shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Entry/OseWydExchangeFlow.cs
+shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Scenarios/FarmingScenario.cs
+shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.Farming.cs
+
+The local adaptation reuses the fixed-floorset farming design, NPC/item metadata,
+safe-count formula and dialogue vocabulary. It integrates through LocalExtensions,
+with character-scoped state, explicit confirmation receipts and bounded retries.
+Existing upstream attribution, the root GPL-3.0 license and dependency notices stay
+in force. Plugin Author and local version metadata are preserved separately.

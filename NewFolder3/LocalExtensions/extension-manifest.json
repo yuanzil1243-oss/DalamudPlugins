@@ -2,11 +2,12 @@
   "schemaVersion": 1,
   "upstreamVersion": "0.7.55.22",
   "upstreamCommit": "e578aaec1b58945a8bf6868a5c8ec2baae8bc50b",
-  "localRevision": 4,
+  "localRevision": 5,
   "versionRule": "upstream fourth component * 100 + local revision (01..99)",
-  "localVersion": "0.7.55.2204",
+  "localVersion": "0.7.55.2205",
   "features": [
     "builtin-speed",
+    "builtin-speed-instant-start",
     "ae-output",
     "external-save",
     "continue-exploration",
@@ -26,7 +27,10 @@
     "ae-control-without-version-and-isolated-diagnostics",
     "selected-target-gcd-watchdog-configurable-wait",
     "native-input-timer-anti-kick-pulse",
-    "failure-restart-success-count-regression"
+    "failure-restart-success-count-regression",
+    "result-exit-receipt-handoff",
+    "cancel-pending-floorset-pause",
+    "character-scoped-aetherpool-grip-loop"
   ],
   "mapScenarios": [
     "pt-21-30",

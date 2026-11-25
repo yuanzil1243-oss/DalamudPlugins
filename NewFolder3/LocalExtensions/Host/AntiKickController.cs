@@ -135,7 +135,7 @@ internal sealed class AntiKickController
             configuration.Save(configuration.Fsd);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("默认关闭。仅 FSD 运行且深宫内有效角色时，根据游戏原生无操作计时器，超过 60 秒向本游戏窗口短按 Ctrl 约 200ms；最多每分钟一次。不改变坐标、不使用全局键盘输入，战斗与自动移动不再重置防踢等待。按住修饰键、切场景或过场时跳过。日志核对输入前后客户端计时器；服务端防踢效果仍需实测。");
+            ImGui.SetTooltip("深宫探索时，长时间无操作会轻按 Ctrl，尝试防止被踢出。\n停止探索或出本后停用。");
     }
 
     private void Log(string message, bool warning = false)

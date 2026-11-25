@@ -5,6 +5,29 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime.Scenarios;
 
 internal sealed partial class FarmingScenario
 {
+    private bool _localPauseVerificationActive;
+
+    internal bool CanCancelFloorsetPause => !_complete && _context?.StatusIsError != true &&
+        session.HasPendingFloorsetPause;
+
+    internal bool TryCancelFloorsetPause()
+    {
+        if (!CanCancelFloorsetPause) return false;
+        bool cancelVerification = _localPauseVerificationActive || session.PersistPause != null;
+        if (!session.TryCancelPendingFloorsetPause()) return false;
+        // Only pause-owned verification is abandoned. Prepared-save verification,
+        // deletion and the normal exit remain owned by the original task.
+        if (cancelVerification)
+        {
+            _verification?.Dispose();
+            _verification = null;
+            _localPauseVerificationActive = false;
+        }
+        if (_context is { } ctx)
+            ctx.StatusLine = "已取消本組後暫停，將按原任務及循環次數繼續。";
+        return true;
+    }
+
     private bool TryPauseBeforeCleanup(RunContext ctx, FarmingAttemptResult result,
         FarmingSessionDecision decision)
     {
@@ -20,8 +43,11 @@ internal sealed partial class FarmingScenario
             if (session.Plan.Mode != FarmingMode.DeepProgression || decision.NextFloor <= _entryFloor)
                 FinishPause(ctx, "本組沒有可驗證的後續進度；停止並保留存檔。", error: true);
             else
+            {
+                _localPauseVerificationActive = true;
                 VerifyPauseSave(ctx, decision.NextFloor, slot => request.Persist(
                     FloorsetResumeKind.ContinueSave, slot, request.CompletedCycles, session.Failures));
+            }
             return true;
         }
         return false; // Let upstream finish its existing verification/deletion/cycle accounting.

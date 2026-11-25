@@ -8,7 +8,7 @@ public sealed partial record FarmingPlan(
     FarmingMode Mode, SaveUse SaveUse, int StartFloor, int TargetCycles, bool Infinite,
     bool BandedEnabled, bool OpenGold, bool OpenSilver, bool OpenBronze)
 {
-    public string DisplayName => FreeExploration ? "自由探索" : OrdinaryDescent ? "普通下底" : Mode switch
+    public string DisplayName => RelicMaterial ? "循環刷強化／聚魔柄" : FreeExploration ? "自由探索" : OrdinaryDescent ? "普通下底" : Mode switch
     {
         FarmingMode.Hoard => "挖寶藏",
         FarmingMode.Aetherpool => "強化／陶片",
@@ -34,7 +34,7 @@ public sealed partial record FarmingPlan(
     public bool StopsForTerminalReview => Mode == FarmingMode.DeepProgression && StopAfterFloor == MaxFloor;
     public bool ReusesSave => Mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery;
     public bool ShowsDetailedMap => Mode == FarmingMode.Hoard && BandedEnabled;
-    public string CycleUnit => FreeExploration ? "完整層段輪數" : Mode == FarmingMode.DeepProgression ? "登頂次數" : Mode == FarmingMode.Hoard ? "挖寶輪數" : "採集輪數";
+    public string CycleUnit => RelicMaterial ? "刷強化輪數" : FreeExploration ? "完整層段輪數" : Mode == FarmingMode.DeepProgression ? "登頂次數" : Mode == FarmingMode.Hoard ? "挖寶輪數" : "採集輪數";
 
     public static bool TryCreate(FarmingMode mode, SaveUse saveUse, int startFloor,
         int cycles, bool infinite, bool hoard, bool gold, bool silver, bool bronze,

@@ -13,6 +13,6 @@ public sealed partial class FsdApplication
             _settings.Save();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("預設關閉，關閉時保留原版領獎後停留行為。開啟後須由原版確認終局獎勵已領取，才繼續退本；本任務新建存檔經核驗後刪除，按 FSD 的循環次數／無限循環設定重開。已有存檔及「繼續探索」只退本、保檔停止；診斷保留現場不受影響。");
+            ImGui.SetTooltip("領完下底獎勵後，自動退本、刪除本任務新建的存檔，按設定次數重開。\n已有存檔和「繼續探索」只退本，保留存檔。");
     }
 }

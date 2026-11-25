@@ -86,8 +86,7 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
         bool canRetryConfirmation = false;
         if (_dispatch.Pending is { } pending)
         {
-            if (pending.Scope != scope ||
-                pending.Action == nameof(ExitAction.LeaveResult) && action is ExitAction.ConfirmDutyExit or ExitAction.ConfirmRestExit ||
+            if (ExitReceiptPolicy.ShouldClear(pending, scope, action) ||
                 ui.Kind == ExitUiKind.None && _dispatch.ResultStillUnconfirmed(now) &&
                 action is ExitAction.RequestDutyExit or ExitAction.ApproachDutyExit or ExitAction.ApproachRestExit)
                 _dispatch.ClearReceipt();

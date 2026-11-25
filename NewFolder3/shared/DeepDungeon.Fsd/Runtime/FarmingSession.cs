@@ -41,6 +41,7 @@ internal sealed partial class FarmingSession(FarmingPlan plan, int ownedSlot = -
 
     public bool TrySetTargets(in FarmingTargets targets)
     {
+        if (Plan.RelicMaterial && !targets.Silver) return false;
         if (!Plan.FreeExploration && !FarmingTargetPolicy.IsValid(Plan.Mode, targets)) return false;
         BandedEnabled = targets.Hoard;
         OpenGold = targets.Gold;

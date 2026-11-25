@@ -34,9 +34,10 @@ public static class FloorsetPausePolicy
     {
         if (!Enum.IsDefined(plan.Mode) || !Enum.IsDefined(plan.SaveUse) || plan.DungeonId is not (1 or 2 or 4) ||
             plan.CurrentDutyOnly || plan.HoldAfterClear || plan.HoldOnFailure || plan.StopAfterFloor.HasValue ||
-            plan.TargetCycles < 1 || plan.DungeonId != 4 && plan.Mode != FarmingMode.DeepProgression)
+            plan.TargetCycles < 1 || plan.DungeonId != 4 && plan.Mode != FarmingMode.DeepProgression && !plan.RelicMaterial)
             return false;
         if (plan.ExternalSave && (plan.ReusesSave || plan.Infinite || plan.TargetCycles != 1)) return false;
+        if (plan.RelicMaterial) return RelicFarmingPolicy.IsValid(plan);
         if (plan.FreeExploration)
             return plan.Mode == FarmingMode.DeepProgression && plan.SaveUse == SaveUse.Create &&
                 FreeExplorationPolicy.TryCreate(plan.DungeonId, plan.StartFloor, plan.EndFloor ?? 0,
@@ -66,6 +67,16 @@ internal sealed partial class FarmingSession
 {
     internal LocalPauseRequest? LocalPause { get; set; }
     internal void RestoreLocalFailureCount(int failures) => Failures = Math.Max(0, failures);
+
+    internal bool HasPendingFloorsetPause => LocalPause != null || PersistPause != null;
+
+    internal bool TryCancelPendingFloorsetPause()
+    {
+        if (!HasPendingFloorsetPause) return false;
+        LocalPause = null;
+        PersistPause = null;
+        return true;
+    }
 }
 
 /// <summary>Moves only a byte-verified local task record; never touches any game save.</summary>

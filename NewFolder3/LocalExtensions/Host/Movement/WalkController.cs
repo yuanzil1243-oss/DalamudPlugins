@@ -8,6 +8,8 @@ namespace MoveSpeedLab;
 internal struct WalkController
 {
     [FieldOffset(32)] public nint Parent;
+    // Native linear-speed updater's own activation gate (disk-verified, not an input override).
+    [FieldOffset(60)] public byte SpeedUpdateActive;
     [FieldOffset(64)] public byte Jumping;
     [FieldOffset(68)] public float CurrentSpeed;
     [FieldOffset(88)] public float BaseSpeed;

@@ -14,6 +14,7 @@ public sealed partial class FarmingSettings
     public FarmingPreferences GetPreferences(FsdSettings legacy, FarmingMode? modeOverride = null)
     {
         var mode = modeOverride ?? Mode;
+        if (RelicMaterial) return GetRelicMaterialPreferences();
         if (FreeExploration && mode == FarmingMode.DeepProgression) return GetFreeExplorationPreferences();
         string key = mode == FarmingMode.DeepProgression && StartFromHighestFloor ? "OrdinaryDescent:Create" : mode switch
         {

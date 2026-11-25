@@ -14,7 +14,7 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 
 | 插件 | 当前版本 | 简介 | 作者 | 状态 | 使用与下载 |
 | --- | --- | --- | --- | --- | --- |
-| NewFolder3 | **0.7.55.2204** | 基于官方 .22；GCD 等待秒数可设，改进输入防踢，核验三模式失败重试与成功计数。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 323 项契约、102 项移速与重套构建通过；新行为待实战 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2204/NewFolder3.zip) |
+| NewFolder3 | **0.7.55.2205** | 基于官方 .22；结算退出修复、同位取消暂停、聚魔柄循环、移速直接起步。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 466项契约、154项移速与重套构建通过；新功能待实战 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2205/NewFolder3.zip) |
 
 这是在官方 `0.7.55.22` 基础上重新接入扩展的版本。完整保留本次官方新增的深层攻略道具策略，以及原作者副本战斗、探索、寻路及奖励领取；本地新增可选的单次 GCD 恢复和受控调度，并扩展官方本组后暂停的模式覆盖；本版可选 GCD 保护独立于 Boss 故障状态，不代表模块初始化根因已修复。
 
@@ -33,13 +33,17 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 - 防踢读取原生输入计时器，超过 60 秒向本游戏窗口短按 Ctrl，每分钟最多一次，并核对客户端计时器；不再发送静止位置包，服务端效果待测。
 - 死灵术士、普通下底和自由探索的正常自建档明确败北后退本、校验删档并从原起点重试；失败不占成功次数，完整范围才计一轮。已有档、暂停和异常保护保留。终局领奖后的多轮需开启既有自动收尾开关。
 
+- .2205 修复退本确认后结算退出被旧回执阻断；本组后暂停在原位置切换为取消暂停，撤回后仍按原任务和次数执行。
+- 新增独立刷强化兑换功能，保留旧模式配置编号与官方副本内逻辑；使用规则、强化门槛、批量与不确定结果处理见当前使用说明。
+- 移速直接起步由原开关统一控制，普通层与最终奖励层均保留，1.00倍也支持；不新增选项。设置悬浮说明已精简，新功能待游戏实测。
+
 ## 当前资料
 
-- [0.7.55.2204 发布说明](docs/发布说明-0.7.55.2204.md)
+- [0.7.55.2205 发布说明](docs/发布说明-0.7.55.2205.md)
 - [功能、安装与保数据换版](docs/使用说明.md)
 - [构建与扩展壳维护](docs/开发说明.md) · [第三方声明](docs/第三方声明.md)
-- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2204/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2204/NewFolder3-overlay.zip)
-- [构建与文件校验](dist/NewFolder3/0.7.55.2204/BUILDINFO.json)
+- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2205/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2205/NewFolder3-overlay.zip)
+- [构建与文件校验](dist/NewFolder3/0.7.55.2205/BUILDINFO.json)
 
 ## 历史隔离
 

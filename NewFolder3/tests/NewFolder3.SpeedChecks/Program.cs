@@ -342,4 +342,6 @@ unsafe
     });
 }
 
+InstantStartChecks.Run(Check);
+SpeedBackendChecks.Run(Check);
 Console.WriteLine($"MoveSpeedLab offline checks: {passed} passed. Native/game execution NOT tested.");

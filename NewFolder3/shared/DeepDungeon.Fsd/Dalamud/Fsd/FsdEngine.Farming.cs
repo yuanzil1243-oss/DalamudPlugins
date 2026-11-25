@@ -10,8 +10,8 @@ internal partial class FsdEngine
 {
     private string? _farmingError;
     private static readonly string[] FarmingModeLabels =
-        ["挖寶藏", "強化／陶片", "寶藏發現成就", "死靈術士", "普通下底（最高起點）", "自由探索"];
-    private static readonly string[] ProgressionModeLabels = ["死靈術士（1 層起）", "普通下底（最高起點）", "自由探索"];
+        ["挖寶藏", "強化／陶片", "寶藏發現成就", "死靈術士", "普通下底（最高起點）", "自由探索", "循環刷強化／聚魔柄"];
+    private static readonly string[] ProgressionModeLabels = ["死靈術士（1 層起）", "普通下底（最高起點）", "自由探索", "循環刷強化／聚魔柄"];
     private static readonly string[] HoardFloorsetLabels = ["21–30 層", "31–40 層"];
     private static readonly string[] FarmingDungeonLabels = ["朝聖交錯路", "死者宮殿", "天之御柱"];
 
@@ -22,7 +22,7 @@ internal partial class FsdEngine
 
     private string? GetSelectedDetailedMapScenarioKey() =>
         IsFixedFloorsetHoard
-            ? DetailedMapCatalogManager.GetScenarioKey(_fsfScenarioIndex)
+            ? DetailedMapCatalogManager.GetScenarioKey(_configuration.Farming.RelicMaterial ? 0 : _fsfScenarioIndex)
             : null;
 
     private void DrawFarmingSelection(bool running)
@@ -55,8 +55,8 @@ internal partial class FsdEngine
         ImGui.EndDisabled();
 
         bool pt = settings.DungeonId == 4;
-        var effectiveMode = pt ? settings.Mode : FarmingMode.DeepProgression;
-        int mode = settings.FreeExploration ? (pt ? 5 : 2) : settings.StartFromHighestFloor && effectiveMode == FarmingMode.DeepProgression ? (pt ? 4 : 1)
+        var effectiveMode = settings.RelicMaterial ? FarmingMode.Hoard : pt ? settings.Mode : FarmingMode.DeepProgression;
+        int mode = settings.RelicMaterial ? (pt ? 6 : 3) : settings.FreeExploration ? (pt ? 5 : 2) : settings.StartFromHighestFloor && effectiveMode == FarmingMode.DeepProgression ? (pt ? 4 : 1)
             : pt ? (int)effectiveMode : 0;
         var labels = pt ? FarmingModeLabels : ProgressionModeLabels;
         ImGui.BeginDisabled(running);
@@ -65,20 +65,24 @@ internal partial class FsdEngine
         {
             settings.FreeExploration = mode == (pt ? 5 : 2);
             settings.StartFromHighestFloor = !settings.FreeExploration && mode == (pt ? 4 : 1);
-            settings.Mode = !pt || settings.StartFromHighestFloor || settings.FreeExploration ? FarmingMode.DeepProgression : (FarmingMode)mode;
+            settings.RelicMaterial = mode == (pt ? 6 : 3);
+            settings.Mode = settings.RelicMaterial ? FarmingMode.Hoard
+                : !pt || settings.StartFromHighestFloor || settings.FreeExploration ? FarmingMode.DeepProgression : (FarmingMode)mode;
             _configuration.Save();
             _farmingError = null;
         }
         ImGui.EndDisabled();
 
-        effectiveMode = pt ? settings.Mode : FarmingMode.DeepProgression;
+        effectiveMode = settings.RelicMaterial ? FarmingMode.Hoard : pt ? settings.Mode : FarmingMode.DeepProgression;
         if (settings.FreeExploration)
         {
             DrawFreeExplorationSelection(running);
             return;
         }
         ImGui.BeginDisabled(running);
-        if (effectiveMode == FarmingMode.Hoard)
+        if (settings.RelicMaterial)
+            ImGui.TextWrapped($"固定 {AetherpoolExchangePolicy.GetDungeon(settings.DungeonId)?.StartFloor} 層起跑十層，正常退本後製作聚魔柄；失敗不計成功輪數，只清理本任務自建檔後重試。");
+        else if (effectiveMode == FarmingMode.Hoard)
         {
             int floor = _fsfScenarioIndex;
             ImGui.SetNextItemWidth(180);
@@ -94,6 +98,7 @@ internal partial class FsdEngine
         else if (effectiveMode == FarmingMode.HoardDiscovery)
             ImGui.TextWrapped("準備1份有至少1個感知寶藏的任意起點層存檔");
         ImGui.EndDisabled();
+        DrawGripExchangeSettings(running, effectiveMode);
         if (effectiveMode == FarmingMode.DeepProgression)
         {
             if (settings.StartFromHighestFloor)
@@ -111,7 +116,7 @@ internal partial class FsdEngine
         var currentDutyPlan = running && _ddHost?.Context?.FarmingPlan is { CurrentDutyOnly: true } attached ? attached : null;
         bool currentDuty = currentDutyPlan != null;
         bool pt = _configuration.Farming.DungeonId == 4;
-        var mode = pt ? _configuration.Farming.Mode : FarmingMode.DeepProgression;
+        var mode = _configuration.Farming.RelicMaterial ? FarmingMode.Hoard : pt ? _configuration.Farming.Mode : FarmingMode.DeepProgression;
         var preferences = currentDutyPlan != null
             ? _configuration.Farming.GetCurrentDutyChestPreferences(currentDutyPlan.DungeonId)
             : _configuration.Farming.GetPreferences(_configuration, mode);
@@ -131,7 +136,7 @@ internal partial class FsdEngine
         changed |= ImGui.Checkbox("開啟金寶箱", ref gold);
         ImGui.EndDisabled();
         ImGui.BeginDisabled(!editableChests && FarmingTargetPolicy.LocksSilverBronze(mode) ||
-            !currentDuty && mode == FarmingMode.Aetherpool && silver && !bronze);
+            !currentDuty && (_configuration.Farming.RelicMaterial || mode == FarmingMode.Aetherpool && silver && !bronze));
         changed |= ImGui.Checkbox("開啟銀寶箱", ref silver);
         ImGui.EndDisabled();
         ImGui.BeginDisabled(!editableChests && FarmingTargetPolicy.LocksSilverBronze(mode) ||
@@ -205,7 +210,7 @@ internal partial class FsdEngine
             return;
         }
         if (_ddHost?.Context?.FarmingPlan?.ExternalSave == true ||
-            !IsRunActive && _useExternalSave && !_configuration.Farming.StartFromHighestFloor &&
+            !IsRunActive && _useExternalSave && !_configuration.Farming.RelicMaterial && !_configuration.Farming.StartFromHighestFloor &&
             (_configuration.Farming.DungeonId != 4 || _configuration.Farming.Mode == FarmingMode.DeepProgression))
         {
             ImGui.TextWrapped("已有檔續打：到達終點後保留存檔並停止，不進行刪檔循環。");
@@ -237,8 +242,9 @@ internal partial class FsdEngine
         bool pt = dungeonId == 4;
         if (request.Scenario == FsdStartScenario.ControlledSurvey)
             return new FsdControlResult(false, "妖宮受控採集已移除。");
+        if (settings.RelicMaterial) return StartRelicFarming(request, dungeonId);
         if (settings.FreeExploration) return StartFreeExploration(request, dungeonId);
-        var effectiveMode = pt ? settings.Mode : FarmingMode.DeepProgression;
+        var effectiveMode = settings.RelicMaterial ? FarmingMode.Hoard : pt ? settings.Mode : FarmingMode.DeepProgression;
         bool ordinaryDescent = effectiveMode == FarmingMode.DeepProgression && settings.StartFromHighestFloor;
         if (effectiveMode == FarmingMode.DeepProgression && _useExternalSave && !ordinaryDescent)
             return StartExternalSave(request, dungeonId);
@@ -316,16 +322,18 @@ internal partial class FsdEngine
             error = "原副本接續只支援保留現場的測試，須指定來源槽位與目前所在層段起點。";
             return false;
         }
+        plan = ConfigureGripExchange(plan);
         var session = new FarmingSession(plan, resumeSlot ?? -1);
         string? key = plan!.ShowsDetailedMap ? startFloor == 21
             ? DetailedMapScenarioCatalog.PilgrimsTraverse21To30.Key
             : DetailedMapScenarioCatalog.PilgrimsTraverse31To40.Key : null;
-        bool started = TryStartOutsideDutyFsd(() => new FarmingScenario(session), cycles, infinite, key, out error);
+        bool started = TryStartOutsideDutyFsd(() => CreateLocalFarmingScenario(session), cycles, infinite, key, out error);
         if (started)
         {
             _farmingError = null;
             _configuration.Farming.DungeonId = dungeonId;
             _configuration.Farming.StartFromHighestFloor = request.OrdinaryDescent;
+            _configuration.Farming.RelicMaterial = false;
             if (dungeonId == 4)
                 _configuration.Farming.Mode = mode;
             _fsfScenarioIndex = dungeonId == 4 && mode == FarmingMode.Hoard && startFloor == 21 ? 0 : 1;

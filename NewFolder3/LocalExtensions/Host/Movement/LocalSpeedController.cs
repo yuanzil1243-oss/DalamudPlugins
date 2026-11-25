@@ -54,7 +54,7 @@ internal sealed class LocalSpeedController : IDisposable
             var context = ReadLiveContext();
             // Enabling is the user's opt-in; the existing host warning and tooltip require other modifiers off.
             var decision = session.Evaluate(context, configuration.LocalSpeedMultiplier, true, now, runActive());
-            if (decision.Apply && !backend.Initialized && !backend.TryInitialize(out var failure))
+            if ((decision.Apply || decision.InstantStart) && !backend.Initialized && !backend.TryInitialize(out var failure))
             {
                 Fault(failure);
                 return;
@@ -91,7 +91,7 @@ internal sealed class LocalSpeedController : IDisposable
             configuration.Save(configuration.Fsd);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(session.Error ?? "僅在 FSD 運行中的普通層及最終獎勵層生效；Boss／副本外／停止時撤銷。使用前關閉獨立移速實驗室及其他移速修正。接口故障須處理後重新載入插件。");
+            ImGui.SetTooltip(session.Error ?? "探索運行時，普通層和最終獎勵層按設定倍率移動，起步即達設定速度（最大加速度）。\nBoss層、出本或停止時恢復。勿與其他移速工具同開。");
         float multiplier = configuration.LocalSpeedMultiplier;
         ImGui.SetNextItemWidth(180);
         if (ImGui.InputFloat("移速調整##localSpeedMultiplier", ref multiplier, 0.1f, 0.5f, "%.2f"))

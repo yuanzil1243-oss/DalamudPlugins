@@ -49,6 +49,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
         // Entry/attachment is selected from fresh observations in Update.
         // Until then no floor controller may act on this attempt.
         context.EntryReadyForDuty = false;
+        InitializeLocalGripExchange();
     }
 
     public void Update(IFramework framework)
@@ -56,12 +57,14 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
         var ctx = _context;
         if (ctx == null || _complete) return;
         if (ctx.StatusIsError) { _complete = true; return; }
+        if (!ValidateLocalGripIdentity(ctx)) { _complete = true; return; }
         if (ctx.TerminalReviewRequested)
         {
             _aborted = true;
             _complete = true;
             return;
         }
+        if (!_entered && !TryInitialGripExchange(ctx, framework)) return;
         if (!_entered && !TryEnterDuty(ctx)) return;
         if (ctx.Duty.StateReadFailed || ctx.Duty.IsTransitioning || DutyState.IsClientTransitioning) return;
         ObserveDutyCompletion(ctx);
@@ -88,7 +91,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
             if (ctx.DutyFailureObserved)
             {
                 if (ctx.TryHoldFailedAttempt("攻略失敗")) return;
-                if (session.Plan.Mode == FarmingMode.DeepProgression)
+                if (session.Plan.Mode == FarmingMode.DeepProgression || session.Plan.RelicMaterial)
                 {
                     _recoverFailure = true;
                     RequestLeave();
@@ -158,7 +161,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
             if (_verification.Update().Outcome == EntryOutcome.Pending) return;
             if (ctx.StatusIsError) { _complete = true; return; }
         }
-        if (decision.DeleteOwnedSave)
+        if (decision.DeleteOwnedSave && !_localDeleteDone)
         {
             if (session.OwnedSlot < 0)
             {
@@ -176,7 +179,9 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
             if (!_delete.Update(framework)) return;
             if (ctx.StatusIsError) { _complete = true; return; }
             session.ConfirmOwnedSaveDeleted();
+            _localDeleteDone = true;
         }
+        if (!TryPostExitGripExchange(ctx, result, framework)) return;
         CountsAsCycle = decision.CountCycle;
         _recoverFailure = decision.RecoverFailure;
         session.CompleteAttempt(decision, ctx.HoardDiscoveries);
@@ -360,6 +365,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
         _entry?.Dispose();
         _verification?.Dispose();
         _exit?.Dispose();
+        _gripFlow?.Dispose();
         _context = null;
     }
 }

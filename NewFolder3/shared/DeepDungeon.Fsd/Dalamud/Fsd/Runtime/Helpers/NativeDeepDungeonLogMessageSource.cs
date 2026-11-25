@@ -96,6 +96,9 @@ public sealed unsafe class NativeDeepDungeonLogMessageSource : IDisposable
         switch (item.LogMessageId)
         {
             case 7222:
+            case 7250:
+            case 7252:
+            case 7253:
             case 7256:
             case 7272:
             case 7273:

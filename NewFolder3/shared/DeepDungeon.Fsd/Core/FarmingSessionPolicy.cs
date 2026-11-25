@@ -14,6 +14,7 @@ public static class FarmingSessionPolicy
 
     public static FarmingSessionDecision Decide(FarmingPlan plan, in FarmingAttemptResult result)
     {
+        if (plan.RelicMaterial) return RelicFarmingPolicy.Decide(plan, result);
         if (plan.FreeExploration) return FreeExplorationPolicy.Decide(plan, result);
         bool ownsSave = plan.SaveUse == SaveUse.Create && !plan.ExternalSave;
         if (plan.ExternalSave && (result.DutyFailed || result.Aborted))

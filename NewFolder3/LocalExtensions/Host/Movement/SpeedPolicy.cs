@@ -14,7 +14,7 @@ public readonly record struct SpeedRequest(
     bool Enabled, bool RunActive, bool Paused, bool ExternalModifiersAcknowledged,
     float Multiplier);
 
-public readonly record struct SpeedDecision(bool Apply, float Multiplier, string Reason);
+public readonly record struct SpeedDecision(bool Apply, float Multiplier, string Reason, bool InstantStart = false);
 
 public static class SpeedPolicy
 {
@@ -45,7 +45,7 @@ public static class SpeedPolicy
             return new(false, 1, "Boss／副本外／未知层：已撤销，等待普通层或最终奖励层");
         if (!contextStable) return new(false, 1, "等待区域／楼层状态稳定 500ms");
         return new(request.Multiplier != 1, request.Multiplier,
-            request.Multiplier != 1 ? "已授权实验修正；实际效果请看行走观测" : "1.00 倍：直接返回原生计算值");
+            request.Multiplier != 1 ? "已授权目标倍率及直接起步；实际效果待游戏验证" : "1.00 倍：原生目标值，直接起步", true);
     }
 
     public static float Adjust(float original, float multiplier, bool authorized)
@@ -156,15 +156,17 @@ public sealed class ContextStability
     public void Reset() => previous = null;
 }
 
-/// <summary>An immutable, short-lived managed grant. Never writes native speed fields.</summary>
-public sealed record SpeedLease(bool Apply, float Multiplier, FloorIdentity Identity, long ExpiresAt)
+/// <summary>Separate target scaling and instant-start grants share the same short lifetime.</summary>
+public sealed record SpeedLease(bool Apply, float Multiplier, FloorIdentity Identity, long ExpiresAt,
+    bool InstantStart = false)
 {
     public static SpeedLease Released { get; } = new(false, 1, default, 0);
     public static SpeedLease Create(in SpeedDecision decision, in SpeedContext context, long now) =>
-        decision.Apply && decision.Multiplier != 1 && SpeedPolicy.ValidMultiplier(decision.Multiplier) &&
+        (decision.Apply && decision.Multiplier != 1 || decision.InstantStart) && SpeedPolicy.ValidMultiplier(decision.Multiplier) &&
         SpeedPolicy.IsEligibleFloor(context)
-            ? new(true, decision.Multiplier, context.Identity, now + SpeedPolicy.LeaseMilliseconds) : Released;
-    public bool Allows(in SpeedContext live, long now) => Apply && now < ExpiresAt &&
+            ? new(decision.Apply && decision.Multiplier != 1, decision.Multiplier, context.Identity,
+                now + SpeedPolicy.LeaseMilliseconds, decision.InstantStart) : Released;
+    public bool Allows(in SpeedContext live, long now) => (Apply || InstantStart) && now < ExpiresAt &&
         SpeedPolicy.ValidMultiplier(Multiplier) && live.Identity == Identity && SpeedPolicy.IsEligibleFloor(live);
 }
 

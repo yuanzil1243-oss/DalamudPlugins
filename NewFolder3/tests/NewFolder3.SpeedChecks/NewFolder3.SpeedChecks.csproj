@@ -11,6 +11,7 @@
     <Compile Include="..\..\LocalExtensions\Host\Movement\WalkController.cs" Link="WalkController.cs" />
     <Compile Include="..\..\LocalExtensions\Host\Movement\InstantStartCorrection.cs" Link="InstantStartCorrection.cs" />
     <Compile Include="..\..\LocalExtensions\Host\Movement\NativeSpeedContract.cs" Link="NativeSpeedContract.cs" />
+    <Compile Include="..\..\LocalExtensions\Host\Movement\RegisteredHookSnapshot.cs" Link="RegisteredHookSnapshot.cs" />
     <Compile Include="..\..\LocalExtensions\Host\Movement\NativeSpeedBackend.cs" Link="NativeSpeedBackend.cs" />
   </ItemGroup>
 </Project>

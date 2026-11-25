@@ -14,7 +14,7 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 
 | 插件 | 当前版本 | 简介 | 作者 | 状态 | 使用与下载 |
 | --- | --- | --- | --- | --- | --- |
-| NewFolder3 | **0.7.55.2206** | 基于官方 .22；修复聚魔柄过图误停，加入天宫聚魔柄魔石规则。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 525项契约、154项移速与重套构建通过；新功能待实战 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2206/NewFolder3.zip) |
+| NewFolder3 | **0.7.55.2207** | 基于官方 .22；修复更新或重新加载后内置移速无法启用。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 525项契约、178项移速与重套构建通过；游戏效果待验证 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2207/NewFolder3.zip) |
 
 这是在官方 `0.7.55.22` 基础上重新接入扩展的版本。完整保留本次官方新增的深层攻略道具策略，以及原作者副本战斗、探索、寻路及奖励领取；本地新增可选的单次 GCD 恢复和受控调度，并扩展官方本组后暂停的模式覆盖；本版可选 GCD 保护独立于 Boss 故障状态，不代表模块初始化根因已修复。
 
@@ -40,13 +40,15 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 - .2206 修复聚魔柄过图时角色暂未加载导致误停；保留原启动职业规则，真实换角色仍停止。
 - 仅天宫聚魔柄21–30新增魔石规则：普通层实际溢出时使用，30层Boss战依冷却逐颗使用；Boss死亡或通关后停止。死宫、妖宫及天宫其他模式不套用，新增流程仍待游戏实测。
 
+- .2207 修复卫月保留已登记入口跳转时移速校验误拒绝；最大加速度、最终奖励层许可和原撤销条件保留。未知函数变化仍拒绝，不需要删除配置。
+
 ## 当前资料
 
-- [0.7.55.2206 发布说明](docs/发布说明-0.7.55.2206.md)
+- [0.7.55.2207 发布说明](docs/发布说明-0.7.55.2207.md)
 - [功能、安装与保数据换版](docs/使用说明.md)
 - [构建与扩展壳维护](docs/开发说明.md) · [第三方声明](docs/第三方声明.md)
-- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2206/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2206/NewFolder3-overlay.zip)
-- [构建与文件校验](dist/NewFolder3/0.7.55.2206/BUILDINFO.json)
+- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2207/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2207/NewFolder3-overlay.zip)
+- [构建与文件校验](dist/NewFolder3/0.7.55.2207/BUILDINFO.json)
 
 ## 历史隔离
 

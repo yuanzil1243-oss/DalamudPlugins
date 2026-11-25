@@ -344,4 +344,5 @@ unsafe
 
 InstantStartChecks.Run(Check);
 SpeedBackendChecks.Run(Check);
+RegisteredHookChecks.Run(Check);
 Console.WriteLine($"MoveSpeedLab offline checks: {passed} passed. Native/game execution NOT tested.");

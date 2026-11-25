@@ -25,3 +25,21 @@ namespace Dalamud.Plugin.Services
         Dalamud.Hooking.Hook<T> HookFromAddress<T>(nint address, T detour) where T : Delegate;
     }
 }
+
+// Host registry stand-in; tests use only managed copies and non-executable allocations.
+namespace Dalamud.Hooking.Internal
+{
+    internal static class HookManager
+    {
+        internal static System.Collections.Concurrent.ConcurrentDictionary<nint, Unhooker> Unhookers { get; } = new();
+    }
+    internal sealed class Unhooker(nint location, byte[] bytes, bool isTrimmed = true)
+    {
+        private readonly nint address = location;
+        private readonly byte[] originalBytes = bytes;
+        private readonly bool trimmed = isTrimmed;
+        internal nint AddressForTest => address;
+        internal bool TrimmedForTest => trimmed;
+        internal int PrefixLengthForTest => originalBytes.Length;
+    }
+}

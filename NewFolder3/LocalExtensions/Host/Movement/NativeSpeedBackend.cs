@@ -79,7 +79,9 @@ public sealed unsafe class NativeSpeedBackend : IDisposable
             if (target == 0 || updater == 0 || walkAddress == 0) throw new InvalidOperationException("原生签名未解析。");
             byte[] body = new byte[NativeSpeedContract.UpdateLength];
             Marshal.Copy(updater, body, 0, body.Length);
-            if (!NativeSpeedContract.Matches(body, updater, target))
+            if (!NativeSpeedContract.Matches(body, updater, target) &&
+                (!RegisteredHookSnapshot.TryReadPrefix(typeof(IGameInteropProvider).Assembly, updater, out var prefix) ||
+                 !NativeSpeedContract.MatchesRegisteredHook(body, updater, target, prefix)))
                 throw new InvalidOperationException("本机起步更新函数与已核验原生契约不符；拒绝安装移速 Hook。");
             if (!ValidController((WalkController*)walkAddress))
                 throw new InvalidOperationException("本机行走结构尚未就绪或与上游定义不符；请登录并落地后再试。");

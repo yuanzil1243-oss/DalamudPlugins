@@ -2,22 +2,22 @@
   {
     "Author": "John Smith / Yuzi",
     "Name": "NewFolder3",
-    "Punchline": "基于官方 .22：修复聚魔柄过图误停，天宫聚魔柄增加魔石规则。",
+    "Punchline": "基于官方 .22：修复更新或重新加载后内置移速无法启用。",
     "InternalName": "NewFolder3",
     "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-    "AssemblyVersion": "0.7.55.2206",
+    "AssemblyVersion": "0.7.55.2207",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-    "Description": "基于原作者 0.7.55.22 的本地修改版 0.7.55.2206。聚魔柄职业支持沿用现有启动规则，移除循环和兑换中重复的职业一致性检查；过图或角色暂未加载时只等待，真实角色不符仍停止。天宫聚魔柄21–30独立使用魔石：普通层实际溢出时沿用原处理，30层Boss战按冷却逐颗使用，库存耗尽、Boss死亡或通关后停止。提交及确认后至少间隔10.5秒，并保留原生请求、动画锁、施放、禁止使用及单一道具确认通道，不读写或绕过服务器冷却。死宫、妖宫和天宫其他模式不套用该魔石规则。保留.2205结算退出、同位取消暂停、聚魔柄兑换、移速直接起步和最终奖励层许可，以及GCD、防踢、续接宝箱、循环和两套签名地图。GCD保护不限场景，完全停手需关闭其开关。完整构建与离线回归通过，新增流程仍待游戏实测。",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2206/NewFolder3.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2206/NewFolder3.zip",
-    "LastUpdate": 1795574477,
+    "Description": "基于原作者 0.7.55.22 的本地修改版 0.7.55.2207。修复卫月保留已登记Hook入口时，内置移速完整函数校验误拒绝的问题；只在托管副本还原已登记入口后重新完整校验，未知函数改动仍拒绝。最大加速度继续由移速总开关控制，普通层与最终奖励层生效，Boss层、过场、暂停、停止及出本时撤销。保留.2206聚魔柄过图等待及天宫聚魔柄21–30魔石规则，以及结算退出、取消暂停、AE、自定义输出、GCD等待设置、防踢、续接宝箱、失败重试、循环和两套签名地图。GCD保护不限场景，完全停手需关闭其开关。完整构建与离线回归结果见验收记录，实际游戏效果仍待验证。",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2207/NewFolder3.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2207/NewFolder3.zip",
+    "LastUpdate": 1795576192,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "Changelog": "0.7.55.2206：修复聚魔柄出本过图误报职业变化并中断循环；职业支持沿用原版启动检查。仅天宫聚魔柄21–30新增魔石规则：普通层实际溢出时使用，30层Boss战按冷却逐颗使用，Boss死亡或通关后停止。妖宫、死宫不套用。保留.2205全部功能与两套地图。525项契约、154项移速及完整重套构建通过；新行为待游戏实测。"
+    "Changelog": "0.7.55.2207：修复更新或重新加载后内置移速无法启用。兼容卫月已登记的入口跳转，保留完整函数和调用校验；最大加速度仍跟随移速总开关。保留.2206全部功能、配置与两套地图。525项契约、178项移速、完整及干净重套构建通过；实际游戏效果待验证。"
   }
 ]

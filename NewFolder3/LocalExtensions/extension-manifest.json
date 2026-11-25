@@ -2,10 +2,11 @@
   "schemaVersion": 1,
   "upstreamVersion": "0.7.55.22",
   "upstreamCommit": "e578aaec1b58945a8bf6868a5c8ec2baae8bc50b",
-  "localRevision": 6,
+  "localRevision": 7,
   "versionRule": "upstream fourth component * 100 + local revision (01..99)",
-  "localVersion": "0.7.55.2206",
+  "localVersion": "0.7.55.2207",
   "features": [
+    "registered-host-hook-prefix-validation-for-hot-reload",
     "aetherpool-original-job-eligibility-and-character-loading-wait",
     "hoh-relic-magicite-overflow-and-floor30",
     "builtin-speed",

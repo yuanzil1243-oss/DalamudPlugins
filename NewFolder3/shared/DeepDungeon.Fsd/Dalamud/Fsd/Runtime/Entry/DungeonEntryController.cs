@@ -38,6 +38,8 @@ internal sealed class DungeonEntryController : IDisposable
     public DungeonEntryController(DungeonData dungeon, int floor, int preferredSlot = 0,
         PreparedSaveBinding? prepared = null, bool verifyOnly = false)
     {
+        if (prepared?.ContinuationResultFloor != null && !verifyOnly)
+            throw new ArgumentException("續打結果綁定只能用於只讀驗證。", nameof(prepared));
         _dungeon = dungeon;
         _requestedFloor = floor;
         _preferredSlot = preferredSlot;

@@ -14,12 +14,15 @@ internal partial class FsdEngine
         var preferences = settings.GetFreeExplorationPreferences();
         DrawExternalSaveSelection(running);
         ImGui.BeginDisabled(running);
-        int start = _useExternalSave && _externalSelected is { } selected ? selected.StartFloor : preferences.StartFloor;
+        bool inDuty = _currentInDeepDungeon || _dutyState?.IsInDuty == true;
+        bool continuation = inDuty || _useExternalSave;
+        int start = inDuty && _dutyState is { Floor: > 0 } duty ? (duty.Floor - 1) / 10 * 10 + 1
+            : _useExternalSave && _externalSelected is { } selected ? selected.StartFloor : preferences.StartFloor;
         bool changed = false;
-        if (_useExternalSave)
-            ImGui.TextWrapped(_externalSelected is { } source
-                ? $"起始樓層：{source.StartFloor}（已選存檔；只續打一次並保檔停止）"
-                : "請先讀取並選擇已有存檔，以確定起始樓層。");
+        if (continuation)
+            ImGui.TextWrapped(inDuty ? "起點沿用目前進度；只需選擇結束樓層。"
+                : _externalSelected is { } source ? $"起點沿用存檔進度：{source.StartFloor} 層。"
+                : "請先讀取並選擇已有存檔。");
         else
         {
             int[] starts = FreeExplorationPolicy.NewSaveStarts(settings.DungeonId);
@@ -40,7 +43,7 @@ internal partial class FsdEngine
             if (ImGui.Combo("結束樓層##freeEnd", ref index, ends.Select(x => $"{x} 層").ToArray(), ends.Length))
             { preferences.EndFloor = ends[index]; changed = true; }
         }
-        ImGui.TextWrapped("完整完成所選層段才計 1 輪；中間十層組及失敗不計完成輪數。新建起點須原生已解鎖；終點按十層組正常結算，終局獎勵沿用原版。");
+        ImGui.TextWrapped("到達結束樓層才計 1 輪。續打後重開時，從不超過終點的最高可新建起點開始；起點須已解鎖。");
         ImGui.EndDisabled();
         if (changed) _configuration.Save();
     }
@@ -67,25 +70,22 @@ internal partial class FsdEngine
         SaveSlotSnapshot selected = default;
         if (_useExternalSave && !TryResolveSelectedExternalSave(dungeon, out selected, out var selectionError))
             return new(false, selectionError);
-        int cycles = _useExternalSave ? 1 : preferences.Cycles;
-        bool infinite = !_useExternalSave && preferences.Infinite;
-        if (!FreeExplorationPolicy.TryCreate(dungeon, _useExternalSave ? selected.StartFloor : preferences.StartFloor,
-                preferences.EndFloor, cycles, infinite, new(preferences.BandedEnabled == true,
-                    preferences.OpenGold, preferences.OpenSilver, preferences.OpenBronze),
-                preferences.AggressiveChestInteraction, _useExternalSave, out var plan, out var error))
-            return new(false, error);
-        if (_useExternalSave)
-            plan = plan! with { ExternalSaveCharacter = _externalCharacter, ExternalSaveJob = _externalJob };
-        var session = new FarmingSession(plan!, _useExternalSave ? selected.Index : -1);
         if (_useExternalSave)
         {
-            var pinnedPlan = plan!;
-            session.RestoreCheckpoint(selected, 0, _externalCharacter,
-                () => ExternalSavePolicy.MatchesCharacter(pinnedPlan, Service.PlayerState.ContentId,
-                    Service.LocalPlayer?.ClassJob.RowId ?? 0) ? null : "入場期間角色或職業變更；已停止。",
-                reason => _farmingError = reason);
+            if (!TryCreateContinuationPlan(dungeon, selected.StartFloor, _externalCharacter, _externalJob,
+                    out var continuedPlan, out var continuedError)) return new(false, continuedError);
+            return StartModeContinuation(continuedPlan!, selected);
         }
-        bool started = TryStartOutsideDutyFsd(() => new FarmingScenario(session), cycles, infinite, null, out error);
+        int cycles = preferences.KeepSave ? 1 : preferences.Cycles;
+        bool infinite = !preferences.KeepSave && preferences.Infinite;
+        if (!FreeExplorationPolicy.TryCreate(dungeon, preferences.StartFloor,
+                preferences.EndFloor, cycles, infinite, new(preferences.BandedEnabled == true,
+                    preferences.OpenGold, preferences.OpenSilver, preferences.OpenBronze),
+                preferences.AggressiveChestInteraction, false, out var plan, out var error))
+            return new(false, error);
+        plan = TaskContinuationPolicy.WithRetention(plan!, preferences.KeepSave);
+        var session = new FarmingSession(plan);
+        bool started = TryStartOutsideDutyFsd(() => CreateLocalFarmingScenario(session), cycles, infinite, null, out error);
         if (started) { _farmingError = null; _configuration.Save(); }
         return new(started, error);
     }

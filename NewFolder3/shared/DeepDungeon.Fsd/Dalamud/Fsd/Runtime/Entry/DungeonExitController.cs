@@ -69,7 +69,7 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
         var ui = ReadUi(ctx.Duty.IsInDuty);
         var facts = new ExitFacts(false, ctx.Duty.IsInDuty, atEntrance, !ctx.Duty.IsInDuty && exit != null,
             Service.Condition[global::Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat], ui.Kind,
-            ctx.Duty.IsInDuty && exit != null);
+            ctx.Duty.IsInDuty && exit != null) { ResultWindowPresent = ui.ResultWindowPresent };
         var action = ExitUiPolicy.Decide(facts, returnToEntrance);
         string scope = $"{Service.ClientState.TerritoryType}:{facts.InDuty}";
         string actionName = action.ToString();
@@ -176,23 +176,43 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
     }
 
     private readonly record struct ExitUiObservation(
-        ExitUiKind Kind, nint Address, string Revision, bool ConfirmDisabled = false, string? Prompt = null);
+        ExitUiKind Kind, nint Address, string Revision, bool ConfirmDisabled = false, string? Prompt = null,
+        bool ResultWindowPresent = false);
 
     private unsafe ExitUiObservation ReadUi(bool inDuty)
     {
-        if (DeepDungeonUi.TryGetAddon("SelectYesno", out var yesno))
+        bool resultPresent = DeepDungeonUi.TryGetVisibleAddon("DeepDungeonResult", out var result);
+        if (DeepDungeonUi.TryGetVisibleAddon("SelectYesno", out var yesno))
         {
             string identity = $"SelectYesno:{yesno->Id}:{(nint)yesno:X}";
             if (!yesno->IsAddonAndNodesReady() ||
                 !DeepDungeonUi.TryGetConfirmationPromptText(yesno, out var prompt, out _))
-                return new(ExitUiKind.Incomplete, (nint)yesno, identity);
+                return new(ExitUiKind.Incomplete, (nint)yesno, identity, ResultWindowPresent: resultPresent);
             string text = PtEntryText.Normalize(prompt);
             var button = ((AddonSelectYesno*)yesno)->YesButton;
             var kind = text.Length > 0 && text == _dutyPrompt ? ExitUiKind.DutyConfirmation
                 : text.Length > 0 && _restPrompts.Contains(text) ? ExitUiKind.RestConfirmation : ExitUiKind.Unknown;
             bool disabled = button != null && !button->IsEnabled && kind != ExitUiKind.Unknown;
             return new(button == null || disabled ? ExitUiKind.Incomplete : kind,
-                (nint)yesno, identity + ":" + text, disabled, text);
+                (nint)yesno, identity + ":" + text, disabled, text, resultPresent);
+        }
+        if (resultPresent)
+        {
+            string identity = $"DeepDungeonResult:{result->Id}:{(nint)result:X}";
+            if (!result->IsAddonAndNodesReady())
+                return new(ExitUiKind.Incomplete, (nint)result, identity, ResultWindowPresent: true);
+            var titleNode = result->UldManager.SearchNodeById(2);
+            var title = titleNode == null ? null : titleNode->GetAsAtkTextNode();
+            var buttonNode = result->UldManager.SearchNodeById(25);
+            var button = buttonNode == null ? null : buttonNode->GetAsAtkComponentButton();
+            if (title == null || button == null || button->ButtonTextNode == null)
+                return new(ExitUiKind.Incomplete, (nint)result, identity, ResultWindowPresent: true);
+            string titleText = PtEntryText.Normalize(title->NodeText.ExtractText());
+            string buttonText = PtEntryText.Normalize(button->ButtonTextNode->NodeText.ExtractText());
+            bool recognized = _resultTitle.Length > 0 && titleText == _resultTitle && buttonText == _resultExit;
+            bool disabled = recognized && !button->IsEnabled;
+            return new(disabled ? ExitUiKind.Incomplete : recognized ? ExitUiKind.Result : ExitUiKind.Unknown,
+                (nint)result, identity + ":" + titleText + ":" + buttonText, disabled, buttonText, true);
         }
         if (!inDuty)
         {
@@ -200,33 +220,16 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
                 if (DeepDungeonUi.TryGetAddon(name, out var addon))
                     return new(ExitUiKind.Unknown, (nint)addon, $"{name}:{addon->Id}:{(nint)addon:X}");
         }
-        if (DeepDungeonUi.TryGetAddon("DeepDungeonResult", out var result))
-        {
-            string identity = $"DeepDungeonResult:{result->Id}:{(nint)result:X}";
-            if (!result->IsAddonAndNodesReady()) return new(ExitUiKind.Incomplete, (nint)result, identity);
-            var titleNode = result->UldManager.SearchNodeById(2);
-            var title = titleNode == null ? null : titleNode->GetAsAtkTextNode();
-            var buttonNode = result->UldManager.SearchNodeById(25);
-            var button = buttonNode == null ? null : buttonNode->GetAsAtkComponentButton();
-            if (title == null || button == null || button->ButtonTextNode == null)
-                return new(ExitUiKind.Incomplete, (nint)result, identity);
-            string titleText = PtEntryText.Normalize(title->NodeText.ExtractText());
-            string buttonText = PtEntryText.Normalize(button->ButtonTextNode->NodeText.ExtractText());
-            bool recognized = _resultTitle.Length > 0 && titleText == _resultTitle && buttonText == _resultExit;
-            bool disabled = recognized && !button->IsEnabled;
-            return new(disabled ? ExitUiKind.Incomplete : recognized ? ExitUiKind.Result : ExitUiKind.Unknown,
-                (nint)result, identity + ":" + titleText + ":" + buttonText, disabled, buttonText);
-        }
         return new(ExitUiKind.None, 0, "none");
     }
 
     private static global::Dalamud.Game.ClientState.Objects.Types.IGameObject? FindResultExit(RunContext context)
     {
         if (!context.TerminalRoomObserved || context.TerminalRewardsRequired || !context.DutyCompletionObserved ||
-            !Potd200RewardPolicy.IsTerminal(context.Duty.DungeonId, context.Duty.Floor)) return null;
+            !TerminalRewardExitPolicy.TryGetExitBaseId(context.Duty.DungeonId, context.Duty.Floor, out var exitBaseId)) return null;
         foreach (var obj in Service.GameObjects)
             if (obj.ObjectKind == global::Dalamud.Game.ClientState.Objects.Enums.ObjectKind.EventObj &&
-                obj.BaseId == Potd200RewardPolicy.ExitBaseId && obj.IsTargetable) return obj;
+                obj.BaseId == exitBaseId && obj.IsTargetable) return obj;
         return null;
     }
 

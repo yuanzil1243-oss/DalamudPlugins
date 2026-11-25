@@ -24,7 +24,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
 
     public string Name => $"{DungeonShortLabel(session.Plan.DungeonId)} {session.Plan.DisplayName} ({(session.Plan.SaveUse == SaveUse.Prepared ? session.Source.Description : $"{session.NextFloor} 層")})";
     public bool IsComplete => _complete;
-    public bool ShouldLoop => !_aborted;
+    public bool ShouldLoop => !_aborted && !_stopAfterAttempt;
     public bool CountsAsCycle { get; private set; }
     public bool RecoversDutyFailure => _recoverFailure;
     public bool RequiresDutyCompletionEvent => !session.Plan.ReusesSave && !_recoverFailure && !_aborted;
@@ -140,6 +140,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
             return;
         }
         var decision = FarmingSessionPolicy.Decide(session.Plan, result);
+        if (!TryBindContinuationAfterExit(ctx, decision)) return;
         if (TryPauseBeforeCleanup(ctx, result, decision)) return;
         if (session.PersistPause is { } persistPause)
         {
@@ -183,6 +184,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
         }
         if (!TryPostExitGripExchange(ctx, result, framework)) return;
         CountsAsCycle = decision.CountCycle;
+        _stopAfterAttempt = decision.StopAfterAttempt;
         _recoverFailure = decision.RecoverFailure;
         session.CompleteAttempt(decision, ctx.HoardDiscoveries);
         if (TryPauseAfterCleanup(ctx)) return;
@@ -240,6 +242,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
 
     private bool TryEnterDuty(RunContext ctx)
     {
+        if (session.PendingDutyAttachment) return TryAttachSelectedMode(ctx);
         if (session.ResumeCharacter is { } character && Service.PlayerState.ContentId != character)
         {
             ctx.StatusLine = "繼續期間角色已變更，請使用暫停時的角色重試。";
@@ -364,6 +367,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
     {
         _entry?.Dispose();
         _verification?.Dispose();
+        _continuationVerification?.Dispose();
         _exit?.Dispose();
         _gripFlow?.Dispose();
         _context = null;

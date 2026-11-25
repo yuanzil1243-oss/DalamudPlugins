@@ -68,8 +68,8 @@ internal partial class FsdEngine
             }
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(canCancel
-                    ? "撤回尚未生效的本組後暫停，按原任務及循環次數繼續；不改存檔或計數。原任務若只接續目前副本，仍在本組出本後保檔停止。"
-                    : "本組按原模式完成並出本後暫停；生效前可在此取消。挖寶等模式仍完成原定清理；深層攻略驗證下一組存檔後暫停；採集模式在原定出本點暫停。有後續任務才保存續跑紀錄。異常退出保檔停止，不自動重開。");
+                    ? "取消本組後暫停，按原模式和循環設定繼續。"
+                    : "本組出本並完成收尾後暫停；生效前可取消，之後可繼續或解除續跑鎖定。");
         }
         if (ProgressionPauseLocked && !running)
         {
@@ -78,7 +78,7 @@ internal partial class FsdEngine
             if (ImGui.Button("解除續跑鎖定（保留存檔）##localReleasePause")) ReleaseLocalPauseLock();
             ImGui.EndDisabled();
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-                ImGui.SetTooltip("僅在副本外且自動化已停止時可用。歸檔本地續跑紀錄，取消原任務的自動續跑／刪檔權限；遊戲存檔及設定不刪除。解除後可改選其他存檔，原檔仍可手動重新選取。");
+                ImGui.SetTooltip("副本外可用。保留遊戲存檔，解除原任務鎖定後可改選其他模式或存檔。");
         }
     }
 

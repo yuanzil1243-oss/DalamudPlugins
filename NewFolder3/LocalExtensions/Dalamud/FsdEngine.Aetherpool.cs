@@ -51,10 +51,10 @@ internal partial class FsdEngine
                 AetherpoolExchangePolicy.GetDungeon(dungeon)?.StartFloor ?? 0, p.Cycles, p.Infinite,
                 new(p.BandedEnabled == true, p.OpenGold, p.OpenSilver, p.OpenBronze), out var plan, out var error))
             return new(false, error);
-        plan = ConfigureGripExchange(plan!);
+        plan = TaskContinuationPolicy.WithRetention(ConfigureGripExchange(plan!), p.KeepSave);
         var session = new FarmingSession(plan);
         string? key = plan.ShowsDetailedMap ? DetailedMapScenarioCatalog.PilgrimsTraverse21To30.Key : null;
-        bool started = TryStartOutsideDutyFsd(() => CreateLocalFarmingScenario(session), p.Cycles, p.Infinite, key, out error);
+        bool started = TryStartOutsideDutyFsd(() => CreateLocalFarmingScenario(session), plan.TargetCycles, plan.Infinite, key, out error);
         if (started) { _farmingError = null; _configuration.Save(); }
         return new(started, error);
     }

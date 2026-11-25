@@ -18,9 +18,10 @@ internal partial class FsdEngine
 
     private void DrawExternalSaveSelection(bool running)
     {
+        if (_currentInDeepDungeon || _dutyState?.IsInDuty == true) return;
         ImGui.BeginDisabled(running);
         bool existing = _useExternalSave;
-        if (ImGui.Checkbox("使用已有存檔續打（不刪檔）", ref existing))
+        if (ImGui.Checkbox("使用已有存檔續打", ref existing))
         {
             _useExternalSave = existing;
             _externalSelected = null;
@@ -30,7 +31,7 @@ internal partial class FsdEngine
         if (_useExternalSave)
         {
             string dungeonName = _configuration.Farming.DungeonId switch { 1 => "死者宮殿", 2 => "天之御柱", _ => "朝聖交錯路" };
-            ImGui.TextWrapped($"請先打開挑戰「{dungeonName}」的存檔面板，再點擊「讀取原生存檔列表」讀取資料並選擇槽位。續打至終點後保檔停止，失敗不重開。");
+            ImGui.TextWrapped($"請先打開挑戰「{dungeonName}」的存檔面板，再點擊「讀取原生存檔列表」讀取資料並選擇槽位。按所選模式續打；保檔與重開規則由下方選項決定。");
             if (ImGui.Button("讀取原生存檔列表"))
             {
                 _externalSelected = null;
@@ -96,21 +97,9 @@ internal partial class FsdEngine
             return new(false, "保留原作者支援範圍：死宮／天宮須使用機工士、吟遊詩人或舞者。");
         if (!TryReadExternalSaveList(dungeon, out var fresh, out var error) ||
             !ExternalSavePolicy.TryValidate(selected, fresh, dungeon, out error)) return new(false, error);
-        var p = _configuration.Farming.GetPreferences(_configuration, FarmingMode.DeepProgression);
-        if (!FarmingPlan.TryCreate(FarmingMode.DeepProgression, SaveUse.Create, 1, 1, false,
-                p.BandedEnabled == true, p.OpenGold, p.OpenSilver, p.OpenBronze, out var plan, out error, dungeon))
-            return new(false, error);
-        plan = plan! with { StartFloor = selected.StartFloor, ExternalSave = true,
-            ExternalSaveCharacter = _externalCharacter, ExternalSaveJob = _externalJob };
-        var session = new FarmingSession(plan, selected.Index);
-        // Reuse the upstream exact source/character pin and standard outside-entry permissions.
-        session.RestoreCheckpoint(selected, 0, _externalCharacter,
-            () => ExternalSavePolicy.MatchesCharacter(plan, Service.PlayerState.ContentId,
-                Service.LocalPlayer?.ClassJob.RowId ?? 0) ? null : "入場期間角色或職業變更；已停止。",
-            reason => _farmingError = reason);
-        bool started = TryStartOutsideDutyFsd(() => new FarmingScenario(session), 1, false, null, out error);
-        if (started) _farmingError = null;
-        return new(started, error);
+        if (!TryCreateContinuationPlan(dungeon, selected.StartFloor, _externalCharacter, _externalJob,
+                out var plan, out error)) return new(false, error);
+        return StartModeContinuation(plan!, selected);
     }
 
     private void ValidateExternalSaveCharacter()

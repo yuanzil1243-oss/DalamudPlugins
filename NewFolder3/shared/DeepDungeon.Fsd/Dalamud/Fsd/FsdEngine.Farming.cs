@@ -81,7 +81,7 @@ internal partial class FsdEngine
         }
         ImGui.BeginDisabled(running);
         if (settings.RelicMaterial)
-            ImGui.TextWrapped($"固定 {AetherpoolExchangePolicy.GetDungeon(settings.DungeonId)?.StartFloor} 層起跑十層，正常退本後製作聚魔柄；失敗不計成功輪數，只清理本任務自建檔後重試。");
+            ImGui.TextWrapped($"固定 {AetherpoolExchangePolicy.GetDungeon(settings.DungeonId)?.StartFloor} 層起跑十層，通關出本後按門檻兌換。未保檔時，失敗清理本任務檔後重試，不計成功輪數。");
         else if (effectiveMode == FarmingMode.Hoard)
         {
             int floor = _fsfScenarioIndex;
@@ -102,8 +102,8 @@ internal partial class FsdEngine
         if (effectiveMode == FarmingMode.DeepProgression)
         {
             if (settings.StartFromHighestFloor)
-                ImGui.TextWrapped($"普通下底：從 {OrdinaryDescentPolicy.HighestStartFloor(settings.DungeonId)} 層新建，沿用原版攻略與終局獎勵流程；不作為從 1 層開始的成就模式。起點須已解鎖。");
-            else DrawExternalSaveSelection(running);
+                ImGui.TextWrapped($"普通下底從 {OrdinaryDescentPolicy.HighestStartFloor(settings.DungeonId)} 層新建；已有存檔則從目前進度續打。新建起點須已解鎖。");
+            DrawExternalSaveSelection(running);
         }
     }
 
@@ -126,7 +126,7 @@ internal partial class FsdEngine
         bool silver = options?.OpenSilver ?? preferences.OpenSilver;
         bool bronze = options?.OpenBronze ?? preferences.OpenBronze;
         bool free = !currentDuty && _configuration.Farming.FreeExploration;
-        bool editableChests = currentDuty || free;
+        bool editableChests = currentDuty || free || _ddHost?.Context?.FarmingPlan is { ManagedContinuation: true, Mode: FarmingMode.DeepProgression };
         bool changed;
         ImGui.BeginDisabled(ProgressionPauseLocked);
         ImGui.BeginDisabled(currentDuty || !free && FarmingTargetPolicy.LocksHoard(mode));
@@ -171,7 +171,7 @@ internal partial class FsdEngine
         {
             ImGui.BeginTooltip();
             ImGui.PushTextWrapPos(ImGui.GetFontSize() * 32f);
-            ImGui.TextUnformatted("啟用該項目會增加開箱的力度, 如幀數較低或戰鬥時很難成功開箱, 請啟用以增加對輸出或其他外掛搶佔成功率. 若沒有遇到這個問題, 請不要啟用");
+            ImGui.TextUnformatted("開箱常卡住時再開啟，會更積極嘗試互動。");
             ImGui.PopTextWrapPos();
             ImGui.EndTooltip();
         }
@@ -204,19 +204,20 @@ internal partial class FsdEngine
 
     private void DrawCycleOptions(FarmingPreferences preferences)
     {
-        if (_ddHost?.Context?.FarmingPlan?.CurrentDutyOnly == true)
+        bool running = _ddHost?.FsdActive == true;
+        bool keep = running ? _ddHost?.Context?.FarmingPlan?.KeepSave == true : preferences.KeepSave;
+        ImGui.BeginDisabled(running);
+        if (ImGui.Checkbox("保留存檔##fsf_keep", ref keep))
         {
-            ImGui.TextWrapped("繼續探索：接續目前十層組，正常出本後保檔停止。");
-            return;
+            preferences.KeepSave = keep;
+            if (keep) { preferences.Cycles = 1; preferences.Infinite = false; }
+            _configuration.Save();
         }
-        if (_ddHost?.Context?.FarmingPlan?.ExternalSave == true ||
-            !IsRunActive && _useExternalSave && !_configuration.Farming.RelicMaterial && !_configuration.Farming.StartFromHighestFloor &&
-            (_configuration.Farming.DungeonId != 4 || _configuration.Farming.Mode == FarmingMode.DeepProgression))
-        {
-            ImGui.TextWrapped("已有檔續打：到達終點後保留存檔並停止，不進行刪檔循環。");
-            return;
-        }
-        ImGui.Text("結束 FSD...");
+        ImGui.EndDisabled();
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            ImGui.SetTooltip("完成本輪後退本保檔並停止；失敗也保檔停止。啟動前可修改。");
+        ImGui.SameLine();
+        ImGui.BeginDisabled(keep);
         bool infinite = _ddHost?.FsdActive == true ? _ddHost.Infinite : preferences.Infinite;
         int cycles = _ddHost?.FsdActive == true ? _ddHost.TargetLoops : preferences.Cycles;
         bool changed = ImGui.Checkbox("無限循環##fsf_inf", ref infinite);
@@ -233,6 +234,7 @@ internal partial class FsdEngine
             _configuration.Save();
             _ddHost?.SetCycleTargets(cycles, infinite);
         }
+        ImGui.EndDisabled();
     }
 
     public FsdControlResult StartSelectedFarming(FsdStartRequest request)
@@ -246,7 +248,7 @@ internal partial class FsdEngine
         if (settings.FreeExploration) return StartFreeExploration(request, dungeonId);
         var effectiveMode = settings.RelicMaterial ? FarmingMode.Hoard : pt ? settings.Mode : FarmingMode.DeepProgression;
         bool ordinaryDescent = effectiveMode == FarmingMode.DeepProgression && settings.StartFromHighestFloor;
-        if (effectiveMode == FarmingMode.DeepProgression && _useExternalSave && !ordinaryDescent)
+        if (effectiveMode == FarmingMode.DeepProgression && _useExternalSave)
             return StartExternalSave(request, dungeonId);
         var p = settings.GetPreferences(_configuration, effectiveMode);
         bool prepared = effectiveMode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery;
@@ -255,7 +257,7 @@ internal partial class FsdEngine
         var farming = new FsdFarmingRequest(effectiveMode, prepared ? SaveUse.Prepared : SaveUse.Create,
             startFloor, p.Cycles, p.Infinite,
             new FarmingTargets(p.BandedEnabled == true, p.OpenGold, p.OpenSilver, p.OpenBronze),
-            request, DungeonId: dungeonId) { OrdinaryDescent = ordinaryDescent };
+            request, DungeonId: dungeonId) { OrdinaryDescent = ordinaryDescent, KeepSave = p.KeepSave };
         bool started = TryStartFarming(farming, out string error);
         return new FsdControlResult(started, error);
     }
@@ -322,7 +324,9 @@ internal partial class FsdEngine
             error = "原副本接續只支援保留現場的測試，須指定來源槽位與目前所在層段起點。";
             return false;
         }
-        plan = ConfigureGripExchange(plan);
+        plan = TaskContinuationPolicy.WithRetention(ConfigureGripExchange(plan), request.KeepSave);
+        cycles = plan.TargetCycles;
+        infinite = plan.Infinite;
         var session = new FarmingSession(plan, resumeSlot ?? -1);
         string? key = plan!.ShowsDetailedMap ? startFloor == 21
             ? DetailedMapScenarioCatalog.PilgrimsTraverse21To30.Key

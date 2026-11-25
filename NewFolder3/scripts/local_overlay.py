@@ -19,6 +19,7 @@ HOOKS = {
  'Configuration.cs','FsdWindow.cs','NewFolder3.csproj','NewFolder3.json','Plugin.cs','README.md','global.json',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Helpers/NativeDeepDungeonLogMessageSource.cs',
  'shared/DeepDungeon.Fsd/Core/EntryUiPolicy.cs','shared/DeepDungeon.Fsd/Core/InteractionTiming.cs',
+ 'shared/DeepDungeon.Fsd/Core/ExitUiPolicy.cs',
  'shared/DeepDungeon.Fsd/Core/FarmingPlan.cs','shared/DeepDungeon.Fsd/Core/FarmingSessionPolicy.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdChestInteraction.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.Companions.cs',
@@ -86,6 +87,7 @@ def additions(root):
     files.append(root/'tests/NewFolder3.ContractTests/PauseCancellationTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/AetherpoolExchangeTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/PassageRoutingRegressionTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/ModeContinuationTests.cs')
     files.append(root/'tests/Test-VersionSwitch.ps1')
     return sorted(set(files))
 

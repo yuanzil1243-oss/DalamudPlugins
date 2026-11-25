@@ -42,7 +42,8 @@ internal sealed partial class FarmingSession(FarmingPlan plan, int ownedSlot = -
     public bool TrySetTargets(in FarmingTargets targets)
     {
         if (Plan.RelicMaterial && !targets.Silver) return false;
-        if (!Plan.FreeExploration && !FarmingTargetPolicy.IsValid(Plan.Mode, targets)) return false;
+        if (!Plan.FreeExploration && !(Plan.ManagedContinuation && Plan.Mode == FarmingMode.DeepProgression && !targets.Hoard) &&
+            !FarmingTargetPolicy.IsValid(Plan.Mode, targets)) return false;
         BandedEnabled = targets.Hoard;
         OpenGold = targets.Gold;
         OpenSilver = targets.Silver;
@@ -85,6 +86,7 @@ internal sealed class PreparedSaveBinding
     public int? RequiredSlot { get; private set; }
     public int MaxFloor { get; private set; }
     public bool RequireCheckpointMatch { get; private set; }
+    internal int? ContinuationResultFloor { get; init; }
     public string Description => Pinned is { } value ? $"存檔 {value.Index + 1}，起點 {value.StartFloor} 層" : "唯一存檔待讀取";
 
     public PreparedSaveBinding(bool reusable = false, int? expectedFloor = null, int? requiredSlot = null, int maxFloor = 100) =>
@@ -108,6 +110,12 @@ internal sealed class PreparedSaveBinding
 
     public bool Observe(IReadOnlyList<SaveSlotSnapshot> slots, out SaveSlotSnapshot source, out string error)
     {
+        if (ContinuationResultFloor is { } entry)
+        {
+            if (!ContinuationSavePolicy.TryResolve(slots, entry, MaxFloor, out source, out error)) return false;
+            Pinned = source;
+            return true;
+        }
         if (!PreparedSavePolicy.TryResolve(slots, Reusable ? Pinned : null, Reusable,
                 ExpectedFloor, out source, out error, RequiredSlot, MaxFloor)) return false;
         if (RequireCheckpointMatch && source != Pinned)

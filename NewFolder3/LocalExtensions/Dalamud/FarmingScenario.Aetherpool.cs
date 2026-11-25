@@ -61,7 +61,7 @@ internal sealed partial class FarmingScenario
     {
         var plan = session.Plan;
         if (_gripTracker == null || plan.GripExchange is not { IsValid: true } options ||
-            plan.ExternalSave || plan.CurrentDutyOnly || plan.ReusesSave ||
+            TaskContinuationPolicy.PreserveSave(plan) || plan.CurrentDutyOnly || plan.ReusesSave ||
             !plan.RelicMaterial && (plan.DungeonId != 4 || plan.StartFloor != 21) ||
             plan.Mode != FarmingMode.Hoard ||
             plan.RelicMaterial && !RelicFarmingPolicy.IsValid(plan) ||

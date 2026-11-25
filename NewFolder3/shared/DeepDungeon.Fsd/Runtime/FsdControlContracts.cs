@@ -30,6 +30,7 @@ public sealed record FsdFarmingRequest(
     uint DungeonId = 4)
 {
     public bool OrdinaryDescent { get; init; }
+    public bool KeepSave { get; init; }
 }
 
 /// <summary>Typed control outcome; diagnostic payloads retain their existing bridge schema.</summary>

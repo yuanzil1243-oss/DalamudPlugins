@@ -50,7 +50,7 @@ internal static class ExitReceiptTests
             foreach (var previous in Enum.GetValues<ExitAction>())
             foreach (var next in Enum.GetValues<ExitAction>())
             {
-                bool allowed = previous == ExitAction.ConfirmDutyExit && next == ExitAction.LeaveResult ||
+                bool allowed = previous is ExitAction.ConfirmDutyExit or ExitAction.ConfirmRestExit && next == ExitAction.LeaveResult ||
                     previous == ExitAction.LeaveResult && next is ExitAction.ConfirmDutyExit or ExitAction.ConfirmRestExit;
                 Assert(ExitReceiptPolicy.ShouldClear(new(previous.ToString(), "transition", scope), scope, next) == allowed);
             }
@@ -141,6 +141,49 @@ internal static class ExitReceiptTests
             Assert(ExitUiPolicy.Decide(new(false, false, true, false, false, ExitUiKind.None), true) == ExitAction.Complete);
             loops.IncrementLoop();
             Assert(loops.CompletedLoops == 1 && loops.ShouldStopAfterCurrentRun());
+        });
+        Check("final-scoreboard-must-close-even-after-duty-unbound-at-entrance", () =>
+        {
+            foreach (bool returnToEntrance in new[] { false, true })
+            {
+                var scoreboard = new ExitFacts(false, false, true, false, false, ExitUiKind.Result)
+                    { ResultWindowPresent = true };
+                Assert(ExitUiPolicy.Decide(scoreboard, returnToEntrance) == ExitAction.LeaveResult);
+                Assert(ExitUiPolicy.Decide(scoreboard with { Ui = ExitUiKind.None, ResultWindowPresent = false }, returnToEntrance) ==
+                    ExitAction.Complete);
+            }
+        });
+        Check("unready-or-unrecognized-final-scoreboard-blocks-premature-cleanup", () =>
+        {
+            foreach (var ui in new[] { ExitUiKind.None, ExitUiKind.Incomplete, ExitUiKind.Unknown })
+            foreach (bool returnToEntrance in new[] { false, true })
+                Assert(ExitUiPolicy.Decide(new(false, false, true, false, false, ui)
+                    { ResultWindowPresent = true }, returnToEntrance) == ExitAction.Wait);
+        });
+        Check("scoreboard-confirmation-survives-duty-unbinding", () =>
+        {
+            foreach (var ui in new[] { ExitUiKind.DutyConfirmation, ExitUiKind.RestConfirmation })
+            {
+                var facts = new ExitFacts(false, false, true, false, false, ui) { ResultWindowPresent = true };
+                var next = ExitUiPolicy.Decide(facts, true);
+                Assert(next == (ui == ExitUiKind.DutyConfirmation ? ExitAction.ConfirmDutyExit : ExitAction.ConfirmRestExit));
+                Assert(ExitReceiptPolicy.ShouldClear(result, scope, next));
+                Assert(ExitUiPolicy.Decide(facts with { InCombat = true }, true) == ExitAction.Wait);
+            }
+        });
+        Check("final-native-exit-can-use-recognized-warp-confirmation", () =>
+        {
+            var native = new ExitFacts(false, true, false, false, false, ExitUiKind.RestConfirmation, true);
+            Assert(ExitUiPolicy.Decide(native, false) == ExitAction.ConfirmRestExit);
+            Assert(ExitUiPolicy.Decide(native with { DutyExitPresent = false }, false) == ExitAction.Wait);
+            Assert(ExitUiPolicy.Decide(native with { InCombat = true }, false) == ExitAction.Wait);
+        });
+        Check("final-native-exit-confirmation-can-advance-to-scoreboard", () =>
+        {
+            var nativeReceipt = new EntryDispatchReceipt(nameof(ExitAction.ConfirmRestExit), "transition", scope, "leave?");
+            var next = ExitUiPolicy.Decide(new(false, true, false, false, false, ExitUiKind.Result)
+                { ResultWindowPresent = true }, false);
+            Assert(next == ExitAction.LeaveResult && ExitReceiptPolicy.ShouldClear(nativeReceipt, scope, next));
         });
         return count;
     }

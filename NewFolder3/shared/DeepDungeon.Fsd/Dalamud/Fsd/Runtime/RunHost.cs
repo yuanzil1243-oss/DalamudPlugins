@@ -245,15 +245,22 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
                 else
                     _floorController.SuspendBossMovement();
 
-				if (_context.TerminalStayRequested && !TerminalRewardAutoExit.TryContinue(_context,
-                    ActiveFarming?.Session.LocalPause != null ||
-                    _attachedScenario is Scenarios.CurrentDutyResumeScenario { PauseAfterGroup: true }))
+				if (_context.TerminalStayRequested)
 				{
-					_lastStatus = _context.StatusLine ?? string.Empty;
-					_lastStatusIsError = false;
-					_multiLoopDriver.IncrementLoop();
-					StopFsd("terminal-reward-confirmed", new { floor = _context.Duty.Floor, dungeonId = _context.Duty.DungeonId });
-					return;
+					var terminalExit = TerminalRewardAutoExit.Update(_context,
+                        ActiveFarming?.Session.LocalPause != null ||
+                        _attachedScenario is Scenarios.CurrentDutyResumeScenario { PauseAfterGroup: true });
+                    if (terminalExit != TerminalRewardExitAction.Continue)
+                    {
+                        _lastStatus = _context.StatusLine ?? string.Empty;
+                        _lastStatusIsError = _context.StatusIsError;
+                        if (terminalExit == TerminalRewardExitAction.Wait) return;
+                        if (_context.DutyCompletionObserved && !_context.TerminalRewardsRequired &&
+                            !_context.DutyFailureObserved && !_context.AttemptAborted && !_context.StatusIsError)
+                            _multiLoopDriver.IncrementLoop();
+                        StopFsd("terminal-reward-confirmed", new { floor = _context.Duty.Floor, dungeonId = _context.Duty.DungeonId });
+                        return;
+                    }
 				}
 
 				if (_attachedScenario.IsComplete)
@@ -500,6 +507,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
         }
         public void SetCycleTargets(int cycles, bool infinite)
         {
+            if (_context?.FarmingPlan is { } plan && TaskContinuationPolicy.PreserveSave(plan))
+            { cycles = 1; infinite = false; }
             _multiLoopDriver?.SetTargets(cycles, infinite);
         }
 		public int CompletedLoops => _multiLoopDriver?.CompletedLoops ?? 0;

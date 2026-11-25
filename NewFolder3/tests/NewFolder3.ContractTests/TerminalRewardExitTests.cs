@@ -46,7 +46,7 @@ internal static class TerminalRewardExitTests
             receipt with { RewardsPending = true }, receipt with { DutyCompleted = false },
             receipt with { DutyFailed = true }, receipt with { AttemptAborted = true },
             receipt with { HasError = true }, receipt with { StateReadFailed = true },
-            receipt with { InDuty = false }, receipt with { Transitioning = true },
+            receipt with { Transitioning = true },
             receipt with { PlayerReady = false }, receipt with { DungeonId = 2 },
             receipt with { Floor = 190 }, receipt with { Floor = 199 }, receipt with { Floor = 0 }
         })
@@ -54,6 +54,58 @@ internal static class TerminalRewardExitTests
                 Assert(!TerminalRewardExitPolicy.ShouldContinue(plan, invalid)));
         Check("unknown-plan-preserves-stop", () =>
             Assert(!TerminalRewardExitPolicy.ShouldContinue(null, receipt)));
+        Check("disabled-retains-explicit-upstream-stay", () =>
+            Assert(TerminalRewardExitPolicy.Decide(plan, receipt with { Enabled = false }) ==
+                new TerminalRewardExitDecision(TerminalRewardExitAction.RetainAndStop, "disabled")));
+        Check("loading-or-unavailable-player-waits-without-ending-task", () =>
+        {
+            foreach (var transient in new[]
+            {
+                receipt with { Transitioning = true }, receipt with { StateReadFailed = true },
+                receipt with { PlayerReady = false }
+            })
+                Assert(TerminalRewardExitPolicy.Decide(plan, transient).Action == TerminalRewardExitAction.Wait);
+            Assert(TerminalRewardExitPolicy.Decide(plan, receipt).Action == TerminalRewardExitAction.Continue);
+        });
+        Check("unconfirmed-reward-waits-without-exit-or-completion", () =>
+        {
+            foreach (var pending in new[]
+            {
+                receipt with { StayRequested = false }, receipt with { RoomObserved = false },
+                receipt with { RewardsPending = true }, receipt with { DutyCompleted = false }
+            })
+                Assert(TerminalRewardExitPolicy.Decide(plan, pending).Action == TerminalRewardExitAction.Wait);
+        });
+        Check("confirmed-reward-manual-exit-still-reaches-protected-cleanup", () =>
+        {
+            var outside = receipt with { InDuty = false, DungeonId = 0, Floor = 0 };
+            Assert(TerminalRewardExitPolicy.Decide(plan, outside) == new TerminalRewardExitDecision(
+                TerminalRewardExitAction.Continue, "reward-confirmed-already-outside"));
+            Assert(TerminalRewardExitPolicy.Decide(plan, outside with { RewardsPending = true }).Action ==
+                TerminalRewardExitAction.Wait);
+            Assert(TerminalRewardExitPolicy.Decide(plan, outside with { DutyFailed = true }).Action ==
+                TerminalRewardExitAction.RetainAndStop);
+        });
+        Check("native-final-exit-identities-cover-all-supported-dungeons", () =>
+        {
+            foreach (var (dungeon, floor) in new (uint, int)[] { (1, 200), (2, 100), (4, 100) })
+            {
+                Assert(TerminalRewardExitPolicy.TryGetExitBaseId(dungeon, floor, out var exit) && exit == 2005809);
+                Assert(!TerminalRewardExitPolicy.TryGetExitBaseId(dungeon, floor - 10, out _));
+                Assert(!TerminalRewardExitPolicy.TryGetExitBaseId(dungeon, 30, out _));
+            }
+            Assert(!TerminalRewardExitPolicy.TryGetExitBaseId(0, 100, out _));
+        });
+        Check("wrong-terminal-or-failed-run-retains-save", () =>
+        {
+            foreach (var rejected in new[]
+            {
+                receipt with { DungeonId = 2 }, receipt with { Floor = 190 },
+                receipt with { DutyFailed = true }, receipt with { AttemptAborted = true },
+                receipt with { HasError = true }
+            })
+                Assert(TerminalRewardExitPolicy.Decide(plan, rejected).Action == TerminalRewardExitAction.RetainAndStop);
+        });
         foreach (var diagnostic in new[]
         {
             plan with { StopAfterFloor = 200 }, plan with { HoldAfterClear = true },
@@ -113,6 +165,60 @@ internal static class TerminalRewardExitTests
                 Assert(OwnedSavePolicy.ValidateForDeletion([completed with { Index = 0 }], 1, entry, original) != null);
             });
         }
+        Check("reported-hoh100-reward-scoreboard-cleanup-then-loop", () =>
+        {
+            var normal = plan with { DungeonId = 2, OrdinaryDescent = true, StartFloor = 21, TargetCycles = 3 };
+            var reward = receipt with { DungeonId = 2, Floor = 100 };
+            foreach (bool infinite in new[] { false, true })
+            {
+                var loops = new MultiLoopDriver(3, infinite);
+                var session = new FarmingSession(normal, 0);
+                // Delayed reward/loading must not take the host's retain-and-stop path.
+                foreach (var waiting in new[]
+                {
+                    reward with { RewardsPending = true }, reward with { Transitioning = true },
+                    reward with { PlayerReady = false }
+                })
+                {
+                    Assert(TerminalRewardExitPolicy.Decide(normal, waiting).Action == TerminalRewardExitAction.Wait);
+                    Assert(loops.CompletedLoops == 0 && session.OwnedSlot == 0);
+                }
+                Assert(TerminalRewardExitPolicy.Decide(normal, reward).Action == TerminalRewardExitAction.Continue);
+                Assert(loops.CompletedLoops == 0);
+                // The native exit, not an unverified abandon, starts terminal departure.
+                Assert(ExitUiPolicy.Decide(new(false, true, false, false, false, ExitUiKind.None, true), false) ==
+                    ExitAction.ApproachDutyExit);
+                Assert(ExitUiPolicy.Decide(new(false, true, false, false, false, ExitUiKind.RestConfirmation, true), false) ==
+                    ExitAction.ConfirmRestExit);
+                var pendingScore = new ExitFacts(false, false, true, false, false, ExitUiKind.Incomplete)
+                    { ResultWindowPresent = true };
+                Assert(ExitUiPolicy.Decide(pendingScore, true) == ExitAction.Wait);
+                Assert(loops.CompletedLoops == 0 && session.OwnedSlot == 0);
+                Assert(ExitUiPolicy.Decide(pendingScore with { Ui = ExitUiKind.Result }, true) == ExitAction.LeaveResult);
+                Assert(ExitUiPolicy.Decide(new(false, false, true, false, false, ExitUiKind.None), true) == ExitAction.Complete);
+                var cleanup = FarmingSessionPolicy.Decide(normal, new(91, true, false, false, false));
+                Assert(cleanup.CountCycle && cleanup.DeleteOwnedSave && cleanup.NextFloor == 21);
+                Assert(session.OwnedSlot == 0 && loops.CompletedLoops == 0);
+                session.ConfirmOwnedSaveDeleted();
+                session.CompleteAttempt(cleanup, 0);
+                Assert(session.OwnedSlot == -1 && session.NextFloor == 21);
+                Assert(!loops.ShouldStopAfterCurrentRun());
+                loops.IncrementLoop();
+                Assert(loops.CompletedLoops == 1 && !loops.ShouldStopAfterCurrentRun());
+            }
+        });
+        Check("final-loop-also-finishes-scoreboard-and-cleanup-before-stop", () =>
+        {
+            var normal = plan with { DungeonId = 2, OrdinaryDescent = true, StartFloor = 21, TargetCycles = 1 };
+            var loops = new MultiLoopDriver(1, false);
+            Assert(TerminalRewardExitPolicy.ShouldContinue(normal, receipt with { DungeonId = 2, Floor = 100 }));
+            Assert(ExitUiPolicy.Decide(new(false, false, true, false, false, ExitUiKind.Result), true) == ExitAction.LeaveResult);
+            Assert(loops.CompletedLoops == 0);
+            var cleanup = FarmingSessionPolicy.Decide(normal, new(91, true, false, false, false));
+            Assert(cleanup.DeleteOwnedSave && cleanup.CountCycle);
+            Assert(ExitUiPolicy.Decide(new(false, false, true, false, false, ExitUiKind.None), true) == ExitAction.Complete);
+            Assert(loops.ShouldStopAfterCurrentRun());
+        });
         return count;
     }
 

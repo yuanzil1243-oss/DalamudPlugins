@@ -10,7 +10,9 @@ internal partial class FsdEngine
     {
         var facts = CurrentDutyResumeScenario.ReadFacts(_dutyState, IsRunActive);
         if (!ContinueExplorationPolicy.IsVisible(facts.InDeepDungeonTerritory, facts.Running)) return;
-        bool ready = ContinueExplorationPolicy.TryAttach(facts, out _, out var error);
+        bool ready = ContinueExplorationPolicy.TryAttach(facts, out int group, out var error);
+        if (ready) ready = TryCreateContinuationPlan(facts.DungeonId, group, facts.Character, facts.Job,
+            out _, out error);
         ImGui.SameLine();
         ImGui.BeginDisabled(!ready);
         if (ImGui.Button("繼續探索##fsd_continue_current"))
@@ -20,7 +22,7 @@ internal partial class FsdEngine
         }
         ImGui.EndDisabled();
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
-            ImGui.SetTooltip(ready ? "直接接續目前深宮，不需要選擇存檔槽；本組正常出本後停止並保檔。" : error);
+            ImGui.SetTooltip(ready ? "按所選模式接續目前地宮，不用選槽位；完成後按保檔與循環設定處理。" : error);
     }
 
     public FsdControlResult ContinueExploration()
@@ -31,26 +33,9 @@ internal partial class FsdEngine
             return new(false, error);
         if (ProgressionPauseLocked)
             return new(false, "已有暫停任務，請先繼續原任務或在副本外解除續跑鎖定。");
-        var chests = _configuration.Farming.GetCurrentDutyChestPreferences(facts.DungeonId);
-        try { _configuration.Save(); }
-        catch (Exception ex)
-        {
-            Service.Log.Error(ex, "[LocalExtensions.ContinueExploration] Could not save chest settings");
-            return new(false, "無法保存接續寶箱設定，尚未啟動；請檢查設定目錄權限。");
-        }
-        // No entry controller, save-slot read, save creation or deletion is involved.
-        var plan = new FarmingPlan(FarmingMode.DeepProgression, SaveUse.Create, groupStart, 1, false,
-            false, chests.OpenGold, chests.OpenSilver, chests.OpenBronze)
-        {
-            DungeonId = facts.DungeonId, ExternalSave = true, CurrentDutyOnly = true,
-            ExternalSaveCharacter = facts.Character, ExternalSaveJob = facts.Job
-        };
-        var scenario = new CurrentDutyResumeScenario(plan, groupStart);
-        bool started = TryStartOutsideDutyFsd(() => scenario,
-            1, false, null, out error);
-        if (started) _localCurrentDutyResume = scenario;
-        if (started) _farmingError = null;
-        return new(started, started ? null : error);
+        if (!TryCreateContinuationPlan(facts.DungeonId, groupStart, facts.Character, facts.Job,
+                out var plan, out error)) return new(false, error);
+        return StartModeContinuation(plan!, null);
     }
 
     private bool TrySetCurrentDutyChestTargets(bool gold, bool silver, bool bronze)

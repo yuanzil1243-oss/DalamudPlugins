@@ -86,7 +86,7 @@ public static class RelicFarmingPolicy
     }
     public static bool IsValid(FarmingPlan p) => p.RelicMaterial && p.Mode == FarmingMode.Hoard &&
         AetherpoolExchangePolicy.GetDungeon(p.DungeonId) is { } dungeon && p.StartFloor == dungeon.StartFloor &&
-        p.SaveUse == SaveUse.Create && !p.ExternalSave && !p.CurrentDutyOnly && !p.FreeExploration &&
+        p.SaveUse == SaveUse.Create && (!p.ExternalSave || p.ManagedContinuation) && !p.CurrentDutyOnly && !p.FreeExploration &&
         !p.OrdinaryDescent && p.StopAfterFloor == null && p.TargetCycles > 0 && p.OpenSilver &&
         (p.GripExchange == null || p.GripExchange.IsValid);
     public static FarmingSessionDecision Decide(FarmingPlan p, in FarmingAttemptResult r)
@@ -95,8 +95,8 @@ public static class RelicFarmingPolicy
             return new(false, r.EntryFloor, false, false, "聚魔柄任務來源或層段不符；保檔停止。");
         if (r.Aborted || p.HoldOnFailure && r.DutyFailed)
             return new(false, p.StartFloor, false, false, "聚魔柄任務已中止；保檔停止。");
-        if (r.DutyFailed) return new(false, p.StartFloor, true, true, "");
+        if (r.DutyFailed) return new(false, p.StartFloor, TaskContinuationPolicy.CanDeleteSave(p), !TaskContinuationPolicy.PreserveSave(p), "");
         if (!r.DutyCompleted) return new(false, r.EntryFloor, false, false, "未確認通關；保檔停止。");
-        return new(true, p.StartFloor, true, false, "");
+        return new(true, p.StartFloor, TaskContinuationPolicy.CanDeleteSave(p), false, "");
     }
 }

@@ -16,14 +16,14 @@ public sealed record FloorsetPauseCheckpoint(ulong Character, uint Job, FarmingP
             Plan.ExternalSave && (Plan.ExternalSaveCharacter != Character || Plan.ExternalSaveJob != Job))
             return false;
         if (Kind == FloorsetResumeKind.RestartCycle)
-            return Slot == null && !Plan.ReusesSave && !Plan.ExternalSave;
+            return Slot == null && !Plan.ReusesSave && !TaskContinuationPolicy.PreserveSave(Plan);
         if (Slot is not { Index: 0 or 1, Empty: false, Enterable: true, RowFingerprint.Length: 64 } slot ||
             slot.StartFloor < 1 || slot.StartFloor > Plan.TerminalEntryFloor || slot.StartFloor % 10 != 1 ||
             string.IsNullOrWhiteSpace(slot.Identity)) return false;
         return Kind == FloorsetResumeKind.ReusePrepared
             ? Plan.ReusesSave && slot.StartFloor <= 21
             : Plan.Mode == FarmingMode.DeepProgression && !Plan.ReusesSave &&
-                slot.StartFloor > Plan.StartFloor &&
+                slot.StartFloor > TaskContinuationPolicy.MinimumFloor(Plan) &&
                 (!Plan.FreeExploration || slot.StartFloor <= Plan.EndFloor);
     }
 }
@@ -36,14 +36,17 @@ public static class FloorsetPausePolicy
             plan.CurrentDutyOnly || plan.HoldAfterClear || plan.HoldOnFailure || plan.StopAfterFloor.HasValue ||
             plan.TargetCycles < 1 || plan.DungeonId != 4 && plan.Mode != FarmingMode.DeepProgression && !plan.RelicMaterial)
             return false;
-        if (plan.ExternalSave && (plan.ReusesSave || plan.Infinite || plan.TargetCycles != 1)) return false;
+        if (plan.ExternalSave && !plan.ManagedContinuation && (plan.ReusesSave || plan.Infinite || plan.TargetCycles != 1)) return false;
+        if (!TaskContinuationPolicy.IsValidManagedPlan(plan)) return false;
+        if (plan.KeepSave && (plan.Infinite || plan.TargetCycles != 1)) return false;
         if (plan.RelicMaterial) return RelicFarmingPolicy.IsValid(plan);
         if (plan.FreeExploration)
             return plan.Mode == FarmingMode.DeepProgression && plan.SaveUse == SaveUse.Create &&
                 FreeExplorationPolicy.TryCreate(plan.DungeonId, plan.StartFloor, plan.EndFloor ?? 0,
                     plan.TargetCycles, plan.Infinite, new(plan.BandedEnabled, plan.OpenGold, plan.OpenSilver, plan.OpenBronze),
-                    plan.FreeAggressiveChestInteraction, plan.ExternalSave, out _, out _);
-        if (!FarmingTargetPolicy.IsValid(plan.Mode, new(plan.BandedEnabled, plan.OpenGold, plan.OpenSilver, plan.OpenBronze)))
+                    plan.FreeAggressiveChestInteraction, plan.ExternalSave && !plan.ManagedContinuation, out _, out _);
+        if (!(plan.ManagedContinuation && plan.Mode == FarmingMode.DeepProgression && !plan.BandedEnabled) &&
+            !FarmingTargetPolicy.IsValid(plan.Mode, new(plan.BandedEnabled, plan.OpenGold, plan.OpenSilver, plan.OpenBronze)))
             return false;
         if (plan.Mode == FarmingMode.DeepProgression)
             return plan.SaveUse == SaveUse.Create && plan.StartFloor >= 1 &&
@@ -57,7 +60,7 @@ public static class FloorsetPausePolicy
     }
 
     public static bool HasNextCycle(FarmingPlan plan, int completed) =>
-        !plan.ExternalSave && (plan.Infinite || completed < plan.TargetCycles);
+        !TaskContinuationPolicy.PreserveSave(plan) && (plan.Infinite || completed < plan.TargetCycles);
 }
 
 internal sealed record LocalPauseRequest(int CompletedCycles,

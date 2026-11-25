@@ -126,8 +126,6 @@ internal partial class FsdEngine
                 _configuration.Save();
             }
         }
-        if (settings.Provider == FsdRotationProvider.AEAssist)
-            ImGui.TextWrapped("AE 依原版輸出策略聯動，結束／暫停／出本時恢復接管前的開關。手動變更優先；不改動不可讀取原值的 /aestop，若已手動停手請自行解除。");
         if (_rotationControl.FailedProvider is { } failed)
             ImGui.TextColored(new Vector4(0.95f, 0.45f, 0.45f, 1),
                 $"無法{(_rotationControl.DesiredEnabled ? "啟用" : "關閉")}輸出：{GetRotationProviderLabel(failed)}");

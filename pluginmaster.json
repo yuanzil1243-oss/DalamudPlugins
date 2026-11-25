@@ -2,22 +2,22 @@
   {
     "Author": "John Smith / Yuzi",
     "Name": "NewFolder3",
-    "Punchline": "基于官方 .23：出口路线稳定修复，保留本地扩展功能。",
+    "Punchline": "基于官方 .23，模式续打、保档循环与本地扩展",
     "InternalName": "NewFolder3",
     "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-    "AssemblyVersion": "0.7.55.2301",
+    "AssemblyVersion": "0.7.55.2302",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-    "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2301。保留官方出口房定位、多出口配对和路线稳定性修复。保留移速与最大加速度、奖励层移速、重载兼容、仅地宫内GCD保护及1–300秒等待、防踢、AE／自定义输出、继续探索与宝箱设置、普通下底、自由探索、失败重试、循环、取消暂停、聚魔柄、天宫魔石和两套签名地图。更新保留配置与暂停记录，不需要删除配置目录。构建与离线检查见验收记录，实际游戏效果待测。",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2301/NewFolder3.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2301/NewFolder3.zip",
-    "LastUpdate": 1795610818,
+    "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2302。统一按所选模式续打与循环，普通下底、自由探索接入已有存档；新增保留存档选项，当前续打达标计第1轮。领奖退本总开关独立保留，修复三地宫最终出口、分数板及暂态误停。精简提示并在说明页底部集中列出使用规则。保留移速与最大加速度、奖励层移速、仅地宫内GCD保护、防踢、AE／自定义输出、暂停、聚魔柄、天宫魔石与两套签名地图。来源不明保档停止，更新不删除配置或暂停记录。游戏效果待实测。",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2302/NewFolder3.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2302/NewFolder3.zip",
+    "LastUpdate": 1795622466,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "Changelog": "0.7.55.2301：跟进官方.23，保留出口房定位、多出口配对及路线稳定性修复；完整继承.2208扩展功能和两套签名地图。541项契约、178项移速离线检查、保数据换版及干净重套构建通过。实际游戏效果待验证。"
+    "Changelog": "0.7.55.2302：统一按所选模式续打、保留存档及循环；修复最终领奖退出与分数板衔接，三种地宫共用。说明页底部加入简明规则，移除AE冗长介绍。594项契约、162项默认移速离线、保数据换版和干净重套构建通过；游戏效果待验证。"
   }
 ]

@@ -42,11 +42,11 @@ public static class FreeExplorationPolicy
 
     public static FarmingSessionDecision Decide(FarmingPlan plan, in FarmingAttemptResult result)
     {
-        bool owns = !plan.ExternalSave;
+        bool owns = TaskContinuationPolicy.CanDeleteSave(plan);
         if (plan.EndFloor is not { } end || end < plan.StartFloor + 9 || end > plan.MaxFloor || end % 10 != 0 ||
-            result.EntryFloor < plan.StartFloor || result.EntryFloor + 9 > end || result.EntryFloor % 10 != 1)
+            result.EntryFloor < TaskContinuationPolicy.MinimumFloor(plan) || result.EntryFloor + 9 > end || result.EntryFloor % 10 != 1)
             return new(false, result.EntryFloor, false, false, "自由探索層段不符；保留存檔並停止。");
-        if (plan.ExternalSave && (result.DutyFailed || result.Aborted))
+        if (TaskContinuationPolicy.PreserveSave(plan) && (result.DutyFailed || result.Aborted))
             return new(false, result.EntryFloor, false, false, "已有存檔未正常完成；保檔停止，不自動重開。");
         if (result.Aborted)
             return new(false, plan.StartFloor, false, false, "自由探索已中止；未計完成輪數，保留存檔。");

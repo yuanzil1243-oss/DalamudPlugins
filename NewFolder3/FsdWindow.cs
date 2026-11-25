@@ -21,6 +21,15 @@ internal sealed class FsdWindow : Window
         _antiKick = antiKick;
     }
 
+    private static void DrawUsageNotes()
+    {
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.TextUnformatted("使用說明");
+        foreach (string note in DeepDungeon.Fsd.Core.FeatureUsageNotes.Items)
+            ImGui.TextWrapped(note);
+    }
+
     public override void Draw()
     {
         if (!ImGui.BeginTabBar("##FsdHostTabs"))
@@ -39,6 +48,8 @@ internal sealed class FsdWindow : Window
             _antiKick.DrawSettings();
             _application.DrawTerminalRewardSettings();
             _application.DrawGcdProtectionSettings();
+            // Keep this last: add future feature controls above the usage notes.
+            DrawUsageNotes();
             ImGui.EndTabItem();
         }
 

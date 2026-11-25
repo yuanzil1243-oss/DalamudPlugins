@@ -27,7 +27,7 @@ public sealed partial record FarmingPlan(
     // Run-only diagnostic option: retain the duty and save for in-place inspection.
     public bool HoldOnFailure { get; init; }
     public bool HoldAfterClear { get; init; }
-    // A user-selected existing save is never owned for deletion or failure restart.
+    // Old external tasks are protected. New mode-aware tasks explicitly declare ManagedContinuation.
     public bool ExternalSave { get; init; }
     public ulong ExternalSaveCharacter { get; init; }
     public uint ExternalSaveJob { get; init; }

@@ -4,7 +4,10 @@ public readonly record struct FarmingAttemptResult(int EntryFloor, bool DutyComp
     bool DutyFailed, bool HarvestCompleted, bool Aborted);
 
 public readonly record struct FarmingSessionDecision(bool CountCycle, int NextFloor,
-    bool DeleteOwnedSave, bool RecoverFailure, string Error);
+    bool DeleteOwnedSave, bool RecoverFailure, string Error)
+{
+    public bool StopAfterAttempt { get; init; }
+}
 
 public static class FarmingSessionPolicy
 {
@@ -14,10 +17,16 @@ public static class FarmingSessionPolicy
 
     public static FarmingSessionDecision Decide(FarmingPlan plan, in FarmingAttemptResult result)
     {
+        var decision = DecideMode(plan, result);
+        return TaskContinuationPolicy.ApplyRetention(plan, result, decision);
+    }
+
+    private static FarmingSessionDecision DecideMode(FarmingPlan plan, in FarmingAttemptResult result)
+    {
         if (plan.RelicMaterial) return RelicFarmingPolicy.Decide(plan, result);
         if (plan.FreeExploration) return FreeExplorationPolicy.Decide(plan, result);
-        bool ownsSave = plan.SaveUse == SaveUse.Create && !plan.ExternalSave;
-        if (plan.ExternalSave && (result.DutyFailed || result.Aborted))
+        bool ownsSave = TaskContinuationPolicy.CanDeleteSave(plan);
+        if (TaskContinuationPolicy.PreserveSave(plan) && (result.DutyFailed || result.Aborted))
             return new(false, result.EntryFloor, false, false, "已有存檔攻略未正常完成；保留原檔並停止，不刪檔、不換檔、不自動重開。");
         if (plan.HoldOnFailure && (result.DutyFailed || result.Aborted))
             return new(false, result.EntryFloor, false, false, "診斷已停止；保留副本與存檔，等待人工處理。");
@@ -25,7 +34,7 @@ public static class FarmingSessionPolicy
             return new(false, plan.StartFloor, ownsSave, false, "本次入本已中止，未計完成次數。");
         if (result.DutyFailed)
             return plan.Mode == FarmingMode.DeepProgression
-                ? new(false, plan.StartFloor, true, true, string.Empty)
+                ? new(false, plan.StartFloor, ownsSave, ownsSave, string.Empty)
                 : new(false, plan.StartFloor, ownsSave, false, "本次攻略失敗，未計完成次數。");
         if (plan.ReusesSave)
             return new(result.HarvestCompleted, 0, false, false,
@@ -38,7 +47,7 @@ public static class FarmingSessionPolicy
             if (result.EntryFloor < 1 || result.EntryFloor > terminalEntry || result.EntryFloor % 10 != 1)
                 return new(false, result.EntryFloor, false, false, "攻略起點無效，停止接續。");
             return result.EntryFloor >= terminalEntry
-                ? new(true, plan.ExternalSave ? result.EntryFloor : plan.StartFloor, !plan.ExternalSave, false, string.Empty)
+                ? new(true, ownsSave ? plan.StartFloor : result.EntryFloor, ownsSave, false, string.Empty)
                 : new(false, result.EntryFloor + 10, false, false, string.Empty);
         }
         return new(true, plan.StartFloor, ownsSave, false, string.Empty);

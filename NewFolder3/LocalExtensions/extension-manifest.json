@@ -1,11 +1,12 @@
 {
   "schemaVersion": 1,
-  "upstreamVersion": "0.7.55.22",
-  "upstreamCommit": "e578aaec1b58945a8bf6868a5c8ec2baae8bc50b",
-  "localRevision": 8,
+  "upstreamVersion": "0.7.55.23",
+  "upstreamCommit": "5cd22e5de549f80a5a577b6500539f690c3b68b5",
+  "localRevision": 1,
   "versionRule": "upstream fourth component * 100 + local revision (01..99)",
-  "localVersion": "0.7.55.2208",
+  "localVersion": "0.7.55.2301",
   "features": [
+    "upstream-23-stable-passage-room-routing",
     "deep-dungeon-only-gcd-stall-protection",
     "registered-host-hook-prefix-validation-for-hot-reload",
     "aetherpool-original-job-eligibility-and-character-loading-wait",

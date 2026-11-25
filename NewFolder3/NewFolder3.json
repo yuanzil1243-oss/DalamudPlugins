@@ -1,15 +1,15 @@
 {
   "Author": "John Smith / Yuzi",
   "Name": "NewFolder3",
-  "Punchline": "基于官方 .22：GCD 停滞保护仅在地宫内生效。",
+  "Punchline": "基于官方 .23：出口路线稳定修复，保留本地扩展功能。",
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-  "AssemblyVersion": "0.7.55.2208",
+  "AssemblyVersion": "0.7.55.2301",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-  "Description": "基于原作者 0.7.55.22 的本地修改版 0.7.55.2208。GCD 停滞保护仅在深层迷宫内生效，离开地宫或过图时清空计时；其他副本及副本外不补技能。保留开关与1–300秒等待设置，地宫内暂停或停手后仍生效，完全停手请关闭该开关。保留.2207移速重新加载兼容、最大加速度、聚魔柄、魔石、结算退出、取消暂停、AE、自定义输出、防踢、续接宝箱、失败重试、循环和两套签名地图。构建与离线检查见验收记录，实际游戏效果待测。"
+  "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2301。保留官方出口房定位、多出口配对和路线稳定性修复。保留移速与最大加速度、奖励层移速、重载兼容、仅地宫内GCD保护及1–300秒等待、防踢、AE／自定义输出、继续探索与宝箱设置、普通下底、自由探索、失败重试、循环、取消暂停、聚魔柄、天宫魔石和两套签名地图。更新保留配置与暂停记录，不需要删除配置目录。构建与离线检查见验收记录，实际游戏效果待测。"
 }

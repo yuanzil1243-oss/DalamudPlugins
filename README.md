@@ -14,9 +14,9 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 
 | 插件 | 当前版本 | 简介 | 作者 | 状态 | 使用与下载 |
 | --- | --- | --- | --- | --- | --- |
-| NewFolder3 | **0.7.55.2208** | 基于官方 .22；GCD 停滞保护仅在地宫内生效。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 529项契约、构建与扩展壳检查通过；游戏效果待验证 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2208/NewFolder3.zip) |
+| NewFolder3 | **0.7.55.2301** | 基于官方 .23；出口路线稳定修复，保留本地扩展。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 541契约、178移速离线检查及干净重套构建通过；游戏效果待验证 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2301/NewFolder3.zip) |
 
-这是在官方 `0.7.55.22` 基础上重新接入扩展的版本。完整保留本次官方新增的深层攻略道具策略，以及原作者副本战斗、探索、寻路及奖励领取；本地新增可选的单次 GCD 恢复和受控调度，并扩展官方本组后暂停的模式覆盖；本版可选 GCD 保护独立于 Boss 故障状态，不代表模块初始化根因已修复。
+这是在官方 `0.7.55.23` 基础上重新接入扩展的版本，完整保留官方出口房定位、多出口配对与路线稳定性修复，并继承 .2208 的全部扩展功能和两套签名地图。原作者的 Boss 战斗及副本外 NPC 交互策略没有额外修改。
 
 ## 更新与保留数据
 
@@ -44,16 +44,20 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 
 - .2208 将 GCD 停滞保护限制在深层迷宫内，避免其他副本补技能；保留原开关与等待秒数。
 
+- .2301 跟进官方 .23，修复出口灯笼加载／卸载引起的路线切换；保留全部现有扩展、配置与地图。
+
 ## 当前资料
 
-- [0.7.55.2208 发布说明](docs/发布说明-0.7.55.2208.md)
+- [0.7.55.2301 发布说明](docs/发布说明-0.7.55.2301.md)
 - [功能、安装与保数据换版](docs/使用说明.md)
 - [构建与扩展壳维护](docs/开发说明.md) · [第三方声明](docs/第三方声明.md)
-- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2208/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2208/NewFolder3-overlay.zip)
-- [构建与文件校验](dist/NewFolder3/0.7.55.2208/BUILDINFO.json)
+- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2301/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2301/NewFolder3-overlay.zip)
+- [构建与文件校验](dist/NewFolder3/0.7.55.2301/BUILDINFO.json)
 
 ## 历史隔离
 
 旧 `.83-final-local` 及此前的源码、安装包、说明、公共地图接口和校验工具已整体移入 [历史归档](archive/README.md)。原始 857 个文件按字节保留，并附 SHA-256 清单；不参与当前库链安装、更新、构建或地图读取。
 
 版本规则：官方 `.20` 的第一个修改版为 `.2001`，第二个为 `.2002`；官方 `.21` 的第一个修改版为 `.2101`，第二个为 `.2102`，第三个为 `.2103`；官方 `.22` 的第一个修改版为 `.2201`，第二个为 `.2202`，第三个为 `.2203`，第四个为 `.2204`。
+
+官方 `.23` 的首个修改版为 `.2301`，后续为 `.2302`；官方 `.24` 的首个修改版为 `.2401`。

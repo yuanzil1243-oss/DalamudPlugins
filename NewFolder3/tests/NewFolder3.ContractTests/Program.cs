@@ -39,6 +39,7 @@ internal static class Program
         passed += ExitReceiptTests.Run();
         passed += PauseCancellationTests.Run();
         passed += AetherpoolExchangeTests.Run();
+        passed += PassageRoutingRegressionTests.Run();
         Console.WriteLine($"NewFolder3 contract tests: {passed} passed");
         return 0;
     }

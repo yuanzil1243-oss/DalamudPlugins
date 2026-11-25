@@ -14,6 +14,14 @@ public sealed class GcdStallWatchdog
     public bool Attempted { get; private set; }
     public long IdleMilliseconds { get; private set; }
 
+    /// <summary>Leaving the permitted scene discards the previous stall and attempt.</summary>
+    public bool UpdateScope(bool enabled, bool inDeepDungeon)
+    {
+        if (enabled && inDeepDungeon) return true;
+        Reset();
+        return false;
+    }
+
     public bool Update(long now, ulong target, bool eligible, bool gcdActive,
         int waitSeconds = DefaultWaitSeconds, bool canDispatch = true, long gcdElapsedMilliseconds = 0)
     {

@@ -90,6 +90,52 @@ internal static class GcdWaitSettingsTests
             Assert(!guard.Update(14999, 42, true, false, 10));
             Assert(guard.Update(15000, 42, true, false, 10));
         });
+        Check("outside-deep-dungeon-does-not-inherit-a-pending-stall", () =>
+        {
+            var guard = new GcdStallWatchdog();
+            Assert(guard.UpdateScope(true, true));
+            Assert(!guard.Update(1000, 42, true, false, 6));
+            Assert(!guard.Update(6999, 42, true, false, 6));
+            Assert(!guard.UpdateScope(true, false));
+            Assert(guard.IdleMilliseconds == 0 && !guard.Attempted);
+            Assert(!guard.UpdateScope(true, false));
+            Assert(guard.UpdateScope(true, true));
+            Assert(!guard.Update(20000, 42, true, false, 6));
+            Assert(!guard.Update(25999, 42, true, false, 6));
+            Assert(guard.Update(26000, 42, true, false, 6));
+        });
+        Check("leaving-after-an-attempt-rearms-only-after-a-new-wait", () =>
+        {
+            var guard = new GcdStallWatchdog();
+            Assert(guard.UpdateScope(true, true));
+            guard.Update(1000, 42, true, false, 2);
+            Assert(guard.Update(3000, 42, true, false, 2));
+            Assert(guard.Attempted);
+            Assert(!guard.UpdateScope(true, false));
+            Assert(!guard.Attempted && guard.IdleMilliseconds == 0);
+            Assert(guard.UpdateScope(true, true));
+            Assert(!guard.Update(10000, 42, true, false, 2));
+            Assert(guard.Update(12000, 42, true, false, 2));
+        });
+        Check("remaining-in-deep-dungeon-preserves-user-wait", () =>
+        {
+            var guard = new GcdStallWatchdog();
+            Assert(guard.UpdateScope(true, true));
+            guard.Update(1000, 42, true, false, 3);
+            Assert(guard.UpdateScope(true, true));
+            Assert(!guard.Update(3999, 42, true, false, 3));
+            Assert(guard.UpdateScope(true, true));
+            Assert(guard.Update(4000, 42, true, false, 3));
+        });
+        Check("disabled-scope-discards-pending-deadline", () =>
+        {
+            var guard = new GcdStallWatchdog();
+            guard.Update(1000, 42, true, false, 1);
+            Assert(!guard.UpdateScope(false, true));
+            Assert(guard.UpdateScope(true, true));
+            Assert(!guard.Update(5000, 42, true, false, 1));
+            Assert(guard.Update(6000, 42, true, false, 1));
+        });
         Check("weapon-dependent-range-is-valid", () =>
             Assert(GcdRecoveryActionPolicy.IsHostileGcd(true, -1, 58, 0)));
         Check("additional-gcd-group-is-valid", () =>

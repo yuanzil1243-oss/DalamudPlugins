@@ -2,22 +2,22 @@
   {
     "Author": "John Smith / Yuzi",
     "Name": "NewFolder3",
-    "Punchline": "基于官方 .22：修复更新或重新加载后内置移速无法启用。",
+    "Punchline": "基于官方 .22：GCD 停滞保护仅在地宫内生效。",
     "InternalName": "NewFolder3",
     "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-    "AssemblyVersion": "0.7.55.2207",
+    "AssemblyVersion": "0.7.55.2208",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-    "Description": "基于原作者 0.7.55.22 的本地修改版 0.7.55.2207。修复卫月保留已登记Hook入口时，内置移速完整函数校验误拒绝的问题；只在托管副本还原已登记入口后重新完整校验，未知函数改动仍拒绝。最大加速度继续由移速总开关控制，普通层与最终奖励层生效，Boss层、过场、暂停、停止及出本时撤销。保留.2206聚魔柄过图等待及天宫聚魔柄21–30魔石规则，以及结算退出、取消暂停、AE、自定义输出、GCD等待设置、防踢、续接宝箱、失败重试、循环和两套签名地图。GCD保护不限场景，完全停手需关闭其开关。完整构建与离线回归结果见验收记录，实际游戏效果仍待验证。",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2207/NewFolder3.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2207/NewFolder3.zip",
-    "LastUpdate": 1795576192,
+    "Description": "基于原作者 0.7.55.22 的本地修改版 0.7.55.2208。GCD 停滞保护仅在深层迷宫内生效，离开地宫或过图时清空计时；其他副本及副本外不补技能。保留开关与1–300秒等待设置，地宫内暂停或停手后仍生效，完全停手请关闭该开关。保留.2207移速重新加载兼容、最大加速度、聚魔柄、魔石、结算退出、取消暂停、AE、自定义输出、防踢、续接宝箱、失败重试、循环和两套签名地图。构建与离线检查见验收记录，实际游戏效果待测。",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2208/NewFolder3.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2208/NewFolder3.zip",
+    "LastUpdate": 1795589239,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "Changelog": "0.7.55.2207：修复更新或重新加载后内置移速无法启用。兼容卫月已登记的入口跳转，保留完整函数和调用校验；最大加速度仍跟随移速总开关。保留.2206全部功能、配置与两套地图。525项契约、178项移速、完整及干净重套构建通过；实际游戏效果待验证。"
+    "Changelog": "0.7.55.2208：GCD 停滞保护仅在深层迷宫内生效，其他副本和野外不补技能。出本、过图清空计时，重新进入后重新等待；保留开关和1–300秒设置。529项契约及构建、换版、扩展壳检查通过，实际游戏效果待验证。"
   }
 ]

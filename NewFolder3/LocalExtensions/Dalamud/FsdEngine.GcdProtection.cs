@@ -19,17 +19,20 @@ internal partial class FsdEngine
 
     internal unsafe void UpdateGcdStallProtection()
     {
-        if (!_configuration.Farming.GcdStallProtection)
-        {
-            _gcdWatchdog.Reset(); _gcdJob = 0; _gcdDisabledByError = false;
-            _nextGcdPoll = 0; _gcdDiagnosticReason = null;
-            return;
-        }
-        long now = Environment.TickCount64;
-        if (now < _nextGcdPoll || _gcdDisabledByError) return;
-        _nextGcdPoll = now + 100;
         try
         {
+            // Read live scene state before polling/native access, not the previous FSD snapshot.
+            bool enabled = _configuration.Farming.GcdStallProtection;
+            if (!_gcdWatchdog.UpdateScope(enabled, enabled && IsGcdProtectionInDeepDungeon()))
+            {
+                _gcdJob = 0; _gcdDisabledByError = false;
+                _nextGcdPoll = 0; _gcdDiagnosticReason = null;
+                return;
+            }
+            long now = Environment.TickCount64;
+            if (now < _nextGcdPoll || _gcdDisabledByError) return;
+            _nextGcdPoll = now + 100;
+
             var player = Service.LocalPlayer;
             var target = Service.TargetManager.Target as IBattleNpc;
             ulong targetId = target?.GameObjectId ?? 0;
@@ -50,7 +53,7 @@ internal partial class FsdEngine
             int? actionRange = null, mainGroup = null, additionalGroup = null;
             bool track = false;
             string reason = "eligible";
-            // Game/action validity only: no scene, FSD, provider or mechanic gates.
+            // Within deep dungeons, keep the assist independent of FSD/provider readiness.
             if (player is not { IsDead: false, Address: not 0 } ||
                 Service.Condition[ConditionFlag.BetweenAreas] || Service.Condition[ConditionFlag.BetweenAreas51] ||
                 Service.Condition[ConditionFlag.WatchingCutscene] || Service.Condition[ConditionFlag.WatchingCutscene78] ||
@@ -97,7 +100,8 @@ internal partial class FsdEngine
                 // This separately enabled user assist deliberately bypasses FSD's restrictions.
                 // Revalidate on the framework thread immediately before the native request.
                 var latest = Service.TargetManager.Target as IBattleNpc;
-                bool stillValid = latest is { IsDead: false, IsTargetable: true, CurrentHp: > 0 } &&
+                bool stillValid = _configuration.Farming.GcdStallProtection && IsGcdProtectionInDeepDungeon() &&
+                    latest is { IsDead: false, IsTargetable: true, CurrentHp: > 0 } &&
                     latest.GameObjectId == targetId && Service.LocalPlayer?.Address == player!.Address &&
                     !player.IsDead && !player.IsCasting && !manager->ActionQueued && manager->AnimationLock <= 0.05f &&
                     manager->GetAdjustedActionId(action) == adjusted &&
@@ -125,6 +129,10 @@ internal partial class FsdEngine
             RecordGcdDiagnostic("gcd-watchdog-error", new { error = ex.ToString(), disabledUntilToggle = true });
         }
     }
+
+    private static bool IsGcdProtectionInDeepDungeon() =>
+        Service.Condition[ConditionFlag.InDeepDungeon] && DeepDungeonHelper.IsInDeepDungeon() &&
+        !Service.Condition[ConditionFlag.BetweenAreas] && !Service.Condition[ConditionFlag.BetweenAreas51];
 
     private void RecordGcdDiagnostic(string name, object payload)
     {

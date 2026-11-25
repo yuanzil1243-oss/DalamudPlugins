@@ -87,6 +87,7 @@ internal sealed class PreparedSaveBinding
     public int MaxFloor { get; private set; }
     public bool RequireCheckpointMatch { get; private set; }
     internal int? ContinuationResultFloor { get; init; }
+    internal int? FailedAttemptFloor { get; init; }
     public string Description => Pinned is { } value ? $"存檔 {value.Index + 1}，起點 {value.StartFloor} 層" : "唯一存檔待讀取";
 
     public PreparedSaveBinding(bool reusable = false, int? expectedFloor = null, int? requiredSlot = null, int maxFloor = 100) =>
@@ -110,6 +111,12 @@ internal sealed class PreparedSaveBinding
 
     public bool Observe(IReadOnlyList<SaveSlotSnapshot> slots, out SaveSlotSnapshot source, out string error)
     {
+        if (FailedAttemptFloor is { } failedEntry)
+        {
+            if (!FailedAttemptRecoveryPolicy.TryResolve(slots, RequiredSlot ?? -1, failedEntry, Pinned, out source, out error)) return false;
+            Pinned = source;
+            return true;
+        }
         if (ContinuationResultFloor is { } entry)
         {
             if (!ContinuationSavePolicy.TryResolve(slots, entry, MaxFloor, out source, out error)) return false;

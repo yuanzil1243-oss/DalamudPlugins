@@ -1,15 +1,15 @@
 {
   "Author": "John Smith / Yuzi",
   "Name": "NewFolder3",
-  "Punchline": "基于官方 .23，模式续打、保档循环与本地扩展",
+  "Punchline": "基于官方 .23，失败结算续打、AE目标协调与本地扩展",
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-  "AssemblyVersion": "0.7.55.2302",
+  "AssemblyVersion": "0.7.55.2303",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-  "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2302。统一按所选模式续打与循环，普通下底、自由探索接入已有存档；新增保留存档选项，当前续打达标计第1轮。领奖退本总开关独立保留，修复三地宫最终出口、分数板及暂态误停。精简提示并在说明页底部集中列出使用规则。保留移速与最大加速度、奖励层移速、仅地宫内GCD保护、防踢、AE／自定义输出、暂停、聚魔柄、天宫魔石与两套签名地图。来源不明保档停止，更新不删除配置或暂停记录。游戏效果待实测。"
+  "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2303。修复失败结算停在最终成绩板：退本后原档可挑战则续打，禁入才核验删档重开，失败不扣成功轮数；保留存档仍退本保档停止。AE预设先关闭自身目标选择器，避免覆盖机制目标；PR保持不变，RSR仍用Manual。保留三地宫领奖退本、分数板循环、模式续打、保档、暂停、移速与最大加速度、地宫内GCD保护、防踢、聚魔柄、天宫魔石及两套签名地图。更新保留配置、地图缓存和暂停记录；游戏效果待实测。"
 }

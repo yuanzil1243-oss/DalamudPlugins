@@ -1,6 +1,6 @@
 # Yuzi · Dalamud 插件库
 
-当前发布 NewFolder3 0.7.55.2302，基于官方 .23，附完整源码、可复用扩展壳、许可证与文件校验。
+当前发布 NewFolder3 0.7.55.2303，基于官方 .23，附完整源码、可复用扩展壳、许可证与文件校验。
 
 ## 添加插件库
 
@@ -14,9 +14,12 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 
 | 插件 | 当前版本 | 简介 | 作者 | 状态 | 使用与下载 |
 | --- | --- | --- | --- | --- | --- |
-| NewFolder3 | **0.7.55.2302** | 基于官方 .23；模式续打、保档循环与最终领奖收尾。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 594项契约、162项默认移速离线及干净重套构建通过；游戏效果待验证 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2302/NewFolder3.zip) |
+| NewFolder3 | **0.7.55.2303** | 基于官方 .23；失败结算续打、AE目标协调，保留模式循环。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 638项契约、162项默认移速离线及干净重套构建通过；游戏效果待验证 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2303/NewFolder3.zip) |
 
 ## 本版使用规则
+
+- 失败结算后重新读取原档：可挑战则原档续打，禁入才核验删本任务档并按模式重开；不以失败次数作为触发依据，不扣成功轮数。保留存档仍退本保档停止。
+- AE预设先发送明确的`/aeTargetSelector off`，避免抢机制目标。退出后不自动重新打开，AE输出开关仍按原租约恢复；PR不改，RSR仍用Manual。
 
 - 本内先选地宫和模式，再点“继续探索”，无需选择槽位。普通下底和自由探索也可在本外选择已有存档续打；固定层段模式只能接续对应层段。
 - 当前续打完成目标算第1轮；3轮即当前成功加后续2轮，失败不扣成功轮数。死灵术士重开从1层，普通下底从最高可新建起点；自由探索续打只选终点，重开从不超过终点的最高合法起点开始。
@@ -36,14 +39,14 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 
 ## 当前资料
 
-- [0.7.55.2302 发布说明](docs/发布说明-0.7.55.2302.md)
+- [0.7.55.2303 发布说明](docs/发布说明-0.7.55.2303.md)
 - [功能、安装与保数据换版](docs/使用说明.md)
 - [构建与扩展壳维护](docs/开发说明.md) · [第三方声明](docs/第三方声明.md)
-- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2302/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2302/NewFolder3-overlay.zip)
-- [构建与文件校验](dist/NewFolder3/0.7.55.2302/BUILDINFO.json)
+- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2303/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2303/NewFolder3-overlay.zip)
+- [构建与文件校验](dist/NewFolder3/0.7.55.2303/BUILDINFO.json)
 
 ## 历史隔离
 
 旧 `.83-final-local` 的857个原始文件及此前源码、安装包、说明和地图接口按字节保留在[历史归档](archive/README.md)，不参与当前安装、更新、构建或地图读取。此前dist版本保留，活动库链只指向本版。
 
-版本规则：官方 `.20` 对应 `.2001/.2002`，官方 `.21` 对应 `.2101/.2102`，官方 `.23` 对应 `.2301/.2302`；官方 `.24` 的首个修改版为 `.2401`。
+版本规则：官方 `.20` 对应 `.2001/.2002`，官方 `.21` 对应 `.2101/.2102`，官方 `.23` 对应 `.2301/.2302/.2303`；官方 `.24` 的首个修改版为 `.2401`。

@@ -1,9 +1,10 @@
 namespace DeepDungeon.Fsd.Runtime;
 
-/// <summary>Owns only readable AE switches. Never writes the unreadable /aestop lock.</summary>
+/// <summary>Leases readable output switches; disables AE targeting before each output boundary.</summary>
 public sealed class AeOutputLease(Func<bool> readRunning, Func<bool> readPull,
-    Action<bool> setRunning, Action<bool> setPull)
+    Action<bool> setRunning, Action<bool> setPull, Func<bool> disableTargetSelector)
 {
+    public const string TargetSelectorDisableCommand = "/aeTargetSelector off";
     private (bool Running, bool Pull)? original, expected;
     public bool IsOwned => original.HasValue;
 
@@ -11,6 +12,9 @@ public sealed class AeOutputLease(Func<bool> readRunning, Func<bool> readPull,
     {
         try
         {
+            // An explicit off command is idempotent. There is no selector read IPC,
+            // so never toggle it or invent a prior value to restore at shutdown.
+            if (!disableTargetSelector()) { Restore(); return false; }
             var live = (Running: readRunning(), Pull: readPull());
             if (expected is { } prior && live != prior)
             {

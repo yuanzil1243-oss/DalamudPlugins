@@ -41,6 +41,7 @@ internal static class Program
         passed += AetherpoolExchangeTests.Run();
         passed += PassageRoutingRegressionTests.Run();
         passed += ModeContinuationTests.Run();
+        passed += FailedAttemptRecoveryTests.Run();
         Console.WriteLine($"NewFolder3 contract tests: {passed} passed");
         return 0;
     }

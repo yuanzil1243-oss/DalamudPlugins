@@ -141,6 +141,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
         }
         var decision = FarmingSessionPolicy.Decide(session.Plan, result);
         if (!TryBindContinuationAfterExit(ctx, decision)) return;
+        if (!TryReconcileFailedSave(ctx, result, ref decision)) return;
         if (TryPauseBeforeCleanup(ctx, result, decision)) return;
         if (session.PersistPause is { } persistPause)
         {
@@ -199,7 +200,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
             ctx.StatusIsError = true;
         }
         else
-            ctx.StatusLine = decision.RecoverFailure ? $"攻略失敗 {session.Failures} 次；從第 {session.NextFloor} 層重開。"
+            ctx.StatusLine = decision.RecoverFailure ? $"攻略失敗 {session.Failures} 次；從第 {session.NextFloor} 層{(decision.DeleteOwnedSave ? "重開" : "續打")}。"
                 : decision.CountCycle ? "本輪完成；存檔收尾已驗證。"
                 : $"本組通關；將接續 {session.NextFloor} 層。";
         Service.Log.Info($"[Farming] mode={session.Plan.Mode}, entry={_entryFloor}, clear={ctx.DutyCompletionObserved}, failure={ctx.DutyFailureObserved}, harvest={ctx.HarvestComplete}, discoveries={ctx.HoardDiscoveries}, aborted={_aborted}, reason={ctx.AttemptAbortReason}, cycle={CountsAsCycle}, next={session.NextFloor}, deleteOwned={decision.DeleteOwnedSave}, source={session.Source.Description}");
@@ -368,6 +369,7 @@ internal sealed partial class FarmingScenario(FarmingSession session) : IScenari
         _entry?.Dispose();
         _verification?.Dispose();
         _continuationVerification?.Dispose();
+        _failureVerification?.Dispose();
         _exit?.Dispose();
         _gripFlow?.Dispose();
         _context = null;

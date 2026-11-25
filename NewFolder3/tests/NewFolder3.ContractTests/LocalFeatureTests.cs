@@ -112,7 +112,7 @@ internal static class LocalFeatureTests
                 Check($"ae-start-suppress-resume-restore-{initialRunning}-{initialPull}", () =>
                 {
                     bool running = initialRunning, pull = initialPull;
-                    var ae = new AeOutputLease(() => running, () => pull, v => running = v, v => pull = v);
+                    var ae = new AeOutputLease(() => running, () => pull, v => running = v, v => pull = v, () => true);
                     Assert(ae.TrySet(true) && running && pull);
                     Assert(ae.TrySet(false) && !running && !pull);
                     Assert(ae.TrySet(true) && running && pull);
@@ -122,7 +122,7 @@ internal static class LocalFeatureTests
         Check("ae-manual-change-wins", () =>
         {
             bool running = true, pull = true;
-            var ae = new AeOutputLease(() => running, () => pull, v => running = v, v => pull = v);
+            var ae = new AeOutputLease(() => running, () => pull, v => running = v, v => pull = v, () => true);
             Assert(ae.TrySet(false));
             running = true;
             Assert(!ae.TrySet(true) && running && pull && !ae.IsOwned);
@@ -131,7 +131,7 @@ internal static class LocalFeatureTests
         {
             bool running = false, pull = false, unavailable = false;
             var ae = new AeOutputLease(() => unavailable ? throw new IOException() : running,
-                () => unavailable ? throw new IOException() : pull, v => running = v, v => pull = v);
+                () => unavailable ? throw new IOException() : pull, v => running = v, v => pull = v, () => true);
             Assert(ae.TrySet(true));
             unavailable = true;
             Assert(!ae.Restore() && ae.IsOwned);
@@ -142,18 +142,96 @@ internal static class LocalFeatureTests
         {
             bool running = false, pull = false;
             var ae = new AeOutputLease(() => running, () => pull, v => running = v,
-                v => { if (v) throw new IOException(); pull = v; });
+                v => { if (v) throw new IOException(); pull = v; }, () => true);
             Assert(!ae.TrySet(true) && !running && !pull);
         });
         Check("ae-rejected-write-detected", () =>
         {
             bool running = false, pull = false;
-            var ae = new AeOutputLease(() => running, () => pull, _ => { }, v => pull = v);
+            var ae = new AeOutputLease(() => running, () => pull, _ => { }, v => pull = v, () => true);
             Assert(!ae.TrySet(true) && !running && !pull);
+        });
+        foreach (bool enabled in new[] { false, true })
+            Check("ae-selector-off-before-output-" + enabled, () =>
+            {
+                bool running = false, pull = false, selector = true;
+                var events = new List<string>();
+                var ae = new AeOutputLease(() => running, () => pull,
+                    v => { Assert(!selector); events.Add("running"); running = v; },
+                    v => { Assert(!selector); events.Add("pull"); pull = v; },
+                    () => { events.Add(AeOutputLease.TargetSelectorDisableCommand); selector = false; return true; });
+                Assert(ae.TrySet(enabled) && running == enabled && pull == enabled && !selector);
+                Assert(events[0] == "/aeTargetSelector off" && events.Count == 4);
+                // Stop/resume boundaries repeat an explicit off, never switch/on.
+                selector = true; events.Clear();
+                Assert(ae.TrySet(enabled) && !selector && events[0] == "/aeTargetSelector off");
+                events.Clear(); Assert(ae.Restore() && !running && !pull && !selector);
+                Assert(!events.Any(e => e.StartsWith("/aeTargetSelector")));
+            });
+        Check("ae-selector-command-rejection-prevents-output", () =>
+        {
+            bool running = false, pull = false;
+            var ae = new AeOutputLease(() => running, () => pull,
+                v => running = v, v => pull = v, () => false);
+            Assert(!ae.TrySet(true) && !running && !pull && !ae.IsOwned);
+        });
+        Check("ae-selector-command-failure-restores-owned-output", () =>
+        {
+            bool running = false, pull = false, fail = false;
+            var ae = new AeOutputLease(() => running, () => pull,
+                v => running = v, v => pull = v, () => fail ? throw new IOException() : true);
+            Assert(ae.TrySet(true) && running && pull);
+            fail = true;
+            Assert(!ae.TrySet(true) && !running && !pull && !ae.IsOwned);
         });
         Check("ae-provider-values-compatible", () =>
             Assert((int)FsdRotationProvider.Custom == 4 && (int)FsdRotationProvider.InsertNameHere3 == 5 &&
                 (int)FsdRotationProvider.AEAssist == 6));
+        Check("ae-dtr-named-entry-confirms-off", () => Assert(AeTargetSelectorReadback.Read(
+            [("other", "Off"), ("AEAssist-TargetSelector", "目标选择器: Off")]) == AeTargetSelectorState.Off));
+        Check("ae-dtr-unrelated-off-is-not-proof", () => Assert(AeTargetSelectorReadback.Read(
+            [("other", "目标选择器: Off")]) == AeTargetSelectorState.Unknown));
+        Check("ae-dtr-missing-duplicate-and-unrecognized-are-unknown", () =>
+        {
+            Assert(AeTargetSelectorReadback.Read([]) == AeTargetSelectorState.Unknown);
+            Assert(AeTargetSelectorReadback.Read([("AEAssist-TargetSelector", null)]) == AeTargetSelectorState.Unknown);
+            Assert(AeTargetSelectorReadback.Read([("AEAssist-TargetSelector", "禁用中(PvP区域)")]) == AeTargetSelectorState.Unknown);
+            Assert(AeTargetSelectorReadback.Read([("AEAssist-TargetSelector", "目标选择器: Off"),
+                ("AEAssist-TargetSelector", "目标选择器: Off")]) == AeTargetSelectorState.Unknown);
+        });
+        Check("ae-dtr-known-active-labels", () =>
+        {
+            foreach (string text in new[] { "总血量最高", "智能(距离最近)", "深层迷宫模式" })
+                Assert(AeTargetSelectorReadback.Read([("AEAssist-TargetSelector", text)]) == AeTargetSelectorState.On);
+        });
+        Check("ae-dtr-allows-next-frame-before-off", () =>
+        {
+            var check = new AeTargetSelectorReadback(); check.CommandSent(1000);
+            Assert(check.Observe(1001, AeTargetSelectorState.On) == AeTargetSelectorVerificationResult.Pending && check.Pending);
+            Assert(check.Observe(1100, AeTargetSelectorState.Off) == AeTargetSelectorVerificationResult.ConfirmedOff && !check.Pending);
+        });
+        Check("ae-dtr-still-enabled-after-grace-is-failure", () =>
+        {
+            var check = new AeTargetSelectorReadback(); check.CommandSent(1000);
+            Assert(check.Observe(2999, AeTargetSelectorState.On) == AeTargetSelectorVerificationResult.Pending);
+            Assert(check.Observe(3000, AeTargetSelectorState.On) == AeTargetSelectorVerificationResult.StillEnabled && !check.Pending);
+        });
+        Check("ae-dtr-missing-after-grace-not-confirmed", () =>
+        {
+            var check = new AeTargetSelectorReadback(); check.CommandSent(1000);
+            Assert(check.Observe(3000, AeTargetSelectorState.Unknown) == AeTargetSelectorVerificationResult.Unknown && !check.Pending);
+        });
+        Check("ae-dtr-stop-resets-pending-verification", () =>
+        {
+            var check = new AeTargetSelectorReadback(); check.CommandSent(1000); check.Reset();
+            Assert(!check.Pending && check.Observe(3000, AeTargetSelectorState.On) == AeTargetSelectorVerificationResult.NotRequested);
+        });
+        Check("ae-dtr-transition-defers-stale-label-deadline", () =>
+        {
+            var check = new AeTargetSelectorReadback(); check.CommandSent(1000); check.DeferIfPending(9000);
+            Assert(check.Observe(10000, AeTargetSelectorState.On) == AeTargetSelectorVerificationResult.Pending);
+            Assert(check.Observe(10500, AeTargetSelectorState.Off) == AeTargetSelectorVerificationResult.ConfirmedOff);
+        });
         return count;
     }
 

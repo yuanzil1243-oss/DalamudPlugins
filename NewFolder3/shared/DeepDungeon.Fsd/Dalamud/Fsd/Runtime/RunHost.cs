@@ -189,6 +189,8 @@ namespace DeepDungeon.Fsd.Dalamud.Runtime
 			if (!_isFsdMode)
 				return;
 
+            if (_attachedScenario is Scenarios.FarmingScenario failureScenario && failureScenario.TryHandleFailureResult()) return;
+
 			if (_context is { Duty.StateReadFailed: true } context)
 			{
 				string error = context.Duty.LastStateReadError;

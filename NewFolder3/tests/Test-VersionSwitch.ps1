@@ -11,6 +11,12 @@ try {
         $config=Join-Path $case 'pluginConfigs\NewFolder3.json'
         '{"Version":1,"keep":"unchanged","Fsd":{"Farming":{"Mode":4,"Preferences":{"x":{"Cycles":3}}}}}' | Set-Content -LiteralPath $config -Encoding UTF8
         'map sentinel' | Set-Content -LiteralPath (Join-Path $case 'pluginConfigs\NewFolder3\DetailedMapCatalogs\sentinel.txt')
+        $counterDirectory=Join-Path $case 'pluginConfigs\NewFolder3\LocalExtensions'
+        New-Item -ItemType Directory -Path $counterDirectory -Force | Out-Null
+        $counter=Join-Path $counterDirectory 'trigger-counts.json'
+        '{"SchemaVersion":1,"AntiDisplacement":12,"ForcedMovement":34,"GcdProtection":56}' | Set-Content -LiteralPath $counter -Encoding UTF8
+        Copy-Item -LiteralPath $counter -Destination ($counter+'.bak')
+        $counterBefore=(Get-FileHash -LiteralPath $counter).Hash
         $settings=@{DevPluginLoadLocations=@{'$values'=@(@{Path='C:\old\NewFolder3.dll';IsEnabled=$true},@{Path='C:\other\Other.dll';IsEnabled=$true})};DevPluginSettings=@{};SavedProfiles=@{'$values'=@()};DefaultProfile=@{Plugins=@{'$values'=@(@{InternalName='NewFolder3';WorkingPluginId='11111111-1111-1111-1111-111111111111';IsEnabled=$true},@{InternalName='Other';WorkingPluginId='33333333-3333-3333-3333-333333333333';IsEnabled=$true})}}}
         $settings | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath (Join-Path $case 'dalamudConfig.json') -Encoding UTF8
         @{InternalName='NewFolder3';AssemblyVersion='0.7.55.20';InstalledFromUrl='https://raw.githubusercontent.com/transparent-duck/NewFolder3/main/NewFolder3-release.json';WorkingPluginId='11111111-1111-1111-1111-111111111111'} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $case 'installedPlugins\NewFolder3\0.7.55.20\NewFolder3.json') -Encoding UTF8
@@ -20,11 +26,14 @@ try {
         $before=(Get-FileHash -LiteralPath $config).Hash
         $null=& $tool -Mode $mode -LauncherRoot $case -LocalDll (Join-Path $case 'package\NewFolder3.dll')
         Assert ((Get-FileHash -LiteralPath $config).Hash -eq $before) 'Inspect mutated config'
+        Assert ((Get-FileHash -LiteralPath $counter).Hash -eq $counterBefore) 'Inspect mutated counters'
         $result=(& $tool -Mode $mode -LauncherRoot $case -LocalDll (Join-Path $case 'package\NewFolder3.dll') -Apply)|ConvertFrom-Json
         Assert ((Get-FileHash -LiteralPath (Join-Path $result.Backup 'NewFolder3.json')).Hash -eq $before) 'Backup mismatch'
         $new=Get-Content -LiteralPath $config -Raw|ConvertFrom-Json
         Assert ($new.keep -eq 'unchanged' -and $new.Fsd.Farming.Preferences.x.Cycles -eq 3) 'Unrelated settings changed'
         Assert (Test-Path -LiteralPath (Join-Path $case 'pluginConfigs\NewFolder3\DetailedMapCatalogs\sentinel.txt')) 'User data removed'
+        Assert ((Get-FileHash -LiteralPath $counter).Hash -eq $counterBefore) 'Version switch mutated counters'
+        Assert ((Get-FileHash -LiteralPath ($counter+'.bak')).Hash -eq $counterBefore) 'Version switch mutated counter backup'
         Assert (!(Test-Path -LiteralPath (Join-Path $case 'installedPlugins\NewFolder3\0.7.55.83'))) 'Retired binary still selected'
         Assert (Test-Path -LiteralPath (Join-Path $result.Backup 'binary-0.7.55.83\NewFolder3.json')) 'Retired binary not preserved'
         $newSettings=Get-Content -LiteralPath (Join-Path $case 'dalamudConfig.json') -Raw|ConvertFrom-Json

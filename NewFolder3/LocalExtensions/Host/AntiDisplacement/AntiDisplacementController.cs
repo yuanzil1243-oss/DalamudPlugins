@@ -19,6 +19,7 @@ internal sealed class AntiDisplacementController(Configuration configuration, IC
     private volatile bool requested, disposed, faulted;
     private string? error;
     private long suppressed;
+    private readonly DisplacementTriggerTracker? triggerTracker = configuration.TriggerCounters is { } counters ? new(counters) : null;
 
     public void Update()
     {
@@ -71,12 +72,22 @@ internal sealed class AntiDisplacementController(Configuration configuration, IC
             ? ReadScene() : default;
         var decision = KnockbackProtectionPolicy.Decide(enabled, current.Scene, live,
             current.At, Environment.TickCount64, thread, motion);
-        if (decision.Suppress) Interlocked.Increment(ref suppressed);
+        if (decision.Suppress)
+        {
+            Interlocked.Increment(ref suppressed);
+            try
+            {
+                triggerTracker?.Suppressed(new(live.EntityId, (long)live.Actor, live.Territory, live.Dungeon, live.Floor),
+                    motion.Angle, motion.Distance, motion.Duration, motion.NativeMode, motion.Flags, Environment.TickCount64);
+            }
+            catch { /* Statistics never turn suppression into a pass-through. */ }
+        }
         return decision;
     }
 
     private void Suspend()
     {
+        triggerTracker?.Reset();
         Volatile.Write(ref frame, new(default, 0, false));
         if (native?.Enabled == true)
         {
@@ -115,6 +126,7 @@ internal sealed class AntiDisplacementController(Configuration configuration, IC
         }
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("僅妖宮 71–99 層，嘗試阻止擊退與吸引。\n其他樓層、副本及過圖時停用。");
+        TriggerCounterUi.Draw(configuration.TriggerCounters, FeatureTriggerKind.AntiDisplacement);
         if (error != null) ImGui.TextWrapped("防擊退未啟用：" + error);
     }
 

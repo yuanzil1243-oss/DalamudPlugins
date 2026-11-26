@@ -7,5 +7,8 @@
   <ItemGroup>
     <Compile Include="../../LocalExtensions/Host/ForcedMovement/*.cs" Exclude="../../LocalExtensions/Host/ForcedMovement/NativeDefinitions.generated.cs" Link="Production/%(Filename)%(Extension)" />
     <Compile Include="../../LocalExtensions/Core/AntiDisplacement/Policy.cs" Link="Production/DisplacementPolicy.cs" />
+    <Compile Include="../../LocalExtensions/Core/FeatureTriggerCounters.cs" Link="Production/FeatureTriggerCounters.cs" />
+    <Compile Include="../../LocalExtensions/Core/FeatureTriggerTrackers.cs" Link="Production/FeatureTriggerTrackers.cs" />
+    <Compile Include="../../LocalExtensions/Host/TriggerCounterUi.cs" Link="Production/TriggerCounterUi.cs" />
   </ItemGroup>
 </Project>

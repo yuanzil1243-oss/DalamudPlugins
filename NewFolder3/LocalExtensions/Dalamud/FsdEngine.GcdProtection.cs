@@ -23,6 +23,7 @@ internal partial class FsdEngine
         {
             // Read live scene state before polling/native access, not the previous FSD snapshot.
             bool enabled = _configuration.Farming.GcdStallProtection;
+            UpdateGcdTriggerObservation(enabled && IsGcdProtectionInDeepDungeon() && Service.LocalPlayer is { IsDead: false });
             if (!_gcdWatchdog.UpdateScope(enabled, enabled && IsGcdProtectionInDeepDungeon()))
             {
                 _gcdJob = 0; _gcdDisabledByError = false;
@@ -108,7 +109,12 @@ internal partial class FsdEngine
                     manager->GetActionStatus(ActionType.Action, adjusted, targetId) == Service.ActionStatus_Ready &&
                     Service.Available_GetActinoInRangeOrLoSStatus.Contains(ActionManager.GetActionInRangeOrLoS(
                         adjusted, (NativeObject*)player.Address, (NativeObject*)latest.Address));
+                ushort beforeSequence = manager->LastUsedActionSequence;
+                gcdTriggerConfirmation?.Reset();
                 bool accepted = stillValid && manager->UseAction(ActionType.Action, adjusted, targetId);
+                if (Service.LocalPlayer is { IsDead: false } confirmedPlayer)
+                    gcdTriggerConfirmation?.ArmAccepted(now, accepted, manager->ActionQueued, beforeSequence,
+                        manager->LastUsedActionSequence, confirmedPlayer.EntityId, adjusted, targetId);
                 RecordGcdDiagnostic("gcd-watchdog-attempt", new { targetId, job, requestedActionId = action,
                     adjustedActionId = adjusted, waitSeconds = seconds, idleMilliseconds = _gcdWatchdog.IdleMilliseconds,
                     accepted, actionStatus, rangeStatus, actionRange, mainGroup, additionalGroup,
@@ -126,6 +132,7 @@ internal partial class FsdEngine
         catch (Exception ex)
         {
             _gcdWatchdog.Reset(); _gcdDisabledByError = true;
+            gcdTriggerConfirmation?.Reset();
             RecordGcdDiagnostic("gcd-watchdog-error", new { error = ex.ToString(), disabledUntilToggle = true });
         }
     }

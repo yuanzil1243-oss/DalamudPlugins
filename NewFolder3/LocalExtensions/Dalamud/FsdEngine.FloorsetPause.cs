@@ -167,7 +167,8 @@ internal partial class FsdEngine
             return new(false, "請切回暫停時的職業再繼續。");
         if (checkpoint.Plan.DungeonId is 1 or 2 && checkpoint.Job is not (23 or 31 or 38))
             return new(false, "保留原作者職業支援範圍：死宮／天宮須使用機工士、吟遊詩人或舞者。");
-        var session = new FarmingSession(checkpoint.Plan);
+        var session = new FarmingSession(checkpoint.Plan)
+            { InitialGripExchangeChecked = checkpoint.Kind == FloorsetResumeKind.ContinueSave };
         session.RestoreLocalFailureCount(checkpoint.Failures);
         if (checkpoint.Slot is { } slot)
             session.RestoreCheckpoint(slot, checkpoint.Failures, checkpoint.Character,

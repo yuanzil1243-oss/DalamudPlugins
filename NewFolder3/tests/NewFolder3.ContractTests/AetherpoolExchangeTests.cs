@@ -26,7 +26,7 @@ internal static class AetherpoolExchangeTests
             Check("mismatched-floor-keeps-save-"+id,!RelicFarmingPolicy.Decide(plan,new(d.StartFloor+10,true,false,false,false)).DeleteOwnedSave);
             Check("external-plan-rejected-"+id,!RelicFarmingPolicy.Decide(plan with{ExternalSave=true},new(d.StartFloor,true,false,false,false)).DeleteOwnedSave);
             Check("prepared-rejected-"+id,!RelicFarmingPolicy.TryCreate(id,SaveUse.Prepared,d.StartFloor,1,false,new(false,true,true,false),out _,out _));
-            Check("wrong-start-rejected-"+id,!RelicFarmingPolicy.TryCreate(id,SaveUse.Create,1,1,false,new(false,true,true,false),out _,out _));
+            Check("wrong-start-rejected-"+id,!RelicFarmingPolicy.TryCreate(id,SaveUse.Create,11,1,false,new(false,true,true,false),out _,out _));
             Check("pause-supported-"+id,FloorsetPausePolicy.Supports(plan));
             var checkpoint = new FloorsetPauseCheckpoint(123,31,plan,FloorsetResumeKind.RestartCycle,null,1,2);
             Check("pause-roundtrip-"+id, JsonSerializer.Deserialize<FloorsetPauseCheckpoint>(JsonSerializer.Serialize(checkpoint)) is { } loaded && loaded.IsValid() && loaded.Plan.GripExchange==plan.GripExchange);

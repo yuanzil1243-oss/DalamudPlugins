@@ -39,6 +39,7 @@ internal static class Program
         passed += ExitReceiptTests.Run();
         passed += PauseCancellationTests.Run();
         passed += AetherpoolExchangeTests.Run();
+        passed += RelicPresetTests.Run();
         passed += PassageRoutingRegressionTests.Run();
         passed += ModeContinuationTests.Run();
         passed += FailedAttemptRecoveryTests.Run();
@@ -46,6 +47,7 @@ internal static class Program
         passed += HoardProbeRegressionTests.Run();
         passed += RelicOffenseItemTests.Run();
         passed += FreeBlindSearchTests.Run();
+        passed += TriggerCounterTests.Run();
         Console.WriteLine($"NewFolder3 contract tests: {passed} passed");
         return 0;
     }

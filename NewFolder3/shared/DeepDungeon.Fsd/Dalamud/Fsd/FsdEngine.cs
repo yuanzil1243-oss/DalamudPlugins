@@ -514,6 +514,7 @@ namespace DeepDungeon.Fsd.Dalamud
 
         public void Dispose()
         {
+            DisposeGcdTriggerObservation();
             RestoreAeOutput();
             Map.FloorMapSource.Live?.Dispose();
             _rotationControl.Reset();

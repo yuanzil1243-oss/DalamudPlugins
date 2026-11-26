@@ -24,7 +24,7 @@ internal partial class FsdEngine
         if (settings.RelicMaterial)
         {
             if (!RelicFarmingPolicy.TryCreate(dungeon, SaveUse.Create,
-                AetherpoolExchangePolicy.GetDungeon(dungeon)?.StartFloor ?? 0,
+                settings.GetRelicStartFloor(),
                 cycles, infinite, targets, out plan, out error)) return false;
         }
         else if (settings.FreeExploration)

@@ -81,7 +81,7 @@ internal partial class FsdEngine
         }
         ImGui.BeginDisabled(running);
         if (settings.RelicMaterial)
-            ImGui.TextWrapped($"固定 {AetherpoolExchangePolicy.GetDungeon(settings.DungeonId)?.StartFloor} 層起跑十層，通關出本後按門檻兌換。未保檔時，失敗清理本任務檔後重試，不計成功輪數。");
+            DrawRelicPresetSelection();
         else if (effectiveMode == FarmingMode.Hoard)
         {
             int floor = _fsfScenarioIndex;

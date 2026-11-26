@@ -1,3 +1,4 @@
+using DeepDungeon.Fsd.Core;
 using Dalamud.Configuration;
 using Dalamud.Plugin;
 using DeepDungeon.Fsd.Runtime;
@@ -23,8 +24,14 @@ public sealed class Configuration : IPluginConfiguration, IFsdSettingsStore
     public bool ForcedMovementEnabled { get; set; }
     public string CommunityEvidenceInstallationToken { get; set; } = string.Empty;
 
+    [Newtonsoft.Json.JsonIgnore, System.Text.Json.Serialization.JsonIgnore]
+    public FeatureTriggerCounters? TriggerCounters { get; private set; }
+
     public void Initialize(IDalamudPluginInterface pluginInterface)
-        => _pluginInterface = pluginInterface ?? throw new ArgumentNullException(nameof(pluginInterface));
+    {
+        _pluginInterface = pluginInterface ?? throw new ArgumentNullException(nameof(pluginInterface));
+        TriggerCounters ??= new(Path.Combine(pluginInterface.GetPluginConfigDirectory(), "LocalExtensions", "trigger-counts.json"));
+    }
 
     public FsdSettings Load() => Fsd ?? throw new InvalidOperationException("Standalone FSD settings are missing.");
 

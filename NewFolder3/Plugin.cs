@@ -10,7 +10,7 @@ using OmenTools.OmenService;
 
 namespace NewFolder3;
 
-public sealed class Plugin : IDalamudPlugin, IDisposable
+public sealed partial class Plugin : IDalamudPlugin, IDisposable
 {
     private readonly IDalamudPluginInterface _pluginInterface;
     private readonly ICommandManager _commandManager;
@@ -48,6 +48,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
         _commandManager = commandManager ?? throw new ArgumentNullException(nameof(commandManager));
         _framework = framework ?? throw new ArgumentNullException(nameof(framework));
 
+        DeepDungeon.Fsd.Core.FeatureTriggerCounters? triggerCounters = null;
         FsdApplication? application = null;
         YAxisAdjustController? yAxis = null;
         LocalSpeedController? localSpeed = null;
@@ -83,6 +84,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
             _configuration =
                 pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             _configuration.Initialize(pluginInterface);
+            triggerCounters = _configuration.TriggerCounters;
             DeleteLegacyRejectedUploads(pluginInterface.GetPluginConfigDirectory(), pluginLog);
             _accessGate = NewFolder3BuildProfile.CreateAccessGate(pluginInterface, pluginLog);
             string hostVersion = typeof(Plugin).Assembly.GetName().Version?.ToString()
@@ -158,6 +160,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
                 tryAuthorizeFsdStart: _accessGate.TryAuthorizeFsdStart,
                 fsdStartDenialNoticeProvider: () => _accessGate.FsdStartDenialNotice);
             _application = application;
+            application.AttachTriggerCounters(_configuration.TriggerCounters!);
 
             localSpeed = new LocalSpeedController(_configuration, () => _application.IsRunActive,
                 clientState, condition, objectTable, sigScanner, interop, pluginLog);
@@ -201,6 +204,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
             RollBack(() => forcedMovement?.Dispose(), rollbackErrors);
             RollBack(() => yAxis?.Dispose(), rollbackErrors);
             RollBack(() => application?.Dispose(), rollbackErrors);
+            RollBack(() => triggerCounters?.Dispose(), rollbackErrors);
             RollBack(() => communityEvidenceCollector?.Dispose(), rollbackErrors);
             RollBack(() => usageTelemetryCollector?.Dispose(), rollbackErrors);
             RollBack(() => longRunLogCollector?.Dispose(), rollbackErrors);
@@ -262,7 +266,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
         _forcedMovement.Update();
         try { _application.Update(framework); }
         catch { _localSpeed.RevokeForHostError(); _antiDisplacement.RevokeForHostError(); _forcedMovement.RevokeForHostError(); throw; }
-        finally { _localSpeed.ReleaseIfStopped(); }
+        finally { try { _localSpeed.ReleaseIfStopped(); } finally { FlushTriggerCounters(); } }
         _yAxis.Update(_application.CurrentDeepDungeonState);
         _communityEvidenceCollector?.ObserveRunState(
             _application.IsRunActive,
@@ -299,7 +303,7 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
         finally { _forcedMovement.Dispose(); }
         _localSpeed.Dispose();
         _yAxis.Dispose();
-        _application.Dispose();
+        try { _application.Dispose(); } finally { _configuration.TriggerCounters?.Dispose(); }
         _communityEvidenceCollector?.Dispose();
         _usageTelemetryCollector?.Dispose();
         _longRunLogCollector?.Dispose();

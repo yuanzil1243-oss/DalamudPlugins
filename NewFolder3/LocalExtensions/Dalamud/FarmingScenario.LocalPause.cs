@@ -40,7 +40,7 @@ internal sealed partial class FarmingScenario
         }
         if (!decision.CountCycle)
         {
-            if (session.Plan.Mode != FarmingMode.DeepProgression || decision.NextFloor <= _entryFloor)
+            if (session.Plan.Mode != FarmingMode.DeepProgression && !RelicFarmingPolicy.CanContinue(session.Plan) || decision.NextFloor <= _entryFloor)
                 FinishPause(ctx, "本組沒有可驗證的後續進度；停止並保留存檔。", error: true);
             else
             {

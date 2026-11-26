@@ -12,7 +12,7 @@ internal sealed record NativeSnapshot(bool HookEnabled,long AllCalls,long LocalC
     string LastDenied,string LastReleased,string EntryVerification,PermissionMetric[] Permissions);
 
 /// <summary>Intercepts the shared normal input permission path, without manufacturing movement.</summary>
-internal sealed class NativeBackend(ISigScanner scanner,IGameInteropProvider interop,MovementGate gate,Func<Scene,bool> validateLive):IDisposable
+internal sealed class NativeBackend(ISigScanner scanner,IGameInteropProvider interop,MovementGate gate,Func<Scene,bool> validateLive,Action<Scene,uint,byte,byte,long>? observePermission=null):IDisposable
 {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate byte PermissionCall(nint self,uint id,int excluded1,int excluded2);
@@ -75,7 +75,12 @@ internal sealed class NativeBackend(ISigScanner scanner,IGameInteropProvider int
             {
                 Interlocked.Increment(ref calls[i]);
                 bool local=self==gate.Current.ConditionsAddress;
-                if(local)Interlocked.Increment(ref localCalls);
+                if(local)
+                {
+                    Interlocked.Increment(ref localCalls);
+                    try { observePermission?.Invoke(gate.Current,id,original,result,Environment.TickCount64); }
+                    catch { /* Observer failure must not change the original/filter result. */ }
+                }
                 if(original==0)
                 {
                     Interlocked.Increment(ref denied[i]);

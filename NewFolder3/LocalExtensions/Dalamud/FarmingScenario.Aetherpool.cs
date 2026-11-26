@@ -44,15 +44,17 @@ internal sealed partial class FarmingScenario
     {
         if (AetherpoolExchangePolicy.GetDungeon(session.Plan.DungeonId) is not { } dungeon ||
             _gripTracker?.TryGet(dungeon.DungeonId, out var state) != true) return true; // Native entry still validates unknown/unlocked state.
-        if (state.Weapon == null || state.Armor == null || state.Weapon >= dungeon.Reserve && state.Armor >= dungeon.Reserve) return true;
-        ctx.StatusLine = $"聚魔強化不足：武器 +{state.Weapon}／防具 +{state.Armor}；本任務保留值為 {dungeon.Reserve}。";
+        int reserve = session.Plan.RelicMaterial ? RelicFarmingPolicy.EntryReserve(session.Plan) : dungeon.Reserve;
+        if (state.Weapon == null || state.Armor == null || state.Weapon >= reserve && state.Armor >= reserve) return true;
+        ctx.StatusLine = $"聚魔強化不足：武器 +{state.Weapon}／防具 +{state.Armor}；本任務保留值為 {reserve}。";
         ctx.StatusIsError = true; return false;
     }
     private bool TryPostExitGripExchange(RunContext ctx, FarmingAttemptResult result, IFramework framework)
     {
         // A pending pause prevents a new batch. An already-started exchange owns
         // its confirmation/receipt and must finish or fail before the task pauses.
-        if (!AetherpoolExchangePolicy.ShouldRunPostExitExchange(session.Plan.GripExchange != null,
+        // Intermediate ten-floor clears preserve their save and never spend aetherpool.
+        if (!AetherpoolExchangePolicy.ShouldRunPostExitExchange(session.Plan,
                 _postGripChecked, session.HasPendingFloorsetPause, _gripFlow != null, result)) return true;
         if (!RunGripExchange(ctx, framework)) return false;
         _postGripChecked = true; return !ctx.StatusIsError;

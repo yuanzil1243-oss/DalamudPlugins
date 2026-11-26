@@ -22,8 +22,9 @@ public sealed record FloorsetPauseCheckpoint(ulong Character, uint Job, FarmingP
             string.IsNullOrWhiteSpace(slot.Identity)) return false;
         return Kind == FloorsetResumeKind.ReusePrepared
             ? Plan.ReusesSave && slot.StartFloor <= 21
-            : Plan.Mode == FarmingMode.DeepProgression && !Plan.ReusesSave &&
+            : (Plan.Mode == FarmingMode.DeepProgression || RelicFarmingPolicy.CanContinue(Plan)) && !Plan.ReusesSave &&
                 slot.StartFloor > TaskContinuationPolicy.MinimumFloor(Plan) &&
+                (!Plan.RelicMaterial || RelicFarmingPolicy.ContainsEntry(Plan, slot.StartFloor)) &&
                 (!Plan.FreeExploration || slot.StartFloor <= Plan.EndFloor);
     }
 }

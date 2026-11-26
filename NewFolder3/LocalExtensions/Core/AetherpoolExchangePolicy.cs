@@ -47,6 +47,10 @@ public static class AetherpoolExchangePolicy
         bool exchangeActive, in FarmingAttemptResult result) =>
         enabled && !alreadyChecked && result.DutyCompleted && !result.DutyFailed && !result.Aborted &&
         (exchangeActive || !pauseRequested);
+    public static bool ShouldRunPostExitExchange(FarmingPlan plan, bool alreadyChecked, bool pauseRequested,
+        bool exchangeActive, in FarmingAttemptResult result) =>
+        ShouldRunPostExitExchange(plan.GripExchange != null && (!plan.RelicMaterial || RelicFarmingPolicy.ReachedEnd(plan, result)),
+            alreadyChecked, pauseRequested, exchangeActive, result);
     public static int ComputePlannedExchanges(int? weapon, int? armor, GripExchangeOptions options, int reserve)
     {
         if (!options.IsValid || weapon is not (>= 0 and <= 99) || armor is not (>= 0 and <= 99) || reserve < 0)
@@ -74,29 +78,44 @@ public static class AetherpoolExchangePolicy
 
 public static class RelicFarmingPolicy
 {
+    public static int GetStartFloor(uint dungeonId, bool potd1To50) =>
+        dungeonId == 1 && potd1To50 ? 1 : AetherpoolExchangePolicy.GetDungeon(dungeonId)?.StartFloor ?? 0;
+    public static int GetEndFloor(FarmingPlan p) => p.EndFloor ?? p.StartFloor + 9;
+    public static bool ContainsEntry(FarmingPlan p, int entry) => IsValid(p) &&
+        entry >= p.StartFloor && entry % 10 == 1 && entry + 9 <= GetEndFloor(p);
+    public static bool ReachedEnd(FarmingPlan p, in FarmingAttemptResult r) =>
+        ContainsEntry(p, r.EntryFloor) && r.DutyCompleted && !r.DutyFailed && !r.Aborted &&
+        r.EntryFloor + 9 == GetEndFloor(p);
+    public static bool CanContinue(FarmingPlan p) => IsValid(p) && GetEndFloor(p) > p.StartFloor + 9;
+    public static int EntryReserve(FarmingPlan p) => IsValid(p) && p.DungeonId == 1 && p.StartFloor == 1
+        ? 0 : AetherpoolExchangePolicy.GetDungeon(p.DungeonId)?.Reserve ?? 0;
+
     public static bool TryCreate(uint dungeonId, SaveUse saveUse, int startFloor, int cycles, bool infinite,
         FarmingTargets targets, out FarmingPlan? plan, out string error)
     {
         plan = new FarmingPlan(FarmingMode.Hoard, saveUse, startFloor, cycles, infinite,
             targets.Hoard, targets.Gold, targets.Silver, targets.Bronze)
-            { DungeonId = dungeonId, RelicMaterial = true };
-        error = IsValid(plan) ? "" : "聚魔柄循環只支援自建死宮 51–60、天宮／朝聖 21–30，並須開啟銀箱。";
+            { DungeonId = dungeonId, RelicMaterial = true, EndFloor = dungeonId == 1 && startFloor == 1 ? 50 : null };
+        error = IsValid(plan) ? "" : "強化／聚魔柄支援死宮 1–50、51–60及天宮／妖宮 21–30，須使用自建檔並開啟銀箱。";
         if (error.Length == 0) return true;
         plan = null; return false;
     }
     public static bool IsValid(FarmingPlan p) => p.RelicMaterial && p.Mode == FarmingMode.Hoard &&
-        AetherpoolExchangePolicy.GetDungeon(p.DungeonId) is { } dungeon && p.StartFloor == dungeon.StartFloor &&
+        AetherpoolExchangePolicy.GetDungeon(p.DungeonId) is { } dungeon &&
+        (p.DungeonId == 1 && p.StartFloor == 1 && p.EndFloor == 50 || p.StartFloor == dungeon.StartFloor && p.EndFloor == null) &&
         p.SaveUse == SaveUse.Create && (!p.ExternalSave || p.ManagedContinuation) && !p.CurrentDutyOnly && !p.FreeExploration &&
         !p.OrdinaryDescent && p.StopAfterFloor == null && p.TargetCycles > 0 && p.OpenSilver &&
         (p.GripExchange == null || p.GripExchange.IsValid);
     public static FarmingSessionDecision Decide(FarmingPlan p, in FarmingAttemptResult r)
     {
-        if (!IsValid(p) || r.EntryFloor != p.StartFloor)
+        if (!ContainsEntry(p, r.EntryFloor))
             return new(false, r.EntryFloor, false, false, "聚魔柄任務來源或層段不符；保檔停止。");
         if (r.Aborted || p.HoldOnFailure && r.DutyFailed)
             return new(false, p.StartFloor, false, false, "聚魔柄任務已中止；保檔停止。");
         if (r.DutyFailed) return new(false, p.StartFloor, TaskContinuationPolicy.CanDeleteSave(p), !TaskContinuationPolicy.PreserveSave(p), "");
         if (!r.DutyCompleted) return new(false, r.EntryFloor, false, false, "未確認通關；保檔停止。");
-        return new(true, p.StartFloor, TaskContinuationPolicy.CanDeleteSave(p), false, "");
+        return ReachedEnd(p, r)
+            ? new(true, p.StartFloor, TaskContinuationPolicy.CanDeleteSave(p), false, "")
+            : new(false, r.EntryFloor + 10, false, false, "");
     }
 }

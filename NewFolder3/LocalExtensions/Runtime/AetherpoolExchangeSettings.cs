@@ -10,6 +10,18 @@ public sealed partial class FarmingSettings
     // Feature flags never occupy retired persisted FarmingMode values 4/5.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool RelicMaterial { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RelicPotd1To50 { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RelicStrengthOnly { get; set; }
+    public int GetRelicStartFloor() => RelicFarmingPolicy.GetStartFloor(DungeonId, RelicPotd1To50);
+    public FarmingPlan ConfigureGripExchange(FarmingPlan plan)
+    {
+        if (plan.RelicMaterial)
+            return plan with { GripExchange = RelicStrengthOnly ? null : GripExchange?.ToOptions() ?? new GripExchangeOptions() };
+        return plan.DungeonId == 4 && plan.Mode == FarmingMode.Hoard && plan.StartFloor == 21 && GripExchange?.EnabledForHoard == true
+            ? plan with { GripExchange = GripExchange.ToOptions() } : plan;
+    }
     public FarmingPreferences GetRelicMaterialPreferences()
     {
         string key = $"RelicMaterial:{DungeonId}:Create";

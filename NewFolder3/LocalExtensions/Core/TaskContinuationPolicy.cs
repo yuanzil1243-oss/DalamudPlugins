@@ -50,8 +50,8 @@ public static class TaskContinuationPolicy
             ? "目前地宮或樓層無法續打。"
             : p.CurrentDutyOnly || p.StopAfterFloor.HasValue || p.HoldOnFailure || p.HoldAfterClear
                 ? "此任務不能混用診斷或單組接管設定。"
-            : p.RelicMaterial && entry != p.StartFloor
-                ? $"聚魔柄模式只能在 {p.StartFloor}–{p.StartFloor + 9} 層繼續。"
+            : p.RelicMaterial && !RelicFarmingPolicy.ContainsEntry(p, entry)
+                ? $"強化／聚魔柄只能在所選的 {p.StartFloor}–{RelicFarmingPolicy.GetEndFloor(p)} 層繼續。"
             : p.FreeExploration && (p.EndFloor is not { } end || end < entry + 9)
                 ? "自由探索的結束樓層不能低於目前十層組。"
             : !p.RelicMaterial && !p.FreeExploration && p.Mode == FarmingMode.Hoard && entry != p.StartFloor

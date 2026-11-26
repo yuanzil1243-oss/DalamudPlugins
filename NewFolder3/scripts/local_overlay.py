@@ -91,6 +91,7 @@ def additions(root):
     files.append(root/'tests/NewFolder3.ContractTests/ExitReceiptTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/PauseCancellationTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/AetherpoolExchangeTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/RelicPresetTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/PassageRoutingRegressionTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/ModeContinuationTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/FailedAttemptRecoveryTests.cs')
@@ -98,6 +99,7 @@ def additions(root):
     files.append(root/'tests/NewFolder3.ContractTests/HoardProbeRegressionTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/RelicOffenseItemTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/FreeBlindSearchTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/TriggerCounterTests.cs')
     files.append(root/'tests/Test-VersionSwitch.ps1')
     return sorted(set(files))
 

@@ -137,7 +137,7 @@ internal static class Program
     {
         try
         {
-            Fixture.Initialize();Policy();Reader();Native();HostPatch();HostIntegrationChecks.Run(Check);
+            Fixture.Initialize();Policy();Reader();Native();HostPatch();HostIntegrationChecks.Run(Check);TriggerCounterIntegrationChecks.Run(Check);
             var known=new NativeDefinition("known","",3,"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
             Check(known.Matches("abc"u8)&&!known.Matches("abd"u8)&&!known.Matches("ab"u8),"sha256-contract");
             Check(NativeBounds.Contains(100,50,149,1)&&!NativeBounds.Contains(100,50,149,2)&&!NativeBounds.Contains(0,50,1,1),"native-bounds");

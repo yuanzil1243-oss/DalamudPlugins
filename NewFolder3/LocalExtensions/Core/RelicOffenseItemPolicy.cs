@@ -42,7 +42,7 @@ public static class RelicOffenseItemPolicy
     public static RelicOffenseItem Decide(FarmingPlan? plan, in RelicOffenseItemSnapshot s)
     {
         if (plan == null || !RelicFarmingPolicy.IsValid(plan) || plan.DungeonId != s.Dungeon ||
-            s.Floor < plan.StartFloor || s.Floor > plan.StartFloor + 9 ||
+            s.Floor < plan.StartFloor || s.Floor > RelicFarmingPolicy.GetEndFloor(plan) ||
             !s.CanAttempt)
             return RelicOffenseItem.None;
         if (!s.NormalFloor)

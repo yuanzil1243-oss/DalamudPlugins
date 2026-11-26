@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+using DeepDungeon.Fsd.Core;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
@@ -16,6 +17,7 @@ internal sealed class ForcedMovementController : IDisposable
     private readonly IPluginLog log;
     private readonly MovementGate gate = new();
     private readonly NativeBackend native;
+    private readonly ForcedMovementTriggerTracker? triggerTracker;
     private bool requested, faulted, disposed;
     private string? error;
 
@@ -27,7 +29,8 @@ internal sealed class ForcedMovementController : IDisposable
         this.log = log;
         reader = new(client, objects, conditions);
         // Constructing the backend does not scan, create or enable a hook.
-        native = new(scanner, interop, gate, ValidateLive);
+        triggerTracker = configuration.TriggerCounters is { } counters ? new(counters) : null;
+        native = new(scanner, interop, gate, ValidateLive, ObserveCounterPermission);
     }
 
     public void Update()
@@ -48,6 +51,7 @@ internal sealed class ForcedMovementController : IDisposable
                     scene.Dungeon + "; floor=" + scene.Floor + ".");
             }
             else if (gate.Status(now).Fault is { } reason) Fault(reason);
+            if (!faulted) triggerTracker?.Position(CounterIdentity(scene), scene.Position, now);
         }
         catch (Exception ex) { Fault(ex.GetBaseException().Message); }
     }
@@ -85,8 +89,20 @@ internal sealed class ForcedMovementController : IDisposable
         return ForcedMovementScope.Matches(cached, ReadScene(now), now, thread);
     }
 
+    private static TriggerScene CounterIdentity(Scene scene) =>
+        new(scene.ActorId, (long)scene.ActorAddress, scene.Territory, scene.Dungeon, scene.Floor);
+
+    private void ObserveCounterPermission(Scene scene, uint id, byte original, byte returned, long now)
+    {
+        if (triggerTracker == null || !gate.Status(now).Active || scene.Thread != Environment.CurrentManagedThreadId) return;
+        var live = ReadScene(now);
+        if (ForcedMovementScope.Matches(scene, live, now, Environment.CurrentManagedThreadId))
+            triggerTracker.Permission(CounterIdentity(live), live.Position, id, original, returned, now);
+    }
+
     private void Suspend(string reason)
     {
+        triggerTracker?.Reset();
         gate.Suspend(reason, Environment.TickCount64);
         if (!native.HookEnabled) return;
         native.Disable();
@@ -99,6 +115,7 @@ internal sealed class ForcedMovementController : IDisposable
         faulted = true;
         error = reason;
         gate.Fail(reason);
+        triggerTracker?.Reset();
         try { native.Disable(); }
         catch (Exception ex) { error += "; " + ex.GetBaseException().Message; }
         if (first) log.Warning("[NewFolder3.ForcedMovement] " + error);
@@ -121,6 +138,7 @@ internal sealed class ForcedMovementController : IDisposable
         }
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("僅地宮內，嘗試在眩暈、止步等限制下保留正常移動。\n出本、過圖或死亡時停用；不會自行移動。");
+        TriggerCounterUi.Draw(configuration.TriggerCounters, FeatureTriggerKind.ForcedMovement);
         if (error != null) ImGui.TextWrapped("強制移動未啟用：" + error);
     }
 

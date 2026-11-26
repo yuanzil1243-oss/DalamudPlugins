@@ -15,6 +15,9 @@ public sealed partial class FsdApplication
         }
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("僅地宮內生效：選中敵人後，超過設定秒數沒打 GCD 就嘗試補一招。\n地宮內暫停／停手後仍生效，完全停手請關閉。");
+        ImGui.SameLine();
+        ImGui.TextDisabled($"触发次数：{_module.TriggerCounters?.Count(FeatureTriggerKind.GcdProtection) ?? 0}");
+        if (ImGui.IsItemHovered() && _module.TriggerCounters?.SaveError is { } error) ImGui.SetTooltip(error);
         int seconds = GcdStallWatchdog.NormalizeWaitSeconds(_settings.Farming.GcdStallWaitSeconds);
         ImGui.SetNextItemWidth(120);
         if (ImGui.InputInt("等待秒數##localGcdWaitSeconds", ref seconds))

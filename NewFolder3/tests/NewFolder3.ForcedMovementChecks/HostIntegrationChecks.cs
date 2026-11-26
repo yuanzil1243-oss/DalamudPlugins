@@ -98,6 +98,7 @@ namespace NewFolder3
     {
         public bool ForcedMovementEnabled {get;set;}
         public bool AntiDisplacementEnabled {get;set;}
+        public DeepDungeon.Fsd.Core.FeatureTriggerCounters TriggerCounters {get;}=new();
         public object Fsd {get;}=new();
         public void Save(object _) {}
     }
@@ -115,6 +116,9 @@ namespace Dalamud.Bindings.ImGui
         internal static bool IsItemHovered()=>false;
         internal static void SetTooltip(string value){}
         internal static void TextWrapped(string value){}
+        internal static List<string> CounterDraws {get;}=[];
+        internal static void SameLine()=>CounterDraws.Add("SameLine");
+        internal static void TextDisabled(string value)=>CounterDraws.Add("TextDisabled:"+value);
     }
 }
 namespace FFXIVClientStructs.FFXIV.Client.Game.Event

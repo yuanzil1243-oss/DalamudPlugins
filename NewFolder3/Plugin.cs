@@ -162,10 +162,10 @@ public sealed partial class Plugin : IDalamudPlugin, IDisposable
             _application = application;
             application.AttachTriggerCounters(_configuration.TriggerCounters!);
 
-            localSpeed = new LocalSpeedController(_configuration, () => _application.IsRunActive,
+            localSpeed = new LocalSpeedController(_configuration,
                 clientState, condition, objectTable, sigScanner, interop, pluginLog);
             _localSpeed = localSpeed;
-            antiKick = new AntiKickController(_configuration, () => _application.IsRunActive,
+            antiKick = new AntiKickController(_configuration, clientState,
                 condition, objectTable, pluginLog);
             _antiKick = antiKick;
             antiDisplacement = new AntiDisplacementController(_configuration, clientState, condition,
@@ -266,7 +266,7 @@ public sealed partial class Plugin : IDalamudPlugin, IDisposable
         _forcedMovement.Update();
         try { _application.Update(framework); }
         catch { _localSpeed.RevokeForHostError(); _antiDisplacement.RevokeForHostError(); _forcedMovement.RevokeForHostError(); throw; }
-        finally { try { _localSpeed.ReleaseIfStopped(); } finally { FlushTriggerCounters(); } }
+        finally { FlushTriggerCounters(); }
         _yAxis.Update(_application.CurrentDeepDungeonState);
         _communityEvidenceCollector?.ObserveRunState(
             _application.IsRunActive,

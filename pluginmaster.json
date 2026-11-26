@@ -2,22 +2,22 @@
   {
     "Author": "John Smith / Yuzi",
     "Name": "NewFolder3",
-    "Punchline": "基于官方 .23，强化层段预设、只刷强化与持久触发计数",
+    "Punchline": "基于官方 .23，地宫辅助独立生效，领奖默认退本，简化设置界面",
     "InternalName": "NewFolder3",
     "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-    "AssemblyVersion": "0.7.55.2306",
+    "AssemblyVersion": "0.7.55.2307",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-    "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2306。死宫强化／聚魔柄保留51–60，新增1–50层预设，完整通关所选层段才计一轮。该模式可勾选不兑换聚魔柄，只刷强化并按次数循环。防击退、强制移动和GCD保护新增独立触发次数，更新与重启保留记录。继承地图读取修复、水平1.8米共同覆盖盲踩、自由探索指定盲踩层数及聚魔柄输出道具规则。保留原战斗、探索与下底循环，以及续打、保档、失败重试、AE目标协调、移速与最大加速度、防踢、防击退和强制移动。保留2026-11-25.1版妖宫21–30、31–40签名地图。更新保留配置、地图缓存、暂停记录和触发次数。离线验证通过，实战效果仍需场景验证。",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2306/NewFolder3.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2306/NewFolder3.zip",
-    "LastUpdate": 1795696054,
+    "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2307。移速、防踢、防击退、强制移动和GCD保护勾选后进入地宫即生效，不需启动FSD；防击退取消妖宫楼层限制，覆盖所有已验证地宫层数。移速保留普通层与最终奖励层及最大加速度规则，Boss层恢复。下底领奖后默认自动退本，再按所选模式和次数循环，保档与暂停规则保留。精简开关名称，移速开关与倍率同行，底部说明压缩为8条。保留持久触发计数、死宫1–50／51–60强化预设、只刷强化、地图读取修复、盲踩与模式用药，原战斗和探索策略保持。随包保留2026-11-25.1版两套妖宫签名地图。更新保留配置、地图缓存、暂停记录和触发次数。离线检查不代替游戏实测。",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2307/NewFolder3.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2307/NewFolder3.zip",
+    "LastUpdate": 1795711794,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "Changelog": "0.7.55.2306：防击退、强制移动、GCD保护加入持久触发计数；死宫强化／聚魔柄新增1–50预设，完整层段才计一轮；强化模式可选不兑换聚魔柄、只刷强化。保留原功能和玩家数据。958项契约、162项移速、1933项强制移动离线及官方.23干净重套构建通过。"
+    "Changelog": "0.7.55.2307：地宫辅助勾选后入本即生效，无需启动FSD；防击退覆盖所有已验证地宫层数；领奖默认退本并按原规则循环。移速与倍率同行，精简开关名称及使用说明。保留配置、缓存和计数。1408项契约、174项移速、1959项强制移动及辅助范围离线检查通过。"
   }
 ]

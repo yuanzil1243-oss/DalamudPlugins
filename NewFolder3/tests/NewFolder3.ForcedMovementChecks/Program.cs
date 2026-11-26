@@ -43,7 +43,7 @@ internal static class Program
     {
         var host=new FakeHost();var reader=new GameSceneReader(host,host,host);
         Check(reader.Read(1000).Fresh(1000),"reader-valid");
-        foreach(var flag in Enum.GetValues<ConditionFlag>().Except(new[]{ConditionFlag.SufferingStatusAffliction,ConditionFlag.SufferingStatusAffliction2,ConditionFlag.BoundByDuty,ConditionFlag.BoundByDuty56,ConditionFlag.BoundByDuty95}))
+        foreach(var flag in Enum.GetValues<ConditionFlag>().Except(new[]{ConditionFlag.SufferingStatusAffliction,ConditionFlag.SufferingStatusAffliction2,ConditionFlag.BoundByDuty,ConditionFlag.BoundByDuty56,ConditionFlag.BoundByDuty95,ConditionFlag.InDeepDungeon}))
         {host.Flags.Add(flag);Check(!reader.Read(1000).Eligible,"reader-pause-"+flag);host.Flags.Clear();}
         host.Flags.UnionWith([ConditionFlag.SufferingStatusAffliction,ConditionFlag.SufferingStatusAffliction2]);host.LocalPlayer!.IsCasting=true;
         Check(reader.Read(1000).Eligible,"affliction-and-casting-do-not-disable-target-function");host.Flags.Clear();host.LocalPlayer.IsCasting=false;
@@ -137,7 +137,7 @@ internal static class Program
     {
         try
         {
-            Fixture.Initialize();Policy();Reader();Native();HostPatch();HostIntegrationChecks.Run(Check);TriggerCounterIntegrationChecks.Run(Check);
+            Fixture.Initialize();Policy();Reader();Native();HostPatch();HostIntegrationChecks.Run(Check);StandaloneAntiKickChecks.Run(Check);TriggerCounterIntegrationChecks.Run(Check);
             var known=new NativeDefinition("known","",3,"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
             Check(known.Matches("abc"u8)&&!known.Matches("abd"u8)&&!known.Matches("ab"u8),"sha256-contract");
             Check(NativeBounds.Contains(100,50,149,1)&&!NativeBounds.Contains(100,50,149,2)&&!NativeBounds.Contains(0,50,1,1),"native-bounds");

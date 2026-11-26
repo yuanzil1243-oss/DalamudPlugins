@@ -13,15 +13,33 @@ internal static class KnockbackProtectionTests
         var motion = new Motion(scene.Actor, 0.25f, 20, 0.75f, byte.MaxValue, ulong.MaxValue);
         Decision Decide(Scene cached, Scene live, bool enabled = true, long at = 100, long now = 101, int? thread = null) =>
             KnockbackProtectionPolicy.Decide(enabled, cached, live, at, now, thread ?? scene.Thread, motion);
-        for (int floor = 1; floor <= 100; floor++)
+        var groups = new List<(uint Dungeon, uint Territory, int First)>();
+        for (int i = 0; i < 5; i++) groups.Add((1, (uint)(561 + i), 1 + i * 10));
+        for (int i = 0; i < 15; i++) groups.Add((1, (uint)(593 + i), 51 + i * 10));
+        uint[] hoh = [770, 771, 772, 782, 773, 783, 774, 784, 775, 785];
+        for (int i = 0; i < 10; i++) groups.Add((2, hoh[i], 1 + i * 10));
+        for (int i = 0; i < 10; i++) groups.Add((3, (uint)(1099 + i), 1 + i * 10));
+        for (int i = 0; i < 10; i++) groups.Add((4, (uint)(1281 + i), 1 + i * 10));
+        foreach (var group in groups)
         {
-            var candidate = scene with { Floor = floor, Territory = (uint)(1281 + (floor - 1) / 10) };
-            bool expected = floor is >= 71 and <= 99;
-            Check("pt-floor-" + floor, () =>
+            foreach (int floor in Enumerable.Range(group.First, 10))
             {
-                Assert(KnockbackProtectionPolicy.Allows(candidate) == expected);
-                Assert(Decide(candidate, candidate).Suppress == expected);
-                Assert(Decide(candidate, candidate).Forward == motion);
+                var candidate = scene with { Dungeon = group.Dungeon, Floor = floor, Territory = group.Territory };
+                Check($"dungeon-{group.Dungeon}-floor-{floor}", () =>
+                {
+                    Assert(KnockbackProtectionPolicy.Allows(candidate));
+                    Assert(Decide(candidate, candidate).Suppress);
+                    Assert(Decide(candidate, candidate).Forward == motion);
+                    var pull = motion with { Distance = -20 };
+                    Assert(KnockbackProtectionPolicy.Decide(true, candidate, candidate, 100, 101, scene.Thread, pull).Suppress);
+                });
+            }
+            Check($"territory-boundaries-{group.Dungeon}-{group.First}", () =>
+            {
+                Assert(!KnockbackProtectionPolicy.Allows(scene with { Dungeon = group.Dungeon,
+                    Territory = group.Territory, Floor = group.First - 1 }));
+                Assert(!KnockbackProtectionPolicy.Allows(scene with { Dungeon = group.Dungeon,
+                    Territory = group.Territory, Floor = group.First + 10 }));
             });
         }
         foreach (uint dungeon in new uint[] { 0, 1, 2, 3, 5 })

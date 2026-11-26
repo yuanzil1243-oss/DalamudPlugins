@@ -5,6 +5,7 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Client.Game.Event;
 
 namespace NewFolder3;
 
@@ -12,7 +13,7 @@ namespace NewFolder3;
 internal sealed class AntiKickController
 {
     private readonly Configuration configuration;
-    private readonly Func<bool> runActive;
+    private readonly IClientState client;
     private readonly ICondition conditions;
     private readonly IObjectTable objects;
     private readonly IPluginLog log;
@@ -22,10 +23,10 @@ internal sealed class AntiKickController
     private long verifyAt, nextFailureLog, nextObservation;
     private AntiKickInputTimers before;
 
-    public AntiKickController(Configuration configuration, Func<bool> runActive,
+    public AntiKickController(Configuration configuration, IClientState client,
         ICondition conditions, IObjectTable objects, IPluginLog log)
     {
-        this.configuration = configuration; this.runActive = runActive;
+        this.configuration = configuration; this.client = client;
         this.conditions = conditions; this.objects = objects; this.log = log;
     }
 
@@ -36,12 +37,7 @@ internal sealed class AntiKickController
         nextObservation = now + 1000;
         try
         {
-            bool eligible = configuration.AntiKickEnabled && runActive() &&
-                conditions[ConditionFlag.InDeepDungeon] &&
-                !conditions[ConditionFlag.BetweenAreas] && !conditions[ConditionFlag.BetweenAreas51] &&
-                !conditions[ConditionFlag.WatchingCutscene] && !conditions[ConditionFlag.WatchingCutscene78] &&
-                !conditions[ConditionFlag.OccupiedInCutSceneEvent] &&
-                objects.LocalPlayer is { IsDead: false };
+            bool eligible = IsEligible();
             var timers = eligible ? ReadTimers() : new AntiKickInputTimers(float.NaN, float.NaN, float.NaN);
             if (verifyAt != 0 && now >= verifyAt)
             {
@@ -83,6 +79,22 @@ internal sealed class AntiKickController
                 Log($"[NewFolder3.AntiKick] Input observation/pulse failed: {error.Message}", true);
             }
         }
+    }
+
+    private unsafe bool IsEligible()
+    {
+        if (!configuration.AntiKickEnabled || !client.IsLoggedIn ||
+            !conditions[ConditionFlag.InDeepDungeon] ||
+            !(conditions[ConditionFlag.BoundByDuty] || conditions[ConditionFlag.BoundByDuty56] ||
+                conditions[ConditionFlag.BoundByDuty95]) ||
+            conditions[ConditionFlag.BetweenAreas] || conditions[ConditionFlag.BetweenAreas51] ||
+            conditions[ConditionFlag.WatchingCutscene] || conditions[ConditionFlag.WatchingCutscene78] ||
+            conditions[ConditionFlag.OccupiedInCutSceneEvent] || conditions[ConditionFlag.Unconscious] ||
+            objects.LocalPlayer is not { IsDead: false }) return false;
+        var events = EventFramework.Instance();
+        var dungeon = events == null ? null : events->GetInstanceContentDeepDungeon();
+        return dungeon != null && AntiDisplacementV2.DungeonScope.Matches(client.TerritoryType,
+            dungeon->DeepDungeonId, dungeon->Floor);
     }
 
     private static unsafe AntiKickInputTimers ReadTimers()
@@ -135,7 +147,7 @@ internal sealed class AntiKickController
             configuration.Save(configuration.Fsd);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("深宫探索时，长时间无操作会轻按 Ctrl，尝试防止被踢出。\n停止探索或出本后停用。");
+            ImGui.SetTooltip("勾选后在地宫内生效，不需启动 FSD；长时间无操作时轻按 Ctrl 尝试防踢。\n出本、过图或死亡时停用。");
     }
 
     private void Log(string message, bool warning = false)

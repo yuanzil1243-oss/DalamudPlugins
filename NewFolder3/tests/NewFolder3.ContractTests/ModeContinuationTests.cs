@@ -83,14 +83,14 @@ internal static class ModeContinuationTests
                     Assert(loops.CompletedLoops == 3);
                 }
             });
-            Check("terminal-switch-and-retention-are-independent-" + dungeon, () =>
+            Check("automatic-terminal-exit-preserves-retention-" + dungeon, () =>
             {
                 var settings = Settings(dungeon, "free"); var p = settings.Farming.GetPreferences(settings); p.KeepSave = true;
                 var plan = Create(settings, max - 9);
-                var receipt = new TerminalRewardExitFacts { Enabled = true, StayRequested = true, RoomObserved = true,
+                var receipt = new TerminalRewardExitFacts { StayRequested = true, RoomObserved = true,
                     DutyCompleted = true, InDuty = true, PlayerReady = true, DungeonId = dungeon, Floor = max };
                 Assert(TerminalRewardExitPolicy.ShouldContinue(plan, receipt));
-                Assert(!TerminalRewardExitPolicy.ShouldContinue(plan, receipt with { Enabled = false }));
+                Assert(!TerminalRewardExitPolicy.ShouldContinue(plan, receipt with { RewardsPending = true }));
                 var done = FarmingSessionPolicy.Decide(plan, new(max - 9, true, false, false, false));
                 Assert(done.CountCycle && done.StopAfterAttempt && !done.DeleteOwnedSave);
                 settings.Farming.GetFreeExplorationPreferences().EndFloor = 50;
@@ -188,8 +188,9 @@ internal static class ModeContinuationTests
         Check("usage-footer-covers-new-rules", () =>
         {
             string notes = string.Join("\n", FeatureUsageNotes.Items);
-            foreach (string word in new[] { "最大加速度", "保留存檔", "第 1 輪", "GCD", "防踢", "循環", "固定層段", "聚魔柄" })
+            foreach (string word in new[] { "最大加速度", "保留存檔", "完成目標才計次", "GCD", "不需啟動 FSD", "循環", "完整層段", "聚魔柄", "領獎後自動退本" })
                 Assert(notes.Contains(word));
+            Assert(FeatureUsageNotes.Items.Length <= 8);
         });
         return count;
     }

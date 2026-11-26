@@ -8,7 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Event;
 
 namespace NewFolder3;
 
-/// <summary>Owns a single independent hook, enabled only in the user-selected 71–99 PT scope.</summary>
+/// <summary>Owns an independent hook for verified deep-dungeon scenes, without requiring FSD.</summary>
 internal sealed class AntiDisplacementController(Configuration configuration, IClientState client,
     ICondition conditions, IObjectTable objects, ISigScanner scanner, IGameInteropProvider interop,
     IPluginLog log) : IDisposable
@@ -40,7 +40,7 @@ internal sealed class AntiDisplacementController(Configuration configuration, IC
             {
                 native.Enable();
                 if (!native.Enabled) throw new InvalidOperationException("防擊退 Hook 未能啟用。");
-                log.Info($"[NewFolder3.AntiDisplacement] Enabled: PT {scene.Floor}; {native.Verification}; {native.Backend}.");
+                log.Info($"[NewFolder3.AntiDisplacement] Enabled: dungeon={scene.Dungeon}; floor={scene.Floor}; {native.Verification}; {native.Backend}.");
             }
         }
         catch (Exception ex) { Fault(ex.GetBaseException().Message); }
@@ -115,7 +115,7 @@ internal sealed class AntiDisplacementController(Configuration configuration, IC
     public void DrawSettings()
     {
         bool enabled = configuration.AntiDisplacementEnabled;
-        if (ImGui.Checkbox("防擊退／吸引（妖宮 71–99 層）##antiDisplacement", ref enabled))
+        if (ImGui.Checkbox("防擊退／吸引##antiDisplacement", ref enabled))
         {
             configuration.AntiDisplacementEnabled = enabled;
             requested = enabled;
@@ -125,7 +125,7 @@ internal sealed class AntiDisplacementController(Configuration configuration, IC
             configuration.Save(configuration.Fsd);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("僅妖宮 71–99 層，嘗試阻止擊退與吸引。\n其他樓層、副本及過圖時停用。");
+            ImGui.SetTooltip("勾選後進入地宮即嘗試阻止擊退與吸引，不需啟動 FSD。\n出本、過圖或死亡時停用。");
         TriggerCounterUi.Draw(configuration.TriggerCounters, FeatureTriggerKind.AntiDisplacement);
         if (error != null) ImGui.TextWrapped("防擊退未啟用：" + error);
     }

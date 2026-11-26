@@ -98,6 +98,7 @@ namespace NewFolder3
     {
         public bool ForcedMovementEnabled {get;set;}
         public bool AntiDisplacementEnabled {get;set;}
+        public bool AntiKickEnabled {get;set;}
         public DeepDungeon.Fsd.Core.FeatureTriggerCounters TriggerCounters {get;}=new();
         public object Fsd {get;}=new();
         public void Save(object _) {}

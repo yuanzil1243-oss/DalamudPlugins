@@ -13,5 +13,7 @@
     <Compile Include="..\..\LocalExtensions\Host\Movement\NativeSpeedContract.cs" Link="NativeSpeedContract.cs" />
     <Compile Include="..\..\LocalExtensions\Host\Movement\RegisteredHookSnapshot.cs" Link="RegisteredHookSnapshot.cs" />
     <Compile Include="..\..\LocalExtensions\Host\Movement\NativeSpeedBackend.cs" Link="NativeSpeedBackend.cs" />
+    <Compile Include="..\..\LocalExtensions\Host\Movement\GameContextReader.cs" Link="GameContextReader.cs" />
+    <Compile Include="..\..\LocalExtensions\Host\Movement\LocalSpeedController.cs" Link="LocalSpeedController.cs" />
   </ItemGroup>
 </Project>

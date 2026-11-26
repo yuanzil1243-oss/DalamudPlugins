@@ -10,5 +10,7 @@
     <Compile Include="../../LocalExtensions/Core/FeatureTriggerCounters.cs" Link="Production/FeatureTriggerCounters.cs" />
     <Compile Include="../../LocalExtensions/Core/FeatureTriggerTrackers.cs" Link="Production/FeatureTriggerTrackers.cs" />
     <Compile Include="../../LocalExtensions/Host/TriggerCounterUi.cs" Link="Production/TriggerCounterUi.cs" />
+    <Compile Include="../../LocalExtensions/Host/AntiKickController.cs" Link="Production/AntiKickController.cs" />
+    <Compile Include="../../LocalExtensions/Core/AntiKickPulseScheduler.cs" Link="Production/AntiKickPulseScheduler.cs" />
   </ItemGroup>
 </Project>

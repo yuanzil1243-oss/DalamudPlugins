@@ -4,9 +4,9 @@
   <PropertyGroup>
     <AssemblyName>NewFolder3</AssemblyName>
     <RootNamespace>NewFolder3</RootNamespace>
-    <Version>0.7.55.2306</Version>
-    <AssemblyVersion>0.7.55.2306</AssemblyVersion>
-    <FileVersion>0.7.55.2306</FileVersion>
+    <Version>0.7.55.2307</Version>
+    <AssemblyVersion>0.7.55.2307</AssemblyVersion>
+    <FileVersion>0.7.55.2307</FileVersion>
     <Description>Standalone Deep Dungeon FSD host.</Description>
     <IsPackable>false</IsPackable>
     <TargetFramework>net10.0-windows</TargetFramework>

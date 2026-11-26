@@ -13,7 +13,7 @@ namespace Dalamud.Game.ClientState.Conditions
         OccupiedInCutSceneEvent,LoggingOut,Unconscious,Mounted,RidingPillion,Mounting,
         UsingChocoboTaxi,InFlight,Swimming,Diving,Jumping,Jumping61,Crafting,Gathering,
         OccupiedInEvent,OccupiedInQuestEvent,SufferingStatusAffliction,SufferingStatusAffliction2,
-        BoundByDuty,BoundByDuty56,BoundByDuty95
+        BoundByDuty,BoundByDuty56,BoundByDuty95,InDeepDungeon
     }
 }
 namespace Dalamud.Plugin.Services

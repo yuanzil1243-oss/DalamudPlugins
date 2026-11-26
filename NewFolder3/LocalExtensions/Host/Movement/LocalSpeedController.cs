@@ -5,23 +5,21 @@ using MoveSpeedLab;
 
 namespace NewFolder3;
 
-/// <summary>Host-only integration of the tested 0.1.0.2 policy. No FSD movement changes.</summary>
+/// <summary>Independent deep-dungeon assist using the tested speed policy; no FSD navigation changes.</summary>
 internal sealed class LocalSpeedController : IDisposable
 {
     private readonly Configuration configuration;
-    private readonly Func<bool> runActive;
     private readonly IPluginLog log;
     private readonly GameContextReader reader;
     private readonly NativeSpeedBackend backend;
     private readonly SpeedSession session = new();
     private bool requested;
 
-    public LocalSpeedController(Configuration configuration, Func<bool> runActive,
+    public LocalSpeedController(Configuration configuration,
         IClientState client, ICondition conditions, IObjectTable objects,
         ISigScanner scanner, IGameInteropProvider interop, IPluginLog log)
     {
         this.configuration = configuration;
-        this.runActive = runActive;
         this.log = log;
         reader = new(client, conditions, objects);
         backend = new(scanner, interop, ReadLiveContext);
@@ -29,7 +27,7 @@ internal sealed class LocalSpeedController : IDisposable
 
     private SpeedContext ReadLiveContext()
     {
-        if (!configuration.LocalSpeedEnabled || !runActive() || session.FaultLatched) return default;
+        if (!configuration.LocalSpeedEnabled || session.FaultLatched) return default;
         return reader.Read();
     }
 
@@ -44,7 +42,7 @@ internal sealed class LocalSpeedController : IDisposable
                 else session.Disable();
             }
             if (backend.RuntimeError is { } error) Fault(error);
-            if (!requested || session.FaultLatched || !runActive())
+            if (!requested || session.FaultLatched)
             {
                 backend.Release();
                 session.ResetContext();
@@ -53,7 +51,7 @@ internal sealed class LocalSpeedController : IDisposable
             long now = Environment.TickCount64;
             var context = ReadLiveContext();
             // Enabling is the user's opt-in; the existing host warning and tooltip require other modifiers off.
-            var decision = session.Evaluate(context, configuration.LocalSpeedMultiplier, true, now, runActive());
+            var decision = session.Evaluate(context, configuration.LocalSpeedMultiplier, true, now);
             if ((decision.Apply || decision.InstantStart) && !backend.Initialized && !backend.TryInitialize(out var failure))
             {
                 Fault(failure);
@@ -71,30 +69,25 @@ internal sealed class LocalSpeedController : IDisposable
         session.Fault(error);
     }
 
-    public void ReleaseIfStopped()
-    {
-        if (!runActive()) { backend.Release(); session.ResetContext(); }
-    }
-
     public void RevokeForHostError() => Fault("FSD 主循環發生異常；已撤銷本地移速，請檢查日誌。");
 
     public void DrawSettings()
     {
         ImGui.Spacing();
         ImGui.Separator();
-        ImGui.TextUnformatted("內置移速");
         bool enabled = configuration.LocalSpeedEnabled;
-        if (ImGui.Checkbox("啟用##localSpeed", ref enabled))
+        if (ImGui.Checkbox("移速調整##localSpeed", ref enabled))
         {
             configuration.LocalSpeedEnabled = enabled;
             if (!enabled) backend.Release();
             configuration.Save(configuration.Fsd);
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip(session.Error ?? "探索運行時，普通層和最終獎勵層按設定倍率移動，起步即達設定速度（最大加速度）。\nBoss層、出本或停止時恢復。勿與其他移速工具同開。");
+            ImGui.SetTooltip(session.Error ?? "勾選後，地宮普通層和最終獎勵層按設定倍率移動，起步即達設定速度（最大加速度）。\n不需啟動 FSD；Boss 層、出本或關閉時恢復。勿與其他移速工具同開。");
+        ImGui.SameLine();
         float multiplier = configuration.LocalSpeedMultiplier;
-        ImGui.SetNextItemWidth(180);
-        if (ImGui.InputFloat("移速調整##localSpeedMultiplier", ref multiplier, 0.1f, 0.5f, "%.2f"))
+        ImGui.SetNextItemWidth(150);
+        if (ImGui.InputFloat("倍率##localSpeedMultiplier", ref multiplier, 0.1f, 0.5f, "%.2f"))
         {
             backend.Release();
             configuration.LocalSpeedMultiplier = float.IsFinite(multiplier)

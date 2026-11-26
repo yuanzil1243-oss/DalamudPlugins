@@ -6,7 +6,7 @@ namespace DeepDungeon.Fsd.Core;
 /// <summary>Host restriction; the reusable native capability retains its original scene checks.</summary>
 public static class KnockbackProtectionPolicy
 {
-    public static bool Allows(Scene scene) => scene.Eligible && scene.Dungeon == 4 && scene.Floor is >= 71 and <= 99;
+    public static bool Allows(Scene scene) => scene.Eligible;
 
     public static Decision Decide(bool enabled, Scene cached, Scene live, long updatedAt,
         long now, int thread, Motion motion) =>

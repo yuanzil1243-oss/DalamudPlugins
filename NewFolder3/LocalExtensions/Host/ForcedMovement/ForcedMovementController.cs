@@ -129,7 +129,7 @@ internal sealed class ForcedMovementController : IDisposable
     public void DrawSettings()
     {
         bool enabled = configuration.ForcedMovementEnabled;
-        if (ImGui.Checkbox("強制移動（僅地宮內）##forcedMovement", ref enabled))
+        if (ImGui.Checkbox("強制移動##forcedMovement", ref enabled))
         {
             configuration.ForcedMovementEnabled = enabled;
             SetRequested(enabled);

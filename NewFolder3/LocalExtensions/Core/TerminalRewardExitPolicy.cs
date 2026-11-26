@@ -5,7 +5,6 @@ public readonly record struct TerminalRewardExitDecision(TerminalRewardExitActio
 
 public readonly record struct TerminalRewardExitFacts
 {
-    public bool Enabled { get; init; }
     public bool StayRequested { get; init; }
     public bool RoomObserved { get; init; }
     public bool RewardsPending { get; init; }
@@ -29,7 +28,6 @@ public static class TerminalRewardExitPolicy
 
     public static TerminalRewardExitDecision Decide(FarmingPlan? plan, in TerminalRewardExitFacts facts)
     {
-        if (!facts.Enabled) return new(TerminalRewardExitAction.RetainAndStop, "disabled");
         if (plan is not { Mode: FarmingMode.DeepProgression })
             return new(TerminalRewardExitAction.RetainAndStop, "unsupported-plan");
         if (plan.StopAfterFloor.HasValue || plan.HoldAfterClear || plan.HoldOnFailure ||

@@ -52,7 +52,6 @@ internal sealed class FsdWindow : Window
             _antiKick.DrawSettings();
             _antiDisplacement.DrawSettings();
             _forcedMovement.DrawSettings();
-            _application.DrawTerminalRewardSettings();
             _application.DrawGcdProtectionSettings();
             // Keep this last: add future feature controls above the usage notes.
             DrawUsageNotes();

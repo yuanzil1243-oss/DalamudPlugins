@@ -3,7 +3,7 @@
 2026-11-26，从本项目独立实验 AntiDisplacementV2 0.2.0.0 接入，许可证 GPL-3.0-only，见发行根目录 LICENSE。
 原实验路径：C:/Users/24496/Documents/ChatGPT/FF14/NewFolder3-Experiments-20261126/AntiDisplacementV2。
 Policy.cs 与 NativeContract.cs 保留原样；NativeMotion.cs 仅将卸载改为 finally 确保释放宿主 Hook。
-本插件另外实现妖宫 71–99 层的调用限制、配置、说明页开关和生命周期接入；不加载或依赖独立实验插件。
+本插件另外实现原生身份／区域／楼层匹配的全地宫调用限制、配置、说明页开关和生命周期接入；不加载或依赖独立实验插件。
 
 该模块使用 .NET、Dalamud 宿主 Hook API、宿主 ImGui 和 FFXIVClientStructs；不分发这些宿主程序集。
 模块不调用 XSZ、ECommons、NekoVerifierLib 的能力、IPC 或配置，不依靠其他插件启用防位移。

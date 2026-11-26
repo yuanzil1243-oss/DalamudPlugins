@@ -19,10 +19,10 @@ internal static class TerminalRewardExitTests
             false, true, true, false) { DungeonId = 1 };
         var receipt = new TerminalRewardExitFacts
         {
-            Enabled = true, StayRequested = true, RoomObserved = true,
+            StayRequested = true, RoomObserved = true,
             DutyCompleted = true, InDuty = true, PlayerReady = true, DungeonId = 1, Floor = 200
         };
-        Check("old-config-default-off", () =>
+        Check("legacy-config-representation-preserved-without-runtime-toggle", () =>
         {
             var old = JsonSerializer.Deserialize<FarmingSettings>("{\"DungeonId\":1}");
             Assert(old is { AutoExitAfterTerminalReward: false });
@@ -36,8 +36,11 @@ internal static class TerminalRewardExitTests
             Assert(restored.AutoExitAfterTerminalReward && restored.DungeonId == 2 &&
                 restored.Preferences["DeepProgression:Create"].Cycles == 7);
         });
-        Check("off-keeps-upstream-stop", () =>
-            Assert(!TerminalRewardExitPolicy.ShouldContinue(plan, receipt with { Enabled = false })));
+        Check("legacy-false-cannot-disable-default-exit", () =>
+        {
+            var settings = JsonSerializer.Deserialize<FarmingSettings>("{\"AutoExitAfterTerminalReward\":false}")!;
+            Assert(!settings.AutoExitAfterTerminalReward && TerminalRewardExitPolicy.ShouldContinue(plan, receipt));
+        });
         Check("confirmed-receipt-releases-stay", () =>
             Assert(TerminalRewardExitPolicy.ShouldContinue(plan, receipt)));
         foreach (var invalid in new[]
@@ -54,9 +57,17 @@ internal static class TerminalRewardExitTests
                 Assert(!TerminalRewardExitPolicy.ShouldContinue(plan, invalid)));
         Check("unknown-plan-preserves-stop", () =>
             Assert(!TerminalRewardExitPolicy.ShouldContinue(null, receipt)));
-        Check("disabled-retains-explicit-upstream-stay", () =>
-            Assert(TerminalRewardExitPolicy.Decide(plan, receipt with { Enabled = false }) ==
-                new TerminalRewardExitDecision(TerminalRewardExitAction.RetainAndStop, "disabled")));
+        Check("legacy-true-and-false-use-same-reward-confirmation", () =>
+        {
+            foreach (bool legacy in new[] { false, true })
+            {
+                var settings = new FarmingSettings { AutoExitAfterTerminalReward = legacy };
+                var restored = JsonSerializer.Deserialize<FarmingSettings>(JsonSerializer.Serialize(settings))!;
+                Assert(restored.AutoExitAfterTerminalReward == legacy);
+                Assert(TerminalRewardExitPolicy.Decide(plan, receipt).Action == TerminalRewardExitAction.Continue);
+                Assert(TerminalRewardExitPolicy.Decide(plan, receipt with { RewardsPending = true }).Action == TerminalRewardExitAction.Wait);
+            }
+        });
         Check("loading-or-unavailable-player-waits-without-ending-task", () =>
         {
             foreach (var transient in new[]

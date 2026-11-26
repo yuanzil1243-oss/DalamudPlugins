@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace DeepDungeon.Fsd.Dalamud.Runtime;
 
-/// <summary>Opt-in handoff after the original reward controller confirms every reward.</summary>
+/// <summary>Automatic handoff after the original reward controller confirms every reward.</summary>
 internal static class TerminalRewardAutoExit
 {
     private sealed class Observation
@@ -16,10 +16,8 @@ internal static class TerminalRewardAutoExit
 
     internal static TerminalRewardExitAction Update(RunContext context, bool pauseRequested = false)
     {
-        bool enabled = context.Configuration.Farming.AutoExitAfterTerminalReward;
         var facts = new TerminalRewardExitFacts
         {
-            Enabled = enabled,
             StayRequested = context.TerminalStayRequested,
             RoomObserved = context.TerminalRoomObserved,
             RewardsPending = context.TerminalRewardsRequired,
@@ -42,7 +40,7 @@ internal static class TerminalRewardAutoExit
             observation.LastDecision = decision;
             context.RecordDiagnostic?.Invoke("local-terminal-reward-exit-decision", new
             {
-                action = decision.Action.ToString(), decision.Reason, enabled, pauseRequested,
+                action = decision.Action.ToString(), decision.Reason, enabled = true, pauseRequested,
                 facts, plan = context.FarmingPlan is { } plan ? new
                 {
                     plan.DungeonId, plan.Mode, plan.ExternalSave, plan.ManagedContinuation, plan.KeepSave, plan.CurrentDutyOnly,

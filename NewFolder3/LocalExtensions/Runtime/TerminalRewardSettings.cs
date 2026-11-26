@@ -4,7 +4,7 @@ namespace DeepDungeon.Fsd.Runtime;
 
 public sealed partial class FarmingSettings
 {
-    // Old configurations and pause fingerprints keep their default representation.
+    // Legacy compatibility only: preserved for old config/pause fingerprints, no longer an enable switch.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool AutoExitAfterTerminalReward { get; set; }
 }

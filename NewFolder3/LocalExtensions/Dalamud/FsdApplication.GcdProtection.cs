@@ -8,13 +8,13 @@ public sealed partial class FsdApplication
     public void DrawGcdProtectionSettings()
     {
         bool enabled = _settings.Farming.GcdStallProtection;
-        if (ImGui.Checkbox("GCD 停滯保護（測試）##localGcdProtection", ref enabled))
+        if (ImGui.Checkbox("GCD 停滯保護##localGcdProtection", ref enabled))
         {
             _settings.Farming.GcdStallProtection = enabled;
             _settings.Save();
         }
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("僅地宮內生效：選中敵人後，超過設定秒數沒打 GCD 就嘗試補一招。\n地宮內暫停／停手後仍生效，完全停手請關閉。");
+            ImGui.SetTooltip("僅地宮內，選中敵人超過設定秒數沒打 GCD 時嘗試補一招。\n不需啟動 FSD；完全停手請關閉。");
         ImGui.SameLine();
         ImGui.TextDisabled($"触发次数：{_module.TriggerCounters?.Count(FeatureTriggerKind.GcdProtection) ?? 0}");
         if (ImGui.IsItemHovered() && _module.TriggerCounters?.SaveError is { } error) ImGui.SetTooltip(error);

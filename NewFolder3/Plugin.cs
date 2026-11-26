@@ -25,6 +25,8 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
     private readonly YAxisAdjustController _yAxis;
     private readonly LocalSpeedController _localSpeed;
     private readonly AntiKickController _antiKick;
+    private readonly AntiDisplacementController _antiDisplacement;
+    private readonly ForcedMovementController _forcedMovement;
     private readonly FsdWindow _window;
     private bool _disposed;
 
@@ -50,6 +52,8 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
         YAxisAdjustController? yAxis = null;
         LocalSpeedController? localSpeed = null;
         AntiKickController? antiKick = null;
+        AntiDisplacementController? antiDisplacement = null;
+        ForcedMovementController? forcedMovement = null;
         CommunityEvidenceCollector? communityEvidenceCollector = null;
         CommunityUsageTelemetryCollector? usageTelemetryCollector = null;
         CommunityLongRunLogCollector? longRunLogCollector = null;
@@ -161,7 +165,13 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
             antiKick = new AntiKickController(_configuration, () => _application.IsRunActive,
                 condition, objectTable, pluginLog);
             _antiKick = antiKick;
-            _window = new FsdWindow(_application, _yAxis, _localSpeed, _antiKick);
+            antiDisplacement = new AntiDisplacementController(_configuration, clientState, condition,
+                objectTable, sigScanner, interop, pluginLog);
+            _antiDisplacement = antiDisplacement;
+            forcedMovement = new ForcedMovementController(_configuration, clientState, condition,
+                objectTable, sigScanner, interop, pluginLog);
+            _forcedMovement = forcedMovement;
+            _window = new FsdWindow(_application, _yAxis, _localSpeed, _antiKick, _antiDisplacement, _forcedMovement);
             _windows.AddWindow(_window);
 
             _commandManager.AddHandler(ProductIdentity.Command, new CommandInfo(OnCommand)
@@ -187,6 +197,8 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
             RollBack(_windows.RemoveAllWindows, rollbackErrors);
             RollBack(() => localSpeed?.Dispose(), rollbackErrors);
             RollBack(() => antiKick?.Dispose(), rollbackErrors);
+            RollBack(() => antiDisplacement?.Dispose(), rollbackErrors);
+            RollBack(() => forcedMovement?.Dispose(), rollbackErrors);
             RollBack(() => yAxis?.Dispose(), rollbackErrors);
             RollBack(() => application?.Dispose(), rollbackErrors);
             RollBack(() => communityEvidenceCollector?.Dispose(), rollbackErrors);
@@ -246,8 +258,10 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
     {
         _localSpeed.Update();
         _antiKick.Update();
+        _antiDisplacement.Update();
+        _forcedMovement.Update();
         try { _application.Update(framework); }
-        catch { _localSpeed.RevokeForHostError(); throw; }
+        catch { _localSpeed.RevokeForHostError(); _antiDisplacement.RevokeForHostError(); _forcedMovement.RevokeForHostError(); throw; }
         finally { _localSpeed.ReleaseIfStopped(); }
         _yAxis.Update(_application.CurrentDeepDungeonState);
         _communityEvidenceCollector?.ObserveRunState(
@@ -281,6 +295,8 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
         _commandManager.RemoveHandler(ProductIdentity.Command);
         _windows.RemoveAllWindows();
         _antiKick.Dispose();
+        try { _antiDisplacement.Dispose(); }
+        finally { _forcedMovement.Dispose(); }
         _localSpeed.Dispose();
         _yAxis.Dispose();
         _application.Dispose();

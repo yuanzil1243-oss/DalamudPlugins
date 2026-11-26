@@ -185,6 +185,52 @@ internal static class ExitReceiptTests
                 { ResultWindowPresent = true }, false);
             Assert(next == ExitAction.LeaveResult && ExitReceiptPolicy.ShouldClear(nativeReceipt, scope, next));
         });
+        var nativePrompts = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "退出后会自动保存攻略进度。要退出任务吗？",
+            "小队成员中有人处于离线状态。将会保存目前在线小队成员退出时的攻略进度，离线小队成员将无法保存此攻略进度。确定要退出吗？",
+            "退出后会自动保存攻略进度。背包已满的情况下将无法获得奖励物品。要退出任务吗？"
+        };
+        var restPrompts = new HashSet<string>(StringComparer.Ordinal) { "要离开朝圣交错路吗？" };
+        const string dutyPrompt = "确定要退出任务吗？";
+        Check("native-terminal-vocabulary-uses-verified-game-sheet-rows", () =>
+            Assert(ExitConfirmationPolicy.NativeExitPromptRows.SequenceEqual(new uint[] { 103, 104, 105 })));
+        foreach (string prompt in nativePrompts)
+        {
+            Check("native-terminal-confirmation-before-scoreboard-" + count, () =>
+            {
+                bool ready = ExitConfirmationPolicy.CanConfirmNativeExit(4, 100, true, false, true, false, true);
+                var kind = ExitConfirmationPolicy.Classify(prompt, dutyPrompt, restPrompts, nativePrompts, ready);
+                Assert(kind == ExitUiKind.DutyConfirmation);
+                // The portal can become untargetable while its modal is open.
+                var next = ExitUiPolicy.Decide(new(false, true, false, false, false, kind), true);
+                Assert(next == ExitAction.ConfirmDutyExit);
+                var receipt = new EntryDispatchReceipt(next.ToString(), "transition", "1290:True", prompt);
+                next = ExitUiPolicy.Decide(new(false, true, false, false, false, ExitUiKind.Result)
+                    { ResultWindowPresent = true }, true);
+                Assert(next == ExitAction.LeaveResult && ExitReceiptPolicy.ShouldClear(receipt, "1290:True", next));
+                Assert(ExitConfirmationPolicy.Classify(prompt, dutyPrompt, restPrompts, nativePrompts, false) == ExitUiKind.Unknown);
+            });
+        }
+        foreach (var (dungeon, floor) in new[] { (1u, 200), (2u, 100), (4u, 100) })
+            Check("native-terminal-requires-completed-reward-evidence-" + dungeon, () =>
+            {
+                Assert(ExitConfirmationPolicy.CanConfirmNativeExit(dungeon, floor, true, false, true, false, true));
+                Assert(ExitConfirmationPolicy.CanConfirmNativeExit(dungeon, floor, false, true, true, false, true));
+                Assert(!ExitConfirmationPolicy.CanConfirmNativeExit(dungeon, floor, false, false, true, false, true));
+                Assert(!ExitConfirmationPolicy.CanConfirmNativeExit(dungeon, floor, true, false, false, false, true));
+                Assert(!ExitConfirmationPolicy.CanConfirmNativeExit(dungeon, floor, true, false, true, true, true));
+                Assert(!ExitConfirmationPolicy.CanConfirmNativeExit(dungeon, floor, true, false, true, false, false));
+                Assert(!ExitConfirmationPolicy.CanConfirmNativeExit(dungeon, floor - 1, true, false, true, false, true));
+            });
+        Check("native-vocabulary-preserves-unrelated-prompt-protection", () =>
+        {
+            Assert(!ExitConfirmationPolicy.CanConfirmNativeExit(3, 100, true, false, true, false, true));
+            foreach (string prompt in new[] { "", "确定要删除存档吗？", nativePrompts.First() + "额外文字" })
+                Assert(ExitConfirmationPolicy.Classify(prompt, dutyPrompt, restPrompts, nativePrompts, true) == ExitUiKind.Unknown);
+            Assert(ExitConfirmationPolicy.Classify(dutyPrompt, dutyPrompt, restPrompts, nativePrompts, false) == ExitUiKind.DutyConfirmation);
+            Assert(ExitConfirmationPolicy.Classify(restPrompts.Single(), dutyPrompt, restPrompts, nativePrompts, false) == ExitUiKind.RestConfirmation);
+        });
         return count;
     }
 

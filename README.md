@@ -1,6 +1,8 @@
 # Yuzi · Dalamud 插件库
 
-当前发布 NewFolder3 0.7.55.2303，基于官方 .23，附完整源码、可复用扩展壳、许可证与文件校验。
+随包详细地图更新为 **2026-11-25.1**：妖宫21–30和31–40两套，原始签名、模型与挖宝收益数据保持原样。只更新安装包副本，不覆盖玩家已有缓存；运行时继续选取较新的有效数据。
+
+当前发布 NewFolder3 0.7.55.2304，基于官方 .23，附完整源码、可复用扩展壳、许可证与文件校验。
 
 ## 添加插件库
 
@@ -14,9 +16,12 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 
 | 插件 | 当前版本 | 简介 | 作者 | 状态 | 使用与下载 |
 | --- | --- | --- | --- | --- | --- |
-| NewFolder3 | **0.7.55.2303** | 基于官方 .23；失败结算续打、AE目标协调，保留模式循环。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 638项契约、162项默认移速离线及干净重套构建通过；游戏效果待验证 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2303/NewFolder3.zip) |
+| NewFolder3 | **0.7.55.2304** | 基于官方 .23；防击退、地宫内强制移动及终局退本衔接。<br>[原作者仓库](https://github.com/transparent-duck/NewFolder3) | John Smith / Yuzi | 766项契约、162项移速、1923项强制移动离线及干净重套构建通过；游戏效果待验证 | [使用说明](docs/使用说明.md) · [安装包](dist/NewFolder3/0.7.55.2304/NewFolder3.zip) |
 
 ## 本版使用规则
+
+- 防击退／吸引默认关闭，仅妖宫71–99层生效；强制移动默认关闭，仅地宫内生效，两者为独立开关。出本、过图或死亡时停用，不依赖独立实验室插件。
+- 强制移动保留正常输入，不自行走路或重启导航；不要同时开启其他插件的同类功能。妖宫终局确认修复后继续原分数板与循环，未知弹框不确认。
 
 - 失败结算后重新读取原档：可挑战则原档续打，禁入才核验删本任务档并按模式重开；不以失败次数作为触发依据，不扣成功轮数。保留存档仍退本保档停止。
 - AE预设先发送明确的`/aeTargetSelector off`，避免抢机制目标。退出后不自动重新打开，AE输出开关仍按原租约恢复；PR不改，RSR仍用Manual。
@@ -39,11 +44,11 @@ https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/pluginmast
 
 ## 当前资料
 
-- [0.7.55.2303 发布说明](docs/发布说明-0.7.55.2303.md)
+- [0.7.55.2304 发布说明](docs/发布说明-0.7.55.2304.md)
 - [功能、安装与保数据换版](docs/使用说明.md)
 - [构建与扩展壳维护](docs/开发说明.md) · [第三方声明](docs/第三方声明.md)
-- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2303/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2303/NewFolder3-overlay.zip)
-- [构建与文件校验](dist/NewFolder3/0.7.55.2303/BUILDINFO.json)
+- [源码目录](NewFolder3/) · [完整源码包](dist/NewFolder3/0.7.55.2304/NewFolder3-source.zip) · [更新扩展包](dist/NewFolder3/0.7.55.2304/NewFolder3-overlay.zip)
+- [构建与文件校验](dist/NewFolder3/0.7.55.2304/BUILDINFO.json)
 
 ## 历史隔离
 

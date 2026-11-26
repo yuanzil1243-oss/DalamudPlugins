@@ -19,6 +19,8 @@ public sealed class Configuration : IPluginConfiguration, IFsdSettingsStore
     public bool LocalSpeedEnabled { get; set; }
     public float LocalSpeedMultiplier { get; set; } = 1f;
     public bool AntiKickEnabled { get; set; }
+    public bool AntiDisplacementEnabled { get; set; }
+    public bool ForcedMovementEnabled { get; set; }
     public string CommunityEvidenceInstallationToken { get; set; } = string.Empty;
 
     public void Initialize(IDalamudPluginInterface pluginInterface)

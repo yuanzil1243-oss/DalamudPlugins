@@ -29,6 +29,7 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
     private EntryDispatchGate _dispatch = new(InteractionTiming.GetTransitionRetryMilliseconds());
     private string _dutyPrompt = "", _resultTitle = "", _resultExit = "", _status = "";
     private readonly HashSet<string> _restPrompts = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _nativeExitPrompts = new(StringComparer.Ordinal);
     private long _nextRead, _lastRequest = long.MinValue;
     public bool IsPrepared => _context != null;
     public ExitOutcome Outcome { get; private set; }
@@ -49,6 +50,13 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
         {
             string q = PtEntryText.Normalize(warpSheet.GetRow(warpId).Question.ExtractText());
             if (q.Length > 0) _restPrompts.Add(q);
+        }
+        _nativeExitPrompts.Clear();
+        var nativePrompts = Service.DataManager.GetExcelSheet<Lumina.Excel.Sheets.GimmickYesNo>();
+        foreach (uint rowId in ExitConfirmationPolicy.NativeExitPromptRows)
+        {
+            string q = PtEntryText.Normalize(nativePrompts.GetRow(rowId).Message.ExtractText());
+            if (q.Length > 0) _nativeExitPrompts.Add(q);
         }
         _resultTitle = PtEntryText.Normalize(Service.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Addon>().GetRow(10438).Text.ExtractText());
         _resultExit = PtEntryText.Normalize(Service.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Addon>().GetRow(10444).Text.ExtractText());
@@ -190,8 +198,11 @@ internal sealed class DungeonExitController(bool returnToEntrance, uint entrance
                 return new(ExitUiKind.Incomplete, (nint)yesno, identity, ResultWindowPresent: resultPresent);
             string text = PtEntryText.Normalize(prompt);
             var button = ((AddonSelectYesno*)yesno)->YesButton;
-            var kind = text.Length > 0 && text == _dutyPrompt ? ExitUiKind.DutyConfirmation
-                : text.Length > 0 && _restPrompts.Contains(text) ? ExitUiKind.RestConfirmation : ExitUiKind.Unknown;
+            bool terminalExitReady = _context is { } context && ExitConfirmationPolicy.CanConfirmNativeExit(
+                context.Duty.DungeonId, context.Duty.Floor, inDuty, resultPresent,
+                context.TerminalRoomObserved, context.TerminalRewardsRequired, context.DutyCompletionObserved);
+            var kind = ExitConfirmationPolicy.Classify(text, _dutyPrompt, _restPrompts,
+                _nativeExitPrompts, terminalExitReady);
             bool disabled = button != null && !button->IsEnabled && kind != ExitUiKind.Unknown;
             return new(button == null || disabled ? ExitUiKind.Incomplete : kind,
                 (nint)yesno, identity + ":" + text, disabled, text, resultPresent);

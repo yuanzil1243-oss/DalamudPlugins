@@ -2,22 +2,22 @@
   {
     "Author": "John Smith / Yuzi",
     "Name": "NewFolder3",
-    "Punchline": "基于官方 .23，失败结算续打、AE目标协调与本地扩展",
+    "Punchline": "基于官方 .23，终局退本修复与地宫移动辅助",
     "InternalName": "NewFolder3",
     "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-    "AssemblyVersion": "0.7.55.2303",
+    "AssemblyVersion": "0.7.55.2304",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
     "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-    "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2303。修复失败结算停在最终成绩板：退本后原档可挑战则续打，禁入才核验删档重开，失败不扣成功轮数；保留存档仍退本保档停止。AE预设先关闭自身目标选择器，避免覆盖机制目标；PR保持不变，RSR仍用Manual。保留三地宫领奖退本、分数板循环、模式续打、保档、暂停、移速与最大加速度、地宫内GCD保护、防踢、聚魔柄、天宫魔石及两套签名地图。更新保留配置、地图缓存和暂停记录；游戏效果待实测。",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2303/NewFolder3.zip",
-    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2303/NewFolder3.zip",
-    "LastUpdate": 1795627999,
+    "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2304。修复妖宫最终奖励出口保存进度确认的识别，确认后接回分数板及原循环。新增默认关闭的防击退／吸引（仅妖宫71–99层）和强制移动（仅地宫内）独立开关，出本、过图或死亡时停用。强制移动保留正常输入，不自行走路或恢复导航。保留原战斗、Boss、探索和寻路策略，以及模式续打、保档、失败重试、AE目标协调、移速与最大加速度、地宫内GCD保护、防踢、聚魔柄及2026-11-25.1版妖宫21–30、31–40签名地图。更新保留配置、地图缓存和暂停记录。构建与离线检查通过，游戏效果以实际场景为准。",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2304/NewFolder3.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/dist/NewFolder3/0.7.55.2304/NewFolder3.zip",
+    "LastUpdate": 1795655579,
     "IsHide": false,
     "IsTestingExclusive": false,
-    "Changelog": "0.7.55.2303：修复失败结算退本衔接，原档可挑战则续打，禁入才核验删档重开；失败不扣成功轮数。AE预设先关闭自身目标选择器，PR不改。638项契约、162项默认移速离线、保数据换版及干净重套构建通过；游戏效果待实测。"
+    "Changelog": "0.7.55.2304：新增防击退／吸引（仅妖宫71–99层）与强制移动（仅地宫内）独立开关，默认关闭；修复妖宫最终奖励出口确认，继续分数板与原循环。保留配置和地图。766项契约、162项移速、1923项强制移动离线及干净重套构建通过。 随包更新2026-11-25.1版妖宫21–30、31–40详细地图。"
   }
 ]

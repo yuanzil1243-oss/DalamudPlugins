@@ -12,6 +12,8 @@ try {
     if ($LASTEXITCODE -ne 0) { Get-Content "artifacts/contract-tests-$version.log" -Tail 35; throw 'Contract tests failed.' }
     & dotnet run --project tests/NewFolder3.SpeedChecks -c Release *> "artifacts/speed-tests-$version.log"
     if ($LASTEXITCODE -ne 0) { Get-Content "artifacts/speed-tests-$version.log" -Tail 35; throw 'Speed tests failed.' }
+    & dotnet run --project tests/NewFolder3.ForcedMovementChecks -c Release -- "artifacts/forced-movement-tests-$version.json" "artifacts/bin/NewFolder3/release/NewFolder3.dll" *> "artifacts/forced-movement-tests-$version.log"
+    if ($LASTEXITCODE -ne 0) { Get-Content "artifacts/forced-movement-tests-$version.log" -Tail 35; throw 'Forced movement tests failed.' }
     & powershell -NoProfile -ExecutionPolicy Bypass -File tests/Test-VersionSwitch.ps1 *> "artifacts/version-switch-tests-$version.log"
     if ($LASTEXITCODE -ne 0) { Get-Content "artifacts/version-switch-tests-$version.log" -Tail 35; throw 'Version switch tests failed.' }
     & python scripts/verify_local.py

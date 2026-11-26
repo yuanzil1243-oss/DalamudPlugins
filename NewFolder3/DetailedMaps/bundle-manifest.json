@@ -3,22 +3,22 @@
   "bundles": [
     {
       "scenario": "pt-21-30",
-      "release": "2026-11-23.1",
+      "release": "2026-11-25.1",
       "sha256": {
-        "installed.json": "9fb150f54fe83e03a658deaa4c0b0c20fea99c24d16a3ac7a3f27143e46f012a",
-        "releases/2026-11-23.1-799e998000b9/catalog.json": "799e998000b96d3c07430c5ae943b3b401236b8e10069405ba96a6543110be18",
-        "releases/2026-11-23.1-799e998000b9/catalog.sig.json": "dd356dd680b25f671c8ba137e8e5c9d5e8fc9b4fb5668bcf859ec5eddcfe324b",
-        "releases/2026-11-23.1-799e998000b9/hoard-yield-catalog.json": "abee77486deed93d5e8a57a9b7f28b9c7b8f78d9d924969a1932d9d6f9afaf2a"
+        "installed.json": "8721489bb0a0bca53ad0385207297d9b636ec33c06ca0db5bec9293138ef815b",
+        "releases/2026-11-25.1-8e04ba04590e/catalog.json": "8e04ba04590e46668f76b552e43c7de4874ef6e46f89157127db1796c96da933",
+        "releases/2026-11-25.1-8e04ba04590e/catalog.sig.json": "164edcdc4b03afbf33b7265d2c55e52a6a758b21bba0ccd978663974d53c342c",
+        "releases/2026-11-25.1-8e04ba04590e/hoard-yield-catalog.json": "4c4cce5cc6693a964f1d80bd678e55b82005db4d57ec9be76f12a9a9207b1d78"
       }
     },
     {
       "scenario": "pt-31-40",
-      "release": "2026-11-23.1",
+      "release": "2026-11-25.1",
       "sha256": {
-        "installed.json": "654642c567eb81dd4030dbcb810da3db89234825e6fd5f957e90c91cd60cd7c8",
-        "releases/2026-11-23.1-cc9c7ce98e00/catalog.json": "cc9c7ce98e00b931954e1d9976dcd13ffdf24e05c2000b7583924073dfe5e0ae",
-        "releases/2026-11-23.1-cc9c7ce98e00/catalog.sig.json": "a4badf13be133624191f86499e6b6f0789405bdf48b5a15697f88c36be833ffc",
-        "releases/2026-11-23.1-cc9c7ce98e00/hoard-yield-catalog.json": "d1d0ee459dbaef2f45e63e2a8bf67e97caf1f9b29314b147da322a408920e0c0"
+        "installed.json": "b88464acf147586af93129bf8faa5f5ce0577b437a2a1012fb4670dd49387639",
+        "releases/2026-11-25.1-786192728d34/catalog.json": "786192728d34348e2fc0caae9bf8b5621d05df735e2337da62fba0a0a403fe10",
+        "releases/2026-11-25.1-786192728d34/catalog.sig.json": "2e641798b71a3ed102c6e53208d4083b9382175ddf8aa1020301fac5adc97d5e",
+        "releases/2026-11-25.1-786192728d34/hoard-yield-catalog.json": "baad9631ea9fe115b7a3db6512239d207d82666a98312eedf70de2673a3cab4a"
       }
     }
   ]

@@ -68,7 +68,7 @@ def relative_files(root,folder):
 
 def additions(root):
     files=[]
-    for folder in ('LocalExtensions','DetailedMaps','scripts','licenses','tests/NewFolder3.SpeedChecks'):
+    for folder in ('LocalExtensions','DetailedMaps','scripts','licenses','tests/NewFolder3.SpeedChecks','tests/NewFolder3.ForcedMovementChecks'):
         files += relative_files(root,folder)
     for name in ('本地扩展壳与更新规则.md','使用与换版说明.md','验收记录.md','聚魔柄循环移植与验收.md'):
         if (root/'docs'/name).is_file():files.append(root/'docs'/name)
@@ -89,6 +89,7 @@ def additions(root):
     files.append(root/'tests/NewFolder3.ContractTests/PassageRoutingRegressionTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/ModeContinuationTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/FailedAttemptRecoveryTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/KnockbackProtectionTests.cs')
     files.append(root/'tests/Test-VersionSwitch.ps1')
     return sorted(set(files))
 

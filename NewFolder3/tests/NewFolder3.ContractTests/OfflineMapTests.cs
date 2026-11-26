@@ -48,7 +48,7 @@ internal static class OfflineMapTests
                     manager.Update(true, scope.Key, false);
                     var status = manager.GetStatus(true, scope.Key);
                     Assert(status.HasValidCatalog && !status.Checking && !status.RetryAvailable &&
-                        status.ReleaseId == "2026-11-23.1" && manager.IsOfflineDetailedMap);
+                        status.ReleaseId == "2026-11-25.1" && manager.IsOfflineDetailedMap);
                     Assert(manager.TryAcquireRunSnapshot(true, scope.Key, out var snapshot, out _));
                     Assert(snapshot.Policy == DetailedMapRuntimePolicy.DetailedMap && snapshot.HoardYield != null);
                     Assert(snapshot.Catalog!.Rooms.Length == 42);

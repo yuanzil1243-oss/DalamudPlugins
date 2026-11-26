@@ -98,7 +98,7 @@ for entry in feed:
     maps=verify(ROOT/name/'DetailedMaps',ROOT/name)
     require({x['scenario'] for x in maps['bundles']}=={'pt-21-30','pt-31-40'},'Wrong map scopes')
     for bundle in maps['bundles']:
-        require(bundle['release']=='2026-11-23.1','Unexpected map release')
+        require(bundle['release']=='2026-11-25.1','Unexpected map release')
         for path,sha in bundle['sha256'].items():
             require(digest(files['DetailedMaps/'+bundle['scenario']+'/'+path])==sha,'Package/source map mismatch')
     require(digest((ROOT/name/'NewFolder3-release.json').read_bytes())==info['upstreamFeedSha256'],

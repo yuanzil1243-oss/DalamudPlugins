@@ -10,15 +10,19 @@ internal sealed class FsdWindow : Window
     private readonly YAxisAdjustController _yAxis;
     private readonly LocalSpeedController _localSpeed;
     private readonly AntiKickController _antiKick;
+    private readonly AntiDisplacementController _antiDisplacement;
+    private readonly ForcedMovementController _forcedMovement;
 
     public FsdWindow(FsdApplication application, YAxisAdjustController yAxis, LocalSpeedController localSpeed,
-        AntiKickController antiKick)
+        AntiKickController antiKick, AntiDisplacementController antiDisplacement, ForcedMovementController forcedMovement)
         : base("你是壞孩子###NewFolder3")
     {
         _application = application ?? throw new ArgumentNullException(nameof(application));
         _yAxis = yAxis ?? throw new ArgumentNullException(nameof(yAxis));
         _localSpeed = localSpeed;
         _antiKick = antiKick;
+        _antiDisplacement = antiDisplacement;
+        _forcedMovement = forcedMovement;
     }
 
     private static void DrawUsageNotes()
@@ -46,6 +50,8 @@ internal sealed class FsdWindow : Window
             ImGui.TextWrapped("死靈術士需要強強PC, 請勿制限低幀");
             _localSpeed.DrawSettings();
             _antiKick.DrawSettings();
+            _antiDisplacement.DrawSettings();
+            _forcedMovement.DrawSettings();
             _application.DrawTerminalRewardSettings();
             _application.DrawGcdProtectionSettings();
             // Keep this last: add future feature controls above the usage notes.

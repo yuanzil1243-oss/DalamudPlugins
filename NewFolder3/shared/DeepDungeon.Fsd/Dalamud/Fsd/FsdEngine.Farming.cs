@@ -132,6 +132,7 @@ internal partial class FsdEngine
         ImGui.BeginDisabled(currentDuty || !free && FarmingTargetPolicy.LocksHoard(mode));
         changed = ImGui.Checkbox("探索埋藏的寶藏", ref hoard);
         ImGui.EndDisabled();
+        DrawFreeBlindSearchOptions(running, free, hoard);
         ImGui.BeginDisabled(!editableChests && FarmingTargetPolicy.LocksGold(mode));
         changed |= ImGui.Checkbox("開啟金寶箱", ref gold);
         ImGui.EndDisabled();
@@ -328,9 +329,7 @@ internal partial class FsdEngine
         cycles = plan.TargetCycles;
         infinite = plan.Infinite;
         var session = new FarmingSession(plan, resumeSlot ?? -1);
-        string? key = plan!.ShowsDetailedMap ? startFloor == 21
-            ? DetailedMapScenarioCatalog.PilgrimsTraverse21To30.Key
-            : DetailedMapScenarioCatalog.PilgrimsTraverse31To40.Key : null;
+        string? key = DetailedMapUsagePolicy.ScenarioKey(plan!);
         bool started = TryStartOutsideDutyFsd(() => CreateLocalFarmingScenario(session), cycles, infinite, key, out error);
         if (started)
         {

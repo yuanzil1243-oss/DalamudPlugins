@@ -19,15 +19,19 @@ public static class FreeExplorationPolicy
     };
 
     public static bool TryCreate(uint dungeon, int start, int end, int cycles, bool infinite,
-        FarmingTargets targets, bool aggressive, bool external, out FarmingPlan? plan, out string error)
+        FarmingTargets targets, bool aggressive, bool external, out FarmingPlan? plan, out string error,
+        bool blindSearchRangeEnabled = false, int blindSearchStartFloor = 1, int blindSearchEndFloor = 0)
     {
         plan = null;
         int max = dungeon == 1 ? 200 : 100;
+        if (blindSearchEndFloor == 0) blindSearchEndFloor = max;
         error = dungeon is not (1 or 2 or 4) ? "不支援此地宮。"
             : start < 1 || start > max - 9 || start % 10 != 1 ? "起點須為可入場的十層組起點。"
             : !external && !NewSaveStarts(dungeon).Contains(start) ? "此樓層不是原版可新建起點；其他起點須選擇對應已有存檔。"
             : end < start + 9 || end > max || end % 10 != 0 ? $"終點須為起點之後的十層組末，且不超過 {max} 層。"
             : cycles < 1 ? "循環次數必須至少為 1。"
+            : blindSearchRangeEnabled && (blindSearchStartFloor < 1 || blindSearchEndFloor < blindSearchStartFloor || blindSearchEndFloor > max)
+                ? $"盲踩層數須介於 1–{max} 層，且起始層不可高於最終層。"
             : external && (cycles != 1 || infinite) ? "已有存檔只續打一次並保檔停止，不能刪檔循環。"
             : string.Empty;
         if (error.Length > 0) return false;
@@ -35,7 +39,10 @@ public static class FreeExplorationPolicy
             targets.Hoard, targets.Gold, targets.Silver, targets.Bronze)
         {
             DungeonId = dungeon, FreeExploration = true, EndFloor = end,
-            FreeAggressiveChestInteraction = aggressive, ExternalSave = external
+            FreeAggressiveChestInteraction = aggressive, ExternalSave = external,
+            FreeBlindRangeEnabled = blindSearchRangeEnabled,
+            FreeBlindStartFloor = blindSearchRangeEnabled ? blindSearchStartFloor : 0,
+            FreeBlindEndFloor = blindSearchRangeEnabled ? blindSearchEndFloor : 0
         };
         return true;
     }

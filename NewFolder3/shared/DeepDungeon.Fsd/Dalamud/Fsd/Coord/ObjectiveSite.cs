@@ -35,7 +35,7 @@ internal enum ObjectiveSiteStatus
     Retryable,   // not terminal — may become viable again
 }
 
-internal readonly record struct ObjectiveSite(
+internal readonly partial record struct ObjectiveSite(
     int Id,
     ObjectiveSiteKind Kind,
     int RoomIndex,

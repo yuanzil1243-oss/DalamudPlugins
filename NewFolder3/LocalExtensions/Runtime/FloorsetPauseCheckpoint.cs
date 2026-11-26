@@ -44,7 +44,8 @@ public static class FloorsetPausePolicy
             return plan.Mode == FarmingMode.DeepProgression && plan.SaveUse == SaveUse.Create &&
                 FreeExplorationPolicy.TryCreate(plan.DungeonId, plan.StartFloor, plan.EndFloor ?? 0,
                     plan.TargetCycles, plan.Infinite, new(plan.BandedEnabled, plan.OpenGold, plan.OpenSilver, plan.OpenBronze),
-                    plan.FreeAggressiveChestInteraction, plan.ExternalSave && !plan.ManagedContinuation, out _, out _);
+                    plan.FreeAggressiveChestInteraction, plan.ExternalSave && !plan.ManagedContinuation, out _, out _,
+                    plan.FreeBlindRangeEnabled, plan.FreeBlindStartFloor, plan.FreeBlindEndFloor);
         if (!(plan.ManagedContinuation && plan.Mode == FarmingMode.DeepProgression && !plan.BandedEnabled) &&
             !FarmingTargetPolicy.IsValid(plan.Mode, new(plan.BandedEnabled, plan.OpenGold, plan.OpenSilver, plan.OpenBronze)))
             return false;

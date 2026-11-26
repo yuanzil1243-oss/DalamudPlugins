@@ -46,6 +46,7 @@ internal sealed class SiteWorkOp : FloorOperation
         _hoardAcquired = hoardAcquired;
         var roomProbe = site.Kind is ObjectiveSiteKind.RoomProbe or ObjectiveSiteKind.PassageSearch;
         _nav = new NavigateOp(site.Position, OpPriority, MaxNavAttempts,
+            site.BlindProbe != null ? NavigationRange.MovementTolerance :
             roomProbe ? RoomProbeRange.Radius : CandidateRange.Radius);
     }
 
@@ -79,7 +80,12 @@ internal sealed class SiteWorkOp : FloorOperation
         var isRoomProbe = _site.Kind is ObjectiveSiteKind.RoomProbe or ObjectiveSiteKind.PassageSearch;
         var range = isRoomProbe ? RoomProbeRange : CandidateRange;
         var needed = isRoomProbe ? IntelSettleSeconds : CandidateDwellSeconds;
-        var inside = range.HasArrived(facts.PlayerPosition, _site.Position);
+        var currentFloor = facts.Floor;
+        var currentRoom = facts.RoomIndex;
+        bool AtProbe(Vector3 position) => _site.BlindProbe is { } group
+            ? group.Floor == currentFloor && _site.RoomIndex == currentRoom && group.Covers(position)
+            : range.HasArrived(position, _site.Position);
+        var inside = AtProbe(facts.PlayerPosition);
         var exactReveal =
             _site.Kind is ObjectiveSiteKind.Hoard or ObjectiveSiteKind.HoardIndicator;
 
@@ -149,7 +155,7 @@ internal sealed class SiteWorkOp : FloorOperation
                 // work, and there is no timeout success.
                 var fresh = facts.Evidence is { Available: true, PlayerPosition: { } observedPosition } ev &&
                     ev.RefreshSequence > _evidenceAtDwell &&
-                    range.HasArrived(observedPosition, _site.Position);
+                    AtProbe(observedPosition);
                 if (!inside)
                 {
                     _dwelled = false;
@@ -181,6 +187,11 @@ internal sealed class SiteWorkOp : FloorOperation
     internal override void OnSuspended()
     {
         base.OnSuspended();
+        if (_site.BlindProbe != null)
+        {
+            _dwelled = false;
+            _evidenceAtDwell = -1;
+        }
         // A partial dwell must not accumulate across the suspension gap;
         // completed dwell and facts already live in FloorKnowledge.
         if (!_dwelled)

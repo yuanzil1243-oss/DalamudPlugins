@@ -43,6 +43,9 @@ internal static class Program
         passed += ModeContinuationTests.Run();
         passed += FailedAttemptRecoveryTests.Run();
         passed += KnockbackProtectionTests.Run();
+        passed += HoardProbeRegressionTests.Run();
+        passed += RelicOffenseItemTests.Run();
+        passed += FreeBlindSearchTests.Run();
         Console.WriteLine($"NewFolder3 contract tests: {passed} passed");
         return 0;
     }

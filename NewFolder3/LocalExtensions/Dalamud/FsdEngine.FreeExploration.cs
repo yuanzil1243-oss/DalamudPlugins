@@ -81,7 +81,8 @@ internal partial class FsdEngine
         if (!FreeExplorationPolicy.TryCreate(dungeon, preferences.StartFloor,
                 preferences.EndFloor, cycles, infinite, new(preferences.BandedEnabled == true,
                     preferences.OpenGold, preferences.OpenSilver, preferences.OpenBronze),
-                preferences.AggressiveChestInteraction, false, out var plan, out var error))
+                preferences.AggressiveChestInteraction, false, out var plan, out var error,
+                preferences.BlindSearchRangeEnabled, preferences.BlindSearchStartFloor, preferences.BlindSearchEndFloor))
             return new(false, error);
         plan = TaskContinuationPolicy.WithRetention(plan!, preferences.KeepSave);
         var session = new FarmingSession(plan);

@@ -172,9 +172,7 @@ internal partial class FsdEngine
         if (checkpoint.Slot is { } slot)
             session.RestoreCheckpoint(slot, checkpoint.Failures, checkpoint.Character,
                 ConsumeLocalPauseCheckpoint, reason => _localPauseIssue = reason);
-        string? mapKey = checkpoint.Plan.ShowsDetailedMap ? checkpoint.Plan.StartFloor == 21
-            ? DetailedMapScenarioCatalog.PilgrimsTraverse21To30.Key
-            : DetailedMapScenarioCatalog.PilgrimsTraverse31To40.Key : null;
+        string? mapKey = DetailedMapUsagePolicy.ScenarioKey(checkpoint.Plan);
         bool started = TryStartOutsideDutyFsd(() => CreateLocalFarmingScenario(session),
             checkpoint.Plan.TargetCycles, checkpoint.Plan.Infinite, mapKey, out error,
             resumePausedProgression: true, completedLoops: checkpoint.CompletedCycles);

@@ -71,7 +71,7 @@ internal sealed partial class FloorExplorationController
         if (dd->DeepDungeonId != 4) return 0;
 
         var decision = SilverChestOvercapPolicy.Decide(Coord.SiteSearchBoundary.ReadStoneCount(dd),
-            GetStoneCountAvailableForFloorUse(3) > 0,
+            RelicOffenseItemPolicy.AllowsNormalJuniper(_ctx.FarmingPlan, GetStoneCountAvailableForFloorUse(3)),
             DeepDungeonFloorItemUsePolicy.CanUsePtIncense(dd->DeepDungeonBanId));
         return decision == SilverChestOvercapDecision.UseSerenityIncense ? (byte)3 : (byte)0;
     }

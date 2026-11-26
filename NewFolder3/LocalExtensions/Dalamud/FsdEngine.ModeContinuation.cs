@@ -32,7 +32,8 @@ internal partial class FsdEngine
             var free = settings.GetFreeExplorationPreferences();
             int restart = TaskContinuationPolicy.HighestStartAtOrBelow(dungeon, free.EndFloor);
             if (!FreeExplorationPolicy.TryCreate(dungeon, restart, free.EndFloor, cycles, infinite,
-                targets, free.AggressiveChestInteraction, false, out plan, out error)) return false;
+                targets, free.AggressiveChestInteraction, false, out plan, out error,
+                free.BlindSearchRangeEnabled, free.BlindSearchStartFloor, free.BlindSearchEndFloor)) return false;
         }
         else
         {
@@ -60,9 +61,7 @@ internal partial class FsdEngine
                     Service.LocalPlayer?.ClassJob.RowId ?? 0) ? null : "角色或職業變更；保檔停止。",
                 reason => _farmingError = reason);
         else session.AttachCurrentDuty(plan.ContinuationStartFloor!.Value);
-        string? key = plan.ShowsDetailedMap ? plan.StartFloor == 21
-            ? DetailedMapScenarioCatalog.PilgrimsTraverse21To30.Key
-            : DetailedMapScenarioCatalog.PilgrimsTraverse31To40.Key : null;
+        string? key = DetailedMapUsagePolicy.ScenarioKey(plan);
         try { _configuration.Save(); }
         catch (Exception ex)
         {

@@ -245,7 +245,9 @@ internal sealed class FloorSurveyController : IDisposable
     	if (decision.ShouldCollectJointScan && exactIndicatorPosition.HasValue)
     		UpdateNaturalJointCapture(dd, snapshot, exactIndicatorPosition.Value);
 
-    	if (!decision.ShouldUseReveal || !_items.CanAttemptPomanderUse())
+        if (!decision.ShouldUseReveal || !_items.CanAttemptPomanderUse() ||
+            !FreeBlindSearchPolicy.AllowsHoardTool(_ctx.FarmingPlan, _floor,
+                FloorInitPlanner.SightPomanderSlotIndex, overflow: false))
     	{
     		return;
     	}

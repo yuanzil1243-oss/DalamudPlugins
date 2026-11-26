@@ -29,8 +29,13 @@ HOOKS = {
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.Pause.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/FsdEngine.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/GameState/DetailedMapCatalogManager.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Coord/ObjectiveSite.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Coord/ObjectiveSiteDriver.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Coord/SiteWorkOp.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/FloorWorkPolicy.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Floor/FloorExplorationController.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Floor/FloorBossController.cs',
+ 'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Floor/FloorSurveyController.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Floor/FloorExplorationController.Magicite.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/RunHost.cs',
  'shared/DeepDungeon.Fsd/Dalamud/Fsd/Runtime/Scenarios/FarmingScenario.cs',
@@ -90,6 +95,9 @@ def additions(root):
     files.append(root/'tests/NewFolder3.ContractTests/ModeContinuationTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/FailedAttemptRecoveryTests.cs')
     files.append(root/'tests/NewFolder3.ContractTests/KnockbackProtectionTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/HoardProbeRegressionTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/RelicOffenseItemTests.cs')
+    files.append(root/'tests/NewFolder3.ContractTests/FreeBlindSearchTests.cs')
     files.append(root/'tests/Test-VersionSwitch.ps1')
     return sorted(set(files))
 

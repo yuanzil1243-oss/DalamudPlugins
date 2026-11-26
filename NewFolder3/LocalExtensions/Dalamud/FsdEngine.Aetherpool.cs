@@ -53,7 +53,7 @@ internal partial class FsdEngine
             return new(false, error);
         plan = TaskContinuationPolicy.WithRetention(ConfigureGripExchange(plan!), p.KeepSave);
         var session = new FarmingSession(plan);
-        string? key = plan.ShowsDetailedMap ? DetailedMapScenarioCatalog.PilgrimsTraverse21To30.Key : null;
+        string? key = DetailedMapUsagePolicy.ScenarioKey(plan);
         bool started = TryStartOutsideDutyFsd(() => CreateLocalFarmingScenario(session), plan.TargetCycles, plan.Infinite, key, out error);
         if (started) { _farmingError = null; _configuration.Save(); }
         return new(started, error);

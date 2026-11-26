@@ -13,7 +13,7 @@ using MasterPlayer.MechanicRuntime;
 namespace DeepDungeon.Fsd.Dalamud.Runtime.Floor;
 
 /// <summary>Owns one floor's boss navigation, combat buffs and diagnostic cadence.</summary>
-internal sealed class FloorBossController : IDisposable
+internal sealed partial class FloorBossController : IDisposable
 {
     private const float BossNavigationArrivalTolerance = 3f;
     private const uint SteelStatusId = 1100;
@@ -364,6 +364,7 @@ internal sealed class FloorBossController : IDisposable
         if (dd->DeepDungeonId == 4 && CombatBuffUsable(FloorInitPlanner.HastePomanderSlotIndex) &&
             FarmingItemPolicy.NeedsBossRefresh(LocalStatusRemaining(PtHasteStatusId)) &&
             _items.TryUsePomander(FloorInitPlanner.HastePomanderSlotIndex, dd, "boss haste refresh")) return true;
+        if (TryUseLocalRelicBossFrailty(dd)) return true;
         // The PT incense grants Tranquil Moonlight for this floor.
         return dd->DeepDungeonId == 4 &&
             ItemPolicy.AllowsBossSerenity(_items.GetStoneCountAvailableForFloorUse(3), _ctx.Duty.IsBossFloor,

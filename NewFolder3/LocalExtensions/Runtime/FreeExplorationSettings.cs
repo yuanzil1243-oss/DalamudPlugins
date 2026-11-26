@@ -26,6 +26,9 @@ public sealed partial class FarmingSettings
 
 public sealed class FreeExplorationPreferences : FarmingPreferences
 {
+    public bool BlindSearchRangeEnabled { get; set; }
+    public int BlindSearchStartFloor { get; set; } = 1;
+    public int BlindSearchEndFloor { get; set; }
     public int StartFloor { get; set; } = 1;
     public int EndFloor { get; set; } = 100;
     public bool AggressiveChestInteraction { get; set; }

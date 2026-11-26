@@ -33,7 +33,7 @@ public sealed partial record FarmingPlan(
     public uint ExternalSaveJob { get; init; }
     public bool StopsForTerminalReview => Mode == FarmingMode.DeepProgression && StopAfterFloor == MaxFloor;
     public bool ReusesSave => Mode is FarmingMode.Aetherpool or FarmingMode.HoardDiscovery;
-    public bool ShowsDetailedMap => Mode == FarmingMode.Hoard && BandedEnabled;
+    public bool ShowsDetailedMap => DetailedMapUsagePolicy.ScenarioKey(this) != null;
     public string CycleUnit => RelicMaterial ? "刷強化輪數" : FreeExploration ? "完整層段輪數" : Mode == FarmingMode.DeepProgression ? "登頂次數" : Mode == FarmingMode.Hoard ? "挖寶輪數" : "採集輪數";
 
     public static bool TryCreate(FarmingMode mode, SaveUse saveUse, int startFloor,

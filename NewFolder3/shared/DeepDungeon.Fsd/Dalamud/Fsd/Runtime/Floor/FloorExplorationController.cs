@@ -243,7 +243,7 @@ bool primaryOwnsOperation = true)
                 _siteDriver.ConfigureWork(
                     _ctx.DetailedMap, _ctx.Knowledge,
                     () => FloorWorkPolicyBuilder.Build(
-                        _ctx.FarmingPlan, SnapshotRunOptions()),
+                        _ctx.FarmingPlan, SnapshotRunOptions(), Floor),
                     RecordReplayEvent, CanClearChestOvercap);
             }
             _siteSearch = new Coord.SiteSearchBoundary(
@@ -636,6 +636,7 @@ bool primaryOwnsOperation = true)
             _pomanderActive[i] = _pomanderManager.IsActive((uint)i);
         }
         knowledge.SetPomanderSnapshot(_pomanderStock, _pomanderActive);
+        ObserveLocalRelicFrailtyInventory(dd);
         fk.ObserveNativeIntuition(_nativeIntuitionActive);
         fk.ObserveSightState(_chatWatchers?.SightState ?? SightUseState.None);
         ObserveIntuitionUse(fk, dd->Floor);
@@ -1113,7 +1114,13 @@ bool primaryOwnsOperation = true)
         if (CurrentInteractionAttempt is { PendingGoldOvercapSlotIndex: not null } or { PendingSilverOvercapStoneRowId: not null })
             return;
 
-        var decision = GeneralAutoPomanderPlanner.Decide(BuildGeneralAutoPomanderSnapshot(allowStatusOverlap: false, HasHarmfulFloorEffect(dd)));
+        var snapshot = BuildGeneralAutoPomanderSnapshot(allowStatusOverlap: false, HasHarmfulFloorEffect(dd));
+        var decision = GeneralAutoPomanderPlanner.Decide(snapshot);
+        // Existing curse/floor-effect relief keeps priority. Only relic farming
+        // adds proactive output spending; boss preparation remains upstream.
+        if (decision.SlotIndex is not (FloorInitPlanner.PurityPomanderSlotIndex or FloorInitPlanner.SerenityPomanderSlotIndex) &&
+            (TryUseLocalFreeRangeIntuition(dd) || TryUseLocalRelicOffenseItem(dd, snapshot)))
+            return;
         if (decision.ShouldUse &&
             TryUsePomander(decision.SlotIndex!.Value, dd, decision.Reason!))
         {
@@ -1156,7 +1163,7 @@ bool primaryOwnsOperation = true)
         return new FloorInitSnapshot
         {
             CanAttemptPomanderUse = CanAttemptPomanderUse(),
-            BandedEnabled = SnapshotRunOptions().BandedEnabled,
+            BandedEnabled = SnapshotRunOptions().BandedEnabled && AllowsLocalAutomaticHoardTools,
             HasOpenedHoardThisFloor = cfk?.HoardAcquired == true,
             HoardOpportunity = DeepDungeonFloorsetTracker.GetCurrentOpportunity(dd->Floor),
             IntuitionActive = _nativeIntuitionActive,
@@ -1243,7 +1250,8 @@ bool primaryOwnsOperation = true)
 
     private bool ShouldUseGoldChestOvercapHoardPomander(uint slotIndex)
     {
-        if (_chatWatchers == null ||
+        if (!FreeBlindSearchPolicy.AllowsHoardTool(_ctx.FarmingPlan, Floor, slotIndex, overflow: true) ||
+            _chatWatchers == null ||
             IsPomanderBlockedForFloor(slotIndex) ||
             !SnapshotRunOptions().BandedEnabled ||
             _ctx.Knowledge.Floor?.HoardAcquired == true ||
@@ -1277,7 +1285,7 @@ bool primaryOwnsOperation = true)
         return new RoomFinishPomanderSnapshot
         {
             CanAttemptPomanderUse = CanAttemptPomanderUse(),
-            BandedEnabled = SnapshotRunOptions().BandedEnabled,
+            BandedEnabled = SnapshotRunOptions().BandedEnabled && AllowsLocalAutomaticHoardTools,
             HasOpenedHoardThisFloor = cfk?.HoardAcquired == true,
             FloorsetBandedCount = floorsetState.TotalHoardCount,
             HoardOpportunity = FloorsetHoardDistributionPolicy.Decide(

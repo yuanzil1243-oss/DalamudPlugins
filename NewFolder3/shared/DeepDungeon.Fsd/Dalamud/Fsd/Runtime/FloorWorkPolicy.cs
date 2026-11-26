@@ -14,11 +14,14 @@ internal readonly record struct FloorWorkPolicy(
     bool HarvestChests,
     bool OpenGold,
     bool OpenSilver,
-    bool OpenBronze);
+    bool OpenBronze)
+{
+    internal bool AllowBlindHoardSearch { get; init; } = true;
+}
 
 internal static class FloorWorkPolicyBuilder
 {
-    internal static FloorWorkPolicy Build(FarmingPlan? plan, RunOptions options)
+    internal static FloorWorkPolicy Build(FarmingPlan? plan, RunOptions options, int floor = 0)
     {
         var mode = plan?.Mode ?? FarmingMode.Hoard;
         var harvest = mode == FarmingMode.Aetherpool || options.HarvestChestsRequired;
@@ -35,6 +38,7 @@ internal static class FloorWorkPolicyBuilder
         var openBronze = !discoveryOnly && options.OpenBronze;
         return new FloorWorkPolicy(
             searchHoard, discoveryOnly, harvest,
-            openGold, openSilver, openBronze);
+            openGold, openSilver, openBronze)
+        { AllowBlindHoardSearch = FreeBlindSearchPolicy.AllowsBlind(plan, floor) };
     }
 }

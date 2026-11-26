@@ -426,23 +426,29 @@ internal sealed class ObjectiveSiteDriver : IDisposable
         fk.ActiveHoardRate = rate;
         var observedSight = fk.ObservedSightPositions;
         var spawnRoom = fk.SpawnRoom >= 0 ? fk.SpawnRoom : playerRoom;
+        // A pinned snapshot can outlive its supported floorset. Never feed a
+        // catalog from another dungeon/territory/floor into the room planner.
+        var catalog = DetailedMapUsagePolicy.Applies(_map?.Catalog, fk.DungeonId,
+            Service.ClientState.TerritoryType, dd->Floor) ? _map!.Catalog : null;
+        if (!ReferenceEquals(_profileCatalog, catalog))
+            _modelFloor = null;
         // Shared floor-pooled profile — built ONCE per pinned
         // catalog+floor before completion/Sight filtering, cached on the
         // driver so the structural mapping runs once, not per frame.
         if (_profileFloor != dd->Floor ||
-            !ReferenceEquals(_profileCatalog, _map?.Catalog))
+            !ReferenceEquals(_profileCatalog, catalog))
         {
-            _floorProfile = _map?.Catalog != null
-                ? RoomSitePlanner.BuildFloorProfile(_map.Catalog, dd->Floor)
+            _floorProfile = catalog != null
+                ? RoomSitePlanner.BuildFloorProfile(catalog, dd->Floor)
                 : null;
             _profileFloor = dd->Floor;
-            _profileCatalog = _map?.Catalog;
+            _profileCatalog = catalog;
         }
         if (_modelFloor != fk || _modelSightCount != observedSight.Count ||
             _modelProbeCount != fk.CompletedProbeCount)
         {
             _model = RoomSitePlanner.BuildCandidateModel(
-                _map?.Catalog, _map?.HoardYield, dd->ActiveLayoutIndex,
+                catalog, catalog != null ? _map?.HoardYield : null, dd->ActiveLayoutIndex,
                 dd->Floor, spawnRoom, _rooms, observedSight,
                 (room, pos) => fk.GetProbeKey(room, pos), fk.IsProbeCompleted,
                 _floorProfile);
@@ -479,7 +485,7 @@ internal sealed class ObjectiveSiteDriver : IDisposable
         // ---- candidate pool: calibrated model OR the fixed fallback ----
         var candidates = new List<(int Room, string Key, Vector3 Pos, float P)>();
         var optionalProb = new Dictionary<string, double>();
-        var candidatesOn = policy.SearchHoard && !fk.HoardAcquired &&
+        var candidatesOn = policy.SearchHoard && policy.AllowBlindHoardSearch && !fk.HoardAcquired &&
             !exact.HasValue && state == HoardEvidenceState.BlindSearch;
         if (candidatesOn)
         {
@@ -509,11 +515,11 @@ internal sealed class ObjectiveSiteDriver : IDisposable
                     if (room == spawnRoom)
                         continue;
                     var added = false;
-                    if (_map?.Catalog != null &&
-                        _map.Catalog.TryGetRoom(dd->ActiveLayoutIndex, room, out var catRoom))
+                    if (catalog != null &&
+                        catalog.TryGetRoom(dd->ActiveLayoutIndex, room, out var catRoom))
                     {
                         var plan = DetailedMapRoomCandidatePlanner.BuildPriorityOrder(
-                            _map.Catalog, catRoom, dd->Floor, observedSight);
+                            catalog, catRoom, dd->Floor, observedSight);
                         if (!plan.UsePalantirFallback)
                         {
                             added = true;
@@ -638,13 +644,21 @@ internal sealed class ObjectiveSiteDriver : IDisposable
                 1f, 3f, ObjectiveSiteStatus.Open,
                 Key: $"hoard:{exact.Value.X:0.###}:{exact.Value.Y:0.###}:{exact.Value.Z:0.###}"));
 
+        if (candidatesOn)
+            BlindHoardWork.Merge(produced, fk, optionalProb, (room, position) =>
+                _navigationMap != null && _navigationMap.ContainsWorld(position) &&
+                _navigationMap.CanStand(position) &&
+                _anchors.Any(anchor => anchor.Room == room &&
+                    _navigationMap.CanTraverse(anchor.Pos, position)));
+
         // Work failures stay scoped to the observation that produced them —
         // excluded AFTER live/remembered/exact generation, BEFORE the
         // completion merge and admission/required counts; never recorded
         // as completed.
         bool blindCoverageGap = state == HoardEvidenceState.BlindSearch &&
-            candidates.Any(candidate => _failedWorkKeys.ContainsKey(candidate.Key) &&
-                !fk.IsProbeCompleted(candidate.Key));
+            produced.Any(candidate => candidate.Kind == ObjectiveSiteKind.Candidate &&
+                _failedWorkKeys.ContainsKey(SiteKey(candidate)) &&
+                !fk.IsProbeCompleted(SiteKey(candidate)));
         ExcludeFailedWork(produced, playerPos);
 
         // Status merge: completion truth lives in knowledge, not in the
@@ -1314,7 +1328,7 @@ internal sealed class ObjectiveSiteDriver : IDisposable
                 }
             }
             else if (site.Kind == ObjectiveSiteKind.Candidate)
-                fk.MarkProbeCompleted(token.Key);
+                BlindHoardWork.Complete(fk, token, site);
             else if (TryIntelPurpose(token.Key, out var purpose, out var room))
                 fk.MarkIntelCompleted(room, purpose);
             else if (TryChestEntity(token.Key, out var entity))

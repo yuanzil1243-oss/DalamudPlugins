@@ -1,15 +1,15 @@
 {
   "Author": "John Smith / Yuzi",
   "Name": "NewFolder3",
-  "Punchline": "基于官方 .23，终局退本修复与地宫移动辅助",
+  "Punchline": "基于官方 .23，挖宝优化、范围盲踩与聚魔柄道具策略",
   "InternalName": "NewFolder3",
   "IconUrl": "https://raw.githubusercontent.com/yuanzil1243-oss/DalamudPlugins/main/NewFolder3/icon.png",
-  "AssemblyVersion": "0.7.55.2304",
+  "AssemblyVersion": "0.7.55.2305",
   "ApplicableVersion": "any",
   "DalamudApiLevel": 15,
   "LoadRequiredState": 0,
   "LoadSync": false,
   "CanUnloadAsync": false,
   "RepoUrl": "https://github.com/yuanzil1243-oss/DalamudPlugins",
-  "Description": "基于原作者 0.7.55.23 的本地修改版 0.7.55.2304。修复妖宫最终奖励出口保存进度确认的识别，确认后接回分数板及原循环。新增默认关闭的防击退／吸引（仅妖宫71–99层）和强制移动（仅地宫内）独立开关，出本、过图或死亡时停用。强制移动保留正常输入，不自行走路或恢复导航。保留原战斗、Boss、探索和寻路策略，以及模式续打、保档、失败重试、AE目标协调、移速与最大加速度、地宫内GCD保护、防踢、聚魔柄及2026-11-25.1版妖宫21–30、31–40签名地图。更新保留配置、地图缓存和暂停记录。构建与离线检查通过，游戏效果以实际场景为准。"
+  "Description": "基于原作者 0.7.55.23 的修改版 0.7.55.2305。修复死宫、天宫误用妖宫详细地图导致找宝站桩。历史候选按水平1.8米共同覆盖合并盲踩，准确点与宝箱仍直接处理。自由探索新增可选盲踩起止层：范围内优先感知，范围外仅感知溢出时使用并处理准确点。聚魔柄主动使用强化自身和妖宫加速；天宫弱化保留1个给Boss，第2个下一普通层使用，第9层拿到则当层使用；安宁保留1个给Boss，多余用于普通层。保留天宫魔石和妖宫过图杜松香规则、原战斗与下底循环，以及续打、保档、失败重试、AE目标协调、移速与最大加速度、地宫内GCD保护、防踢、防击退和强制移动。随包保留2026-11-25.1版妖宫21–30、31–40签名地图。更新保留配置、地图缓存和暂停记录。离线验证通过，实战效果仍需场景验证。"
 }
